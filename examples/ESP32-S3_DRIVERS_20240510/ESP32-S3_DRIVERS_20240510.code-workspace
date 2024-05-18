@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "ESP32-S3_DRIVERS_20240510",
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"freertos.h": "c"
+		}
+	}
+}
