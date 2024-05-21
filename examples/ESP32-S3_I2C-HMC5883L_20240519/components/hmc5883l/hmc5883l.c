@@ -98,6 +98,20 @@ static inline esp_err_t i2c_hmc5883l_read_register(i2c_hmc5883l_handle_t hmc5883
     return ESP_OK;
 }
 
+static inline esp_err_t i2c_hmc5883l_setup(i2c_hmc5883l_handle_t hmc5883l_handle) {
+    ESP_ARG_CHECK( hmc5883l_handle );
+
+    /* hmc5883l attempt to write configurations */
+    //ESP_GOTO_ON_ERROR(i2c_hmc5883l_write_mode(out_handle), err, TAG, "i2c write operation mode configuration failed");
+    ESP_ERROR_CHECK( i2c_hmc5883l_write_mode(hmc5883l_handle, hmc5883l_handle->mode) );
+    //ESP_GOTO_ON_ERROR(i2c_hmc5883l_write_samples_averaged(out_handle, hmc5883l_config->sample), err, TAG, "i2c write samples averaged configuration failed");
+    //ESP_GOTO_ON_ERROR(i2c_hmc5883l_write_data_rate(out_handle, hmc5883l_config->rate), err, TAG, "i2c write data rate configuration failed");
+    //ESP_GOTO_ON_ERROR(i2c_hmc5883l_write_bias(out_handle, hmc5883l_config->bias), err, TAG, "i2c write measurement mode (bias) configuration failed");
+    //ESP_GOTO_ON_ERROR(i2c_hmc5883l_write_gain(out_handle, hmc5883l_config->gain), err, TAG, "i2c write measurement gain configuration failed");
+
+    return ESP_OK;
+}
+
 static inline esp_err_t i2c_hmc5883l_update_register(i2c_hmc5883l_handle_t hmc5883l_handle, uint8_t reg_addr, uint8_t mask, uint8_t data) {
     uint8_t old;
     esp_err_t ret = i2c_hmc5883l_read_register(hmc5883l_handle, reg_addr, &old);
@@ -149,8 +163,9 @@ esp_err_t i2c_hmc5883l_init(i2c_master_bus_handle_t bus_handle, const i2c_hmc588
     
 
     /* hmc5883l attempt to write configurations */
+    //ESP_GOTO_ON_ERROR(i2c_hmc5883l_setup(out_handle), err, TAG, "i2c write setup configurations failed");
     //ESP_GOTO_ON_ERROR(i2c_hmc5883l_write_mode(out_handle), err, TAG, "i2c write operation mode configuration failed");
-    //ESP_GOTO_ON_ERROR(i2c_hmc5883l_write_mode(out_handle, hmc5883l_config->mode), err, TAG, "i2c write operation mode configuration failed");
+    ESP_GOTO_ON_ERROR(i2c_hmc5883l_write_mode(out_handle, hmc5883l_config->mode), err, TAG, "i2c write operation mode configuration failed");
     //ESP_GOTO_ON_ERROR(i2c_hmc5883l_write_samples_averaged(out_handle, hmc5883l_config->sample), err, TAG, "i2c write samples averaged configuration failed");
     //ESP_GOTO_ON_ERROR(i2c_hmc5883l_write_data_rate(out_handle, hmc5883l_config->rate), err, TAG, "i2c write data rate configuration failed");
     //ESP_GOTO_ON_ERROR(i2c_hmc5883l_write_bias(out_handle, hmc5883l_config->bias), err, TAG, "i2c write measurement mode (bias) configuration failed");

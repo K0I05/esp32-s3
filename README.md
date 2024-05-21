@@ -16,7 +16,7 @@
 # WIP Peripheral Drivers
  Peripherial device drivers that are work in progress (WIP) include:
 
- - Bosch BMP280
- - Honeywell HMC5883L
+ - Bosch BMP280 (to be posted)
+ - Honeywell HMC5883L (https://github.com/K0I05/esp32-s3/issues/1)
 
  Seeking assistance with above WIP drivers given they currently crash core and I am unable to decode the backtrace exception.  Any assistance or guidance would be greatly appreciated.
