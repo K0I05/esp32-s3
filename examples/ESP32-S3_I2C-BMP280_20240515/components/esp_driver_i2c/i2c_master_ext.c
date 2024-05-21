@@ -58,8 +58,8 @@ static const char *TAG = "i2c_master_ext";
 */
 
 esp_err_t i2c_master_bus_read_uint8(i2c_master_dev_handle_t handle, const uint8_t command, uint8_t *data) {
-    uint8_t tx[I2C_UINT8_SIZE] = {command};
-    uint8_t rx[I2C_UINT8_SIZE] = {0};
+    i2c_uint8_t tx = { command };
+    i2c_uint8_t rx = { 0 };
 
     ESP_ERROR_CHECK( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, rx, I2C_UINT8_SIZE, -1) );
 
@@ -71,8 +71,8 @@ esp_err_t i2c_master_bus_read_uint8(i2c_master_dev_handle_t handle, const uint8_
 }
 
 esp_err_t i2c_master_bus_read_uint16(i2c_master_dev_handle_t handle, const uint8_t command, uint16_t *data) {
-    uint8_t tx[I2C_UINT8_SIZE]  = {command};
-    uint8_t rx[I2C_UINT16_SIZE] = { 0, 0 };
+    i2c_uint8_t tx = { command };
+    i2c_uint16_t rx = { 0, 0 };
 
     ESP_ERROR_CHECK( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, rx, I2C_UINT16_SIZE, -1) );
 
@@ -84,8 +84,8 @@ esp_err_t i2c_master_bus_read_uint16(i2c_master_dev_handle_t handle, const uint8
 }
 
 esp_err_t i2c_master_bus_read_uint32(i2c_master_dev_handle_t handle, const uint8_t command, uint32_t *data) {
-    uint8_t tx[I2C_UINT8_SIZE] = {command};
-    uint8_t rx[I2C_UINT32_SIZE] = { 0, 0, 0, 0 };
+    i2c_uint8_t tx = { command };
+    i2c_uint32_t rx = { 0, 0, 0, 0 };
 
     ESP_ERROR_CHECK( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, rx, I2C_UINT32_SIZE, -1) );
 
@@ -109,7 +109,7 @@ esp_err_t i2c_master_bus_read_uint48(i2c_master_dev_handle_t handle, const uint8
 */
 
 esp_err_t i2c_master_bus_write_uint8(i2c_master_dev_handle_t handle, const uint8_t command) {
-    uint8_t tx[I2C_UINT8_SIZE] = {command};
+    i2c_uint8_t tx = { command };
 
     ESP_ERROR_CHECK( i2c_master_transmit(handle, tx, I2C_UINT8_SIZE, -1) );
 
