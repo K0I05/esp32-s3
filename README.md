@@ -1,7 +1,7 @@
 # esp32-s3
- Peripheral device drivers with examples for the ESP32-S3 chipset.
+ Peripheral device drivers with examples for the ESP32-S3 chipset.  This is a revised release utilizing esp-idf suggested design patterns through `handles`.
  
- I have give credit where credit is due, thank you Sheinz (https://github.com/sheinz>) and Ruslan (<unclerus@gmail.com>), and others where your code helped very much throughout this journey.
+ I have to give credit where credit is due, thank you Sheinz (https://github.com/sheinz>) and Ruslan (<unclerus@gmail.com>), and others where your code helped very much throughout this journey.
 
 # Peripheral Drivers
  Supported drivers include the following peripherals:
