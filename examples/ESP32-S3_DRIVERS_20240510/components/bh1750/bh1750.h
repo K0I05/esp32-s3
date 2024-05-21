@@ -38,7 +38,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <esp_err.h>
-#include <driver/i2c_master.h>
 #include <i2c_master_ext.h>
 
 #ifdef __cplusplus
@@ -48,8 +47,6 @@ extern "C" {
 /*
  * BH1750 definitions
 */
-#define I2C_BH1750_TX_DATA_SIZE     UINT8_C(1)        //!< bh1750 I2C transmit data size in bytes
-#define I2C_BH1750_RX_DATA_SIZE     UINT8_C(2)        //!< bh1750 I2C recieve data size in bytes
 #define I2C_BH1750_FREQ_HZ          (100000)          //!< bh1750 I2C default clock frequency (100KHz)
 
 #define I2C_BH1750_ADDR_LO          UINT8_C(0x23)     //!< bh1750 I2C address when ADDR pin floating/low
@@ -68,9 +65,6 @@ extern "C" {
 /*
  * SHT4X enumerator and sructure declerations
 */
-typedef uint8_t i2c_bh1750_tx_data_t[I2C_BH1750_TX_DATA_SIZE];
-typedef uint8_t i2c_bh1750_rx_data_t[I2C_BH1750_RX_DATA_SIZE];
-
 typedef struct i2c_bh1750_t i2c_bh1750_t;
 typedef struct i2c_bh1750_t *i2c_bh1750_handle_t;
 

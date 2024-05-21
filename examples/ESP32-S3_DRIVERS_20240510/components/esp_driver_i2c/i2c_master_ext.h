@@ -49,8 +49,17 @@ extern "C" {
 #define I2C_UINT64_SIZE	(8)
 #define I2C_UINT48_SIZE (6)
 #define I2C_UINT32_SIZE	(4)
+#define I2C_UINT24_SIZE	(3)
 #define I2C_UINT16_SIZE	(2)
 #define I2C_UINT8_SIZE	(1)
+
+typedef uint8_t     i2c_uint64_t[I2C_UINT64_SIZE];
+typedef uint8_t     i2c_uint48_t[I2C_UINT48_SIZE];
+typedef uint8_t     i2c_uint32_t[I2C_UINT32_SIZE];
+typedef uint8_t     i2c_uint24_t[I2C_UINT24_SIZE];
+typedef uint8_t     i2c_uint16_t[I2C_UINT16_SIZE];
+typedef uint8_t     i2c_uint8_t[I2C_UINT8_SIZE];
+
 
 //typedef uint8_t     i2c_uint48_t[I2C_UINT48_SIZE];
 

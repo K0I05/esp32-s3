@@ -38,7 +38,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <esp_err.h>
-#include <driver/i2c_master.h>
 #include <i2c_master_ext.h>
 
 #ifdef __cplusplus
@@ -48,8 +47,6 @@ extern "C" {
 /*
  * SHT4X definitions
 */
-#define I2C_SHT4X_TX_DATA_SIZE          UINT8_C(1)        //!< sht4x I2C transmit data size in bytes
-#define I2C_SHT4X_RX_DATA_SIZE          UINT8_C(6)        //!< sht4x I2C recieve data size in bytes
 #define I2C_SHT4X_CRC8_G_POLYNOM        UINT8_C(0x31)     //!< sht4x I2C CRC8 polynomial
 #define I2C_SHT4X_FREQ_HZ               (100000)          //!< sht4x I2C default clock frequency (100KHz)
 
@@ -61,9 +58,6 @@ extern "C" {
 */
 typedef struct i2c_sht4x_t i2c_sht4x_t;
 typedef struct i2c_sht4x_t *i2c_sht4x_handle_t;
-
-typedef uint8_t i2c_sht4x_tx_data_t[I2C_SHT4X_TX_DATA_SIZE];
-typedef uint8_t i2c_sht4x_rx_data_t[I2C_SHT4X_RX_DATA_SIZE];
 
 /*
  * supported commands

@@ -35,11 +35,8 @@
 #include "sht4x.h"
 #include <string.h>
 #include <stdio.h>
-#include <sdkconfig.h>
-#include <esp_types.h>
 #include <esp_log.h>
 #include <esp_check.h>
-#include <esp_timer.h>
 #include <driver/i2c_master.h>
 #include <i2c_master_ext.h>
 #include <freertos/FreeRTOS.h>
@@ -203,8 +200,8 @@ esp_err_t i2c_sht4x_read_serial_number(i2c_sht4x_handle_t sht4x_handle, uint32_t
 esp_err_t i2c_sht4x_measure(i2c_sht4x_handle_t sht4x_handle, float *temperature, float *humidity) {
     esp_err_t ret;
     size_t delay_ticks = 0;
-    i2c_sht4x_tx_data_t i2c_tx_buffer = { 0 };
-    i2c_sht4x_rx_data_t i2c_rx_buffer = { 0, 0, 0, 0, 0, 0 };
+    i2c_uint8_t i2c_tx_buffer = { 0 };
+    i2c_uint48_t i2c_rx_buffer = { 0, 0, 0, 0, 0, 0 };
 
     ESP_ARG_CHECK( sht4x_handle );
     
@@ -212,13 +209,13 @@ esp_err_t i2c_sht4x_measure(i2c_sht4x_handle_t sht4x_handle, float *temperature,
     delay_ticks      = i2c_sht4x_get_tick_duration(sht4x_handle);
 
     do {
-        ret = i2c_master_transmit(sht4x_handle->i2c_dev_handle, i2c_tx_buffer, I2C_SHT4X_TX_DATA_SIZE, -1);
+        ret = i2c_master_transmit(sht4x_handle->i2c_dev_handle, i2c_tx_buffer, I2C_UINT8_SIZE, -1);
     } while (ret == ESP_ERR_TIMEOUT);
     if (ret == ESP_OK) {
         if(delay_ticks) vTaskDelay(delay_ticks);
         do {
             // sht4x read response
-            ret = i2c_master_receive(sht4x_handle->i2c_dev_handle, i2c_rx_buffer, I2C_SHT4X_RX_DATA_SIZE, -1); 
+            ret = i2c_master_receive(sht4x_handle->i2c_dev_handle, i2c_rx_buffer, I2C_UINT48_SIZE, -1); 
         } while (ret == ESP_ERR_TIMEOUT);
         if (ret == ESP_OK) {
             // convert sht4x results to engineering units of measure (C and %)

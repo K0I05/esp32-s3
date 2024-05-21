@@ -35,11 +35,7 @@
 #include "bh1750.h"
 #include <string.h>
 #include <stdio.h>
-#include <sdkconfig.h>
-#include <esp_types.h>
 #include <esp_log.h>
-#include <esp_check.h>
-#include <esp_timer.h>
 #include <esp_check.h>
 #include <driver/i2c_master.h>
 #include <i2c_master_ext.h>
@@ -212,8 +208,8 @@ esp_err_t i2c_bh1750_set_measurement_time(i2c_bh1750_handle_t bh1750_handle, uin
 esp_err_t i2c_bh1750_measure(i2c_bh1750_handle_t bh1750_handle, uint16_t *illuminance) {
     esp_err_t ret;
     size_t delay_ticks = 0;
-    i2c_bh1750_tx_data_t i2c_tx_buffer = { 0 };
-    i2c_bh1750_rx_data_t i2c_rx_buffer = { 0, 0 };
+    i2c_uint8_t i2c_tx_buffer = { 0 };
+    i2c_uint16_t i2c_rx_buffer = { 0, 0 };
 
     ESP_ARG_CHECK( bh1750_handle );
     
@@ -221,13 +217,13 @@ esp_err_t i2c_bh1750_measure(i2c_bh1750_handle_t bh1750_handle, uint16_t *illumi
     delay_ticks = i2c_bh1750_get_tick_duration(bh1750_handle);
 
     do {
-        ret = i2c_master_transmit(bh1750_handle->i2c_dev_handle, i2c_tx_buffer, I2C_BH1750_TX_DATA_SIZE, -1);
+        ret = i2c_master_transmit(bh1750_handle->i2c_dev_handle, i2c_tx_buffer, I2C_UINT8_SIZE, -1);
     } while (ret == ESP_ERR_TIMEOUT);
     if (ret == ESP_OK) {
         if(delay_ticks) vTaskDelay(delay_ticks);
         do {
             // bh1750 read response
-            ret = i2c_master_receive(bh1750_handle->i2c_dev_handle, i2c_rx_buffer, I2C_BH1750_RX_DATA_SIZE, -1); 
+            ret = i2c_master_receive(bh1750_handle->i2c_dev_handle, i2c_rx_buffer, I2C_UINT16_SIZE, -1); 
         } while (ret == ESP_ERR_TIMEOUT);
         if (ret == ESP_OK) {
             // convert bh1750 results to engineering units of measure (lux)
