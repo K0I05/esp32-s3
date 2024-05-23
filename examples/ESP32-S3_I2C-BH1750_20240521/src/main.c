@@ -47,6 +47,14 @@
 
 #define CONFIG_APP_TAG                  "ECG_BH1750_TEST"
 
+// macros
+#define CONFIG_I2C_0_MASTER_DEFAULT {                               \
+        .clk_source                     = I2C_CLK_SRC_DEFAULT,      \
+        .i2c_port                       = CONFIG_I2C_0_PORT,        \
+        .scl_io_num                     = CONFIG_I2C_0_SCL_IO,      \
+        .sda_io_num                     = CONFIG_I2C_0_SDA_IO,      \
+        .glitch_ignore_cnt              = 7,                        \
+        .flags.enable_internal_pullup   = true, }
 
 static inline void vTaskDelayMs(const uint ms) {
     const TickType_t xDelay = (ms / portTICK_PERIOD_MS);
@@ -59,28 +67,19 @@ static inline void vTaskDelaySecUntil(TickType_t *previousWakeTime, const uint s
 }
 
 static void i2c_0_task( void *pvParameters ) {
-    TickType_t                          xLastWakeTime;
+    TickType_t                  xLastWakeTime;
     //
     //
     // initialize the xLastWakeTime variable with the current time.
-    xLastWakeTime                       = xTaskGetTickCount ();
+    xLastWakeTime               = xTaskGetTickCount ();
     //
     // initialize master i2c 0 bus configuration
-    i2c_master_bus_config_t             i2c0_master_cfg = {
-        .clk_source                     = I2C_CLK_SRC_DEFAULT,
-        .i2c_port                       = CONFIG_I2C_0_PORT,
-        .scl_io_num                     = CONFIG_I2C_0_SCL_IO,
-        .sda_io_num                     = CONFIG_I2C_0_SDA_IO,
-        .glitch_ignore_cnt              = 7,
-        .flags.enable_internal_pullup   = true,
-    }; // i2c_bus configurations
-    i2c_master_bus_handle_t             i2c0_bus_hdl;
+    i2c_master_bus_config_t     i2c0_master_cfg = CONFIG_I2C_0_MASTER_DEFAULT;
+    i2c_master_bus_handle_t     i2c0_bus_hdl;
     //
     // initialize bh1750 i2c device configuration
-    i2c_bh1750_config_t                bh1750_dev_cfg = {
-        .dev_config.device_address     = I2C_BH1750_ADDR_LO,
-    };
-    i2c_bh1750_handle_t                bh1750_dev_hdl;
+    i2c_bh1750_config_t         bh1750_dev_cfg = I2C_BH1750_CONFIG_DEFAULT;
+    i2c_bh1750_handle_t         bh1750_dev_hdl;
     //
     //
     // instantiate i2c 0 master bus

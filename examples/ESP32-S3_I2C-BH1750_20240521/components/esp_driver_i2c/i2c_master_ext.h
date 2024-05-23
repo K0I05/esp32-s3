@@ -67,31 +67,44 @@ typedef uint8_t     i2c_uint8_t[I2C_UINT8_SIZE];
  * @brief I2C device data (1-byte) read from command (1-byte).  This is a write-read I2C transaction.
  *
  * @param[in] handle device handle
- * @param[in] command device command (1-byte)
+ * @param[in] reg_addr device register address (1-byte)
  * @param[out] data data (1-byte) read from device
  * @return ESP_OK: init success. ESP_FAIL: not success.
  */
-esp_err_t i2c_master_bus_read_uint8(i2c_master_dev_handle_t handle, const uint8_t command, uint8_t *data);
+esp_err_t i2c_master_bus_read_uint8(i2c_master_dev_handle_t handle, const uint8_t reg_addr, uint8_t *data);
 
 /**
  * @brief I2C device data (2-byte) read from command (1-byte).  This is a write-read I2C transaction.
  *
  * @param[in] handle device handle
- * @param[in] command device command (1-byte)
+ * @param[in] reg_addr device register address (1-byte)
  * @param[out] data data (2-byte) read from device
  * @return ESP_OK: I2C master transmit-receive success - ESP_ERR_INVALID_ARG: I2C master transmit parameter invalid. - ESP_ERR_TIMEOUT: Operation timeout(larger than xfer_timeout_ms) because the bus is busy or hardware crash.
  */
-esp_err_t i2c_master_bus_read_uint16(i2c_master_dev_handle_t handle, const uint8_t command, uint16_t *data);
+esp_err_t i2c_master_bus_read_uint16(i2c_master_dev_handle_t handle, const uint8_t reg_addr, uint16_t *data);
+
+esp_err_t i2c_master_bus_read_byte16(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint16_t *data);
+
+/**
+ * @brief I2C device data (3-byte) read from command (1-byte).  This is a write-read I2C transaction.
+ *
+ * @param[in] handle device handle
+ * @param[in] reg_addr device register address (1-byte)
+ * @param[out] data data (3-byte) read from device
+ * @return ESP_OK: I2C master transmit-receive success - ESP_ERR_INVALID_ARG: I2C master transmit parameter invalid. - ESP_ERR_TIMEOUT: Operation timeout(larger than xfer_timeout_ms) because the bus is busy or hardware crash.
+ */
+esp_err_t i2c_master_bus_read_uint24(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint24_t *data);
+
 
 /**
  * @brief I2C device data (4-byte) read from command (1-byte).  This is a write-read I2C transaction.
  *
  * @param[in] handle device handle
- * @param[in] command device command (1-byte)
+ * @param[in] reg_addr device register address (1-byte)
  * @param[out] data data (4-byte) read from device
  * @return ESP_OK: I2C master transmit-receive success - ESP_ERR_INVALID_ARG: I2C master transmit parameter invalid. - ESP_ERR_TIMEOUT: Operation timeout(larger than xfer_timeout_ms) because the bus is busy or hardware crash.
  */
-esp_err_t i2c_master_bus_read_uint32(i2c_master_dev_handle_t handle, const uint8_t command, uint32_t *data);
+esp_err_t i2c_master_bus_read_uint32(i2c_master_dev_handle_t handle, const uint8_t reg_addr, uint32_t *data);
 
 
 /**
@@ -102,9 +115,9 @@ esp_err_t i2c_master_bus_read_uint32(i2c_master_dev_handle_t handle, const uint8
  * @param[out] data data (6-byte) read from device
  * @return ESP_OK: I2C master transmit-receive success - ESP_ERR_INVALID_ARG: I2C master transmit parameter invalid. - ESP_ERR_TIMEOUT: Operation timeout(larger than xfer_timeout_ms) because the bus is busy or hardware crash.
  */
-/*
-esp_err_t i2c_master_bus_read_uint48(i2c_master_dev_handle_t handle, const uint8_t command, uint8_t *data);
-*/
+//esp_err_t i2c_master_bus_read_uint48(i2c_master_dev_handle_t handle, const uint8_t command, uint8_t *data);
+esp_err_t i2c_master_bus_read_uint48(i2c_master_dev_handle_t handle, const uint8_t command, i2c_uint48_t *data);
+
 
 /**
  * @brief I2C device write command (1-byte).  This is a write I2C transaction only.
@@ -113,7 +126,16 @@ esp_err_t i2c_master_bus_read_uint48(i2c_master_dev_handle_t handle, const uint8
  * @param[in] command device command (1-byte)
  * @return ESP_OK: init success.
  */
-esp_err_t i2c_master_bus_write_uint8(i2c_master_dev_handle_t handle, const uint8_t command);
+esp_err_t i2c_master_bus_write_cmd(i2c_master_dev_handle_t handle, const uint8_t command);
+
+/**
+ * @brief I2C device write command (1-byte).  This is a write I2C transaction only.
+ *
+ * @param[in] handle device handle
+ * @param[in] reg_addr device register address (1-byte)
+ * @return ESP_OK: init success.
+ */
+esp_err_t i2c_master_bus_write_uint8(i2c_master_dev_handle_t handle, const uint8_t reg_addr, const uint8_t data);
 
 
 #ifdef __cplusplus

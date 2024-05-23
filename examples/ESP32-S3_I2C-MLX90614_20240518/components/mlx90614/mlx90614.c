@@ -268,6 +268,16 @@ esp_err_t i2c_mlx90614_read_object2_temperature(i2c_mlx90614_handle_t mlx90614_h
     return ESP_OK;
 }
 
+esp_err_t i2c_mlx90614_read_temperatures(i2c_mlx90614_handle_t mlx90614_handle, float *ambient_temperature, float *object1_temperature, float *object2_temperature) {
+    ESP_ARG_CHECK( mlx90614_handle && ambient_temperature && object1_temperature && object2_temperature );
+
+    ESP_ERROR_CHECK( i2c_mlx90614_read_ambient_temperature(mlx90614_handle, ambient_temperature) );
+    ESP_ERROR_CHECK( i2c_mlx90614_read_object1_temperature(mlx90614_handle, object1_temperature) );
+    ESP_ERROR_CHECK( i2c_mlx90614_read_object2_temperature(mlx90614_handle, object2_temperature) );
+
+    return ESP_OK;
+}
+
 esp_err_t i2c_mlx90614_read_ident_numbers(i2c_mlx90614_handle_t mlx90614_handle, uint32_t *ident_number_hi, uint32_t *ident_number_lo) {
     uint16_t id_num[I2C_UINT32_SIZE]; // 64-bit ident value
 

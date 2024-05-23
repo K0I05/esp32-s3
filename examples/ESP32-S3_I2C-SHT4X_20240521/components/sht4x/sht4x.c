@@ -188,7 +188,7 @@ esp_err_t i2c_sht4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sht4x_con
 esp_err_t i2c_sht4x_reset(i2c_sht4x_handle_t sht4x_handle) {
     ESP_ARG_CHECK( sht4x_handle );
 
-    return i2c_master_bus_write_uint8(sht4x_handle->i2c_dev_handle, I2C_SHT4X_CMD_RESET);
+    return i2c_master_bus_write_cmd(sht4x_handle->i2c_dev_handle, I2C_SHT4X_CMD_RESET);
 }
 
 esp_err_t i2c_sht4x_read_serial_number(i2c_sht4x_handle_t sht4x_handle, uint32_t *serial_number) {

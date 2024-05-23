@@ -4,7 +4,7 @@
  *
  * This example takes the parameters 
  *
- * board: (1) ESP32-S3-­WROOM­-1-N16R8 (esp32s3box)
+ * board: (1) ESP32-S3-­WROOM­-1-N16R8 | (2) ESP32-WROOM-32UE (ESP32 DevKit V4)
  * 
  * CTRL + SHIFT + P
  * pio run -t menufconfig
@@ -27,13 +27,17 @@
 #include <esp_timer.h>
 #include <esp_event.h>
 #include <esp_log.h>
-#include <driver/i2c_master.h>
+
 #include <nvs.h>
 #include <nvs_flash.h>
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/semphr.h>
+#include <freertos/queue.h>
+#include <freertos/event_groups.h>
 
-#include <mlx90614.h>
+#include <bmp280.h>
 
 
 #define CONFIG_I2C_0_PORT               I2C_NUM_0
@@ -44,7 +48,7 @@
 #define CONFIG_I2C_0_TASK_STACK_SIZE    (configMINIMAL_STACK_SIZE * 4)
 #define CONFIG_I2C_0_TASK_PRIORITY      (tskIDLE_PRIORITY + 2)
 
-#define CONFIG_APP_TAG                  "ECG_MLX90614_TEST"
+#define CONFIG_APP_TAG                  "ECG_BMP280_TEST"
 
 // macros
 #define CONFIG_I2C_0_MASTER_DEFAULT {                               \
@@ -76,9 +80,10 @@ static void i2c_0_task( void *pvParameters ) {
     i2c_master_bus_config_t     i2c0_master_cfg = CONFIG_I2C_0_MASTER_DEFAULT;
     i2c_master_bus_handle_t     i2c0_bus_hdl;
     //
-    // initialize mlx90614 i2c device configuration
-    i2c_mlx90614_config_t       mlx90614_dev_cfg = I2C_MLX90614_CONFIG_DEFAULT;
-    i2c_mlx90614_handle_t       mlx90614_dev_hdl;
+    // initialize bmp280 i2c device configuration
+    i2c_bmp280_config_t         bmp280_dev_cfg = I2C_BMP280_CONFIG_DEFAULT;
+    i2c_bmp280_handle_t         bmp280_dev_hdl;
+    //
     //
     //
     // instantiate i2c 0 master bus
@@ -87,66 +92,42 @@ static void i2c_0_task( void *pvParameters ) {
     //
     // init i2c devices
     //
-    // mlx90614 init device
-    i2c_mlx90614_init(i2c0_bus_hdl, &mlx90614_dev_cfg, &mlx90614_dev_hdl);
-    if (mlx90614_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "[APP] i2c0 i2c_bus_device_create mlx90614 handle init failed");
+    // bmp280 init device
+    i2c_bmp280_init(i2c0_bus_hdl, &bmp280_dev_cfg, &bmp280_dev_hdl);
+    if (bmp280_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "[APP] i2c0 i2c_bus_device_create bmp280 handle init failed");
     //
     //
-    //if(i2c_mlx90614_write_emissivity(mlx90614_dev_hdl, 0.98) != 0) {
-    //        ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device write emissivity failed");
-    //}
+    /*
+    ESP_LOGI(CONFIG_APP_TAG, "Calibration data received:");
+    ESP_LOGI(CONFIG_APP_TAG, "dig_T1=%u", bmp280_dev_hdl->dev_cal_factors->dig_T1);
+    ESP_LOGI(CONFIG_APP_TAG, "dig_T2=%d", bmp280_dev_hdl->dev_cal_factors->dig_T2);
+    ESP_LOGI(CONFIG_APP_TAG, "dig_T3=%d", bmp280_dev_hdl->dev_cal_factors->dig_T3);
+    ESP_LOGI(CONFIG_APP_TAG, "dig_P1=%u", bmp280_dev_hdl->dev_cal_factors->dig_P1);
+    ESP_LOGI(CONFIG_APP_TAG, "dig_P2=%d", bmp280_dev_hdl->dev_cal_factors->dig_P2);
+    ESP_LOGI(CONFIG_APP_TAG, "dig_P3=%d", bmp280_dev_hdl->dev_cal_factors->dig_P3);
+    ESP_LOGI(CONFIG_APP_TAG, "dig_P4=%d", bmp280_dev_hdl->dev_cal_factors->dig_P4);
+    ESP_LOGI(CONFIG_APP_TAG, "dig_P5=%d", bmp280_dev_hdl->dev_cal_factors->dig_P5);
+    ESP_LOGI(CONFIG_APP_TAG, "dig_P6=%d", bmp280_dev_hdl->dev_cal_factors->dig_P6);
+    ESP_LOGI(CONFIG_APP_TAG, "dig_P7=%d", bmp280_dev_hdl->dev_cal_factors->dig_P7);
+    ESP_LOGI(CONFIG_APP_TAG, "dig_P8=%d", bmp280_dev_hdl->dev_cal_factors->dig_P8);
+    ESP_LOGI(CONFIG_APP_TAG, "dig_P9=%d", bmp280_dev_hdl->dev_cal_factors->dig_P9);
+    */
+    //
+    //
+    //vTaskDelayMs(50);
     //
     // task loop entry point
     for ( ;; ) {
-        ESP_LOGI(CONFIG_APP_TAG, "######################## MLX90614 - START #########################");
         //
-        // handle mlx90614 sensor
-        //
-        float ambient_temperature;
-        float obj1_temperature; float obj2_temperature;
-        float max_temperature; float min_temperature;
-        float emissivity;
-        uint32_t ident_num_hi, ident_num_lo;
-        //
-        
-        if(i2c_mlx90614_read_ambient_temperature(mlx90614_dev_hdl, &ambient_temperature) != ESP_OK) {
-            ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read ambient temperature failed");
+        // handle bmp280 sensor
+        float temperature;
+        float pressure;
+        if(i2c_bmp280_read_measurement(bmp280_dev_hdl, &temperature, &pressure) != ESP_OK) {
+            ESP_LOGE(CONFIG_APP_TAG, "[APP] bmp280 device read failed");
         } else {
-            ESP_LOGI(CONFIG_APP_TAG, "mlx90614 ambient temperature:   %.2f C", ambient_temperature);
+            pressure = pressure / 100;
+            ESP_LOGI(CONFIG_APP_TAG, "bmp280 air temperature:   %.2f C, barometric pressure: %.2f hPa", temperature, pressure);
         }
-        //
-        if(i2c_mlx90614_read_object1_temperature(mlx90614_dev_hdl, &obj1_temperature) != ESP_OK) {
-            ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read object(1) temperature failed");
-        } else {
-            ESP_LOGI(CONFIG_APP_TAG, "mlx90614 object(1) temperature: %.2f C", obj1_temperature);
-        }
-        //
-        if(i2c_mlx90614_read_object2_temperature(mlx90614_dev_hdl, &obj2_temperature) != ESP_OK) {
-            ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read object(2) temperature failed");
-        } else {
-            ESP_LOGI(CONFIG_APP_TAG, "mlx90614 object(2) temperature: %.2f C", obj2_temperature);
-        }
-        //
-        if(i2c_mlx90614_read_object_temperature_ranges(mlx90614_dev_hdl, &max_temperature, &min_temperature) != ESP_OK) {
-            ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read maximum & minimum object temperature range failed");
-        } else {
-            ESP_LOGI(CONFIG_APP_TAG, "mlx90614 object temperature range, maximum: %.2f C, minimum: %.2f C", max_temperature, min_temperature);
-        }
-        //
-        if(i2c_mlx90614_read_emissivity(mlx90614_dev_hdl, &emissivity) != 0) {
-            ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read emissivity failed");
-        } else {
-            ESP_LOGI(CONFIG_APP_TAG, "mlx90614 emissivity (0.1 to 1.0): %.2f", emissivity);
-        }
-        
-        //
-        if(i2c_mlx90614_read_ident_numbers(mlx90614_dev_hdl, &ident_num_hi, &ident_num_lo) != ESP_OK) {
-            ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read identification number failed");
-        } else {
-            ESP_LOGI(CONFIG_APP_TAG, "mlx90614 identification number, Hi: %lu, Lo: %lu", ident_num_hi, ident_num_lo);
-        }
-        //
-        ESP_LOGI(CONFIG_APP_TAG, "######################## MLX90614 - END ###########################");
         //
         //
         // pause the task per defined wait period
@@ -154,8 +135,8 @@ static void i2c_0_task( void *pvParameters ) {
     }
     //
     // free up task resources and remove task from stack
-    i2c_mlx90614_rm( mlx90614_dev_hdl ); //remove mlx90614 device from master i2c bus
-    i2c_del_master_bus( i2c0_bus_hdl ); //delete master i2c bus
+    i2c_bmp280_rm( bmp280_dev_hdl );     //remove bmp280 device from master i2c bus
+    i2c_del_master_bus( i2c0_bus_hdl );  //delete master i2c bus
     vTaskDelete( NULL );
 }
 

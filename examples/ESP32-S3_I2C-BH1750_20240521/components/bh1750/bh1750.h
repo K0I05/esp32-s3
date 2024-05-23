@@ -63,6 +63,14 @@ extern "C" {
 #define I2C_BH1750_OPCODE_MT_LO     0x60
 
 /*
+ * macros
+*/
+#define I2C_BH1750_CONFIG_DEFAULT {                                     \
+        .dev_config.device_address     = I2C_BH1750_ADDR_LO,            \
+        .mode                          = I2C_BH1750_MODE_CONTINUOUS,    \
+        .resolution                    = I2C_BH1750_RES_HIGH, }
+
+/*
  * SHT4X enumerator and sructure declerations
 */
 typedef struct i2c_bh1750_t i2c_bh1750_t;

@@ -46,8 +46,9 @@
 
 #include <sht4x.h>
 #include <bh1750.h>
+#include <bmp280.h>
+#include <mlx90614.h>
 #include <s12sd.h>
-
 
 #define CONFIG_I2C_0_PORT               I2C_NUM_0
 #define CONFIG_I2C_0_SDA_IO             (gpio_num_t)(45) // blue
@@ -80,6 +81,13 @@
 */
 #define ARRAY_SIZE(arr)	(sizeof(arr) / sizeof((arr)[0]))
 #define ESP_ARG_CHECK(VAL) do { if (!(VAL)) return ESP_ERR_INVALID_ARG; } while (0)
+#define CONFIG_I2C_0_MASTER_DEFAULT {                               \
+        .clk_source                     = I2C_CLK_SRC_DEFAULT,      \
+        .i2c_port                       = CONFIG_I2C_0_PORT,        \
+        .scl_io_num                     = CONFIG_I2C_0_SCL_IO,      \
+        .sda_io_num                     = CONFIG_I2C_0_SDA_IO,      \
+        .glitch_ignore_cnt              = 7,                        \
+        .flags.enable_internal_pullup   = true, }
 #define ENSURE_TRUE(ACTION)           \
     do                                \
     {                                 \
@@ -105,6 +113,11 @@ typedef struct {
     struct {
         uint16_t    illuminance;
         uint8_t     uv_index;
+        struct {
+            float   ambient_temperature;
+            float   object1_temperature;
+            float   object2_temperature;
+        } temperature;
     } sky;
     struct {
         float       air_temperature;
@@ -112,6 +125,9 @@ typedef struct {
         float       dewpoint_temperature;
         float       wetbulb_temperature;
         float       barometric_pressure;
+        struct {
+            float compensation_temperature;
+        } pressure;
     } environment;
 } device_data_model_t;
 
@@ -184,13 +200,32 @@ static inline void print_data_model(const device_data_model_t data) {
      - Barometric Pressure in hectopascal
     */
    ESP_LOGI(CONFIG_APP_TAG, "[APP] ################################################");
-   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 board temperature:          %.2f C", data.system.temperature);
-   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 bh1750 ambient light:       %u Lux", data.sky.illuminance);
-   ESP_LOGI(CONFIG_APP_TAG, "[APP] adc0 s12sd uv index:             %u", data.sky.uv_index);
-   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 sht4x air temperature:      %.2f C", data.environment.air_temperature);
-   //ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 sht4x dewpoint temperature: %.2f C", data.environment.dewpoint_temperature);
-   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 sht4x relative humidity:    %.2f %%", data.environment.relative_humdity);
+   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 board temperature:               %.2f C", data.system.temperature);
+   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 bh1750 ambient light:            %u Lux", data.sky.illuminance);
+   ESP_LOGI(CONFIG_APP_TAG, "[APP] adc0 s12sd uv index:                  %u", data.sky.uv_index);
+   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 sht4x air temperature:           %.2f C", data.environment.air_temperature);
+   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 sht4x dewpoint temperature:      %.2f C", data.environment.dewpoint_temperature);
+   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 sht4x relative humidity:         %.2f %%", data.environment.relative_humdity);
+   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 bmp280 barometric pressure:      %.2f hPa", data.environment.barometric_pressure / 100);
+   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 bmp280 compensation temperature: %.2f C", data.environment.pressure.compensation_temperature);
+   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 mlx90614 ambient temperature:    %.2f C", data.sky.temperature.ambient_temperature);
+   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 mlx90614 object1 temp:           %.2f C", data.sky.temperature.object1_temperature);
+   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 mlx90614 object2 temp:           %.2f C", data.sky.temperature.object2_temperature);
    ESP_LOGI(CONFIG_APP_TAG, "[APP] ################################################");
+}
+
+static inline esp_err_t wx_td(const float ta, const float rh, float *td) {
+    ESP_ARG_CHECK(ta && rh);
+
+    // validate parameters
+    if(ta > 80 || ta < -40) return ESP_ERR_INVALID_ARG;
+    if(rh > 100 || rh < 0) return ESP_ERR_INVALID_ARG;
+    
+    // calculate dew-point temperature
+    double H = (log10(rh)-2)/0.4343 + (17.62*ta)/(243.12+ta);
+    *td = 243.12*H/(17.62-H);
+    
+    return ESP_OK;
 }
 
 static void i2c_0_task( void *pvParameters ) {
@@ -199,38 +234,31 @@ static void i2c_0_task( void *pvParameters ) {
     /*
     * internal temperature sensor (ESP32-S3)
     */
-    temperature_sensor_handle_t         ti_sensor_hdl;
-    temperature_sensor_config_t         ti_sensor_cfg = TEMPERATURE_SENSOR_CONFIG_DEFAULT (20, 50);
+    temperature_sensor_handle_t     ti_sensor_hdl;
+    temperature_sensor_config_t     ti_sensor_cfg = TEMPERATURE_SENSOR_CONFIG_DEFAULT (20, 50);
     //
     // initialize the xLastWakeTime variable with the current time.
-    xLastWakeTime                       = xTaskGetTickCount ();
+    xLastWakeTime                   = xTaskGetTickCount ();
     //
     // initialize master i2c 0 bus configuration
-    i2c_master_bus_config_t             i2c0_master_cfg = {
-        .clk_source                     = I2C_CLK_SRC_DEFAULT,
-        .i2c_port                       = CONFIG_I2C_0_PORT,
-        .scl_io_num                     = CONFIG_I2C_0_SCL_IO,
-        .sda_io_num                     = CONFIG_I2C_0_SDA_IO,
-        .glitch_ignore_cnt              = 7,
-        .flags.enable_internal_pullup   = true,
-    }; // i2c_bus configurations
-    i2c_master_bus_handle_t             i2c0_bus_hdl;
+    i2c_master_bus_config_t         i2c0_master_cfg = CONFIG_I2C_0_MASTER_DEFAULT;
+    i2c_master_bus_handle_t         i2c0_bus_hdl;
     //
     // initialize sht4x i2c device configuration
-    i2c_sht4x_config_t                 sht4x_dev_cfg = {
-        .dev_config.device_address     = I2C_SHT4X_ADDR_LO,
-        .heater                        = I2C_SHT4X_HEATER_OFF,
-        .repeatability                 = I2C_SHT4X_REPEAT_HIGH,
-    };
-    i2c_sht4x_handle_t                 sht4x_dev_hdl;
+    i2c_sht4x_config_t              sht4x_dev_cfg = I2C_SHT4X_CONFIG_DEFAULT;
+    i2c_sht4x_handle_t              sht4x_dev_hdl;
     //
     // initialize bh1750 i2c device configuration
-    i2c_bh1750_config_t                bh1750_dev_cfg = {
-        .dev_config.device_address     = I2C_BH1750_ADDR_LO,
-        .mode                          = I2C_BH1750_MODE_CONTINUOUS,
-        .resolution                    = I2C_BH1750_RES_HIGH,
-    };
-    i2c_bh1750_handle_t                bh1750_dev_hdl;
+    i2c_bh1750_config_t             bh1750_dev_cfg = I2C_BH1750_CONFIG_DEFAULT;
+    i2c_bh1750_handle_t             bh1750_dev_hdl;
+    //
+    // initialize bmp280 i2c device configuration
+    i2c_bmp280_config_t             bmp280_dev_cfg = I2C_BMP280_CONFIG_DEFAULT;
+    i2c_bmp280_handle_t             bmp280_dev_hdl;
+    //
+    // initialize mlx90614 i2c device configuration
+    i2c_mlx90614_config_t           mlx90614_dev_cfg = I2C_MLX90614_CONFIG_DEFAULT;
+    i2c_mlx90614_handle_t           mlx90614_dev_hdl;
     //
     //
     // install and enable temperature sensor
@@ -251,19 +279,41 @@ static void i2c_0_task( void *pvParameters ) {
     i2c_bh1750_init(i2c0_bus_hdl, &bh1750_dev_cfg, &bh1750_dev_hdl);
     if (bh1750_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "[APP] i2c0 i2c_bus_device_create bh1750 handle init failed");
     //
+    // bmp280 init device
+    i2c_bmp280_init(i2c0_bus_hdl, &bmp280_dev_cfg, &bmp280_dev_hdl);
+    if (bmp280_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "[APP] i2c0 i2c_bus_device_create bmp280 handle init failed");
+    //
+    // mlx90614 init device
+    i2c_mlx90614_init(i2c0_bus_hdl, &mlx90614_dev_cfg, &mlx90614_dev_hdl);
+    if (mlx90614_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "[APP] i2c0 i2c_bus_device_create mlx90614 handle init failed");
+    //
     // task loop entry point
     for ( ;; ) {
         //
         // handle sht4x sensor
-        float ta, rh;
-        if(i2c_sht4x_measure(sht4x_dev_hdl, &ta, &rh) != 0) {
+        float ta, rh, td;
+        if(i2c_sht4x_measure(sht4x_dev_hdl, &ta, &rh) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] sht4x device read failed");
         }
+        wx_td(ta, rh, &td); // compute dew-point temperature
         //
         // handle bh1750 sensor
         uint16_t lu;
-        if(i2c_bh1750_measure(bh1750_dev_hdl, &lu) != 0) {
+        if(i2c_bh1750_measure(bh1750_dev_hdl, &lu) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] bh1750 device read failed");
+        }
+        //
+        // handle bmp280 sensor
+        float cmp_t, bp;
+        if(i2c_bmp280_read_measurement(bmp280_dev_hdl, &cmp_t, &bp) != ESP_OK) {
+            ESP_LOGE(CONFIG_APP_TAG, "[APP] bmp280 device read failed");
+        }
+        //
+        // handle mlx90614 sensor
+        float amb_t;
+        float obj1_t; float obj2_t;
+        if(i2c_mlx90614_read_temperatures(mlx90614_dev_hdl, &amb_t, &obj1_t, &obj2_t) != ESP_OK) {
+            ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read ambient temperature failed");
         }
         //
         // handle internal temperature sensor
@@ -278,7 +328,13 @@ static void i2c_0_task( void *pvParameters ) {
         ENSURE_TRUE( xSemaphoreTake(l_dev_data_model_mutex, CONFIG_SEM_WAIT_TIME) );
         l_dev_data_model.environment.air_temperature = ta;
         l_dev_data_model.environment.relative_humdity = rh;
+        l_dev_data_model.environment.dewpoint_temperature = td;
+        l_dev_data_model.environment.barometric_pressure = bp;
+        l_dev_data_model.environment.pressure.compensation_temperature = cmp_t;
         l_dev_data_model.sky.illuminance = lu;
+        l_dev_data_model.sky.temperature.ambient_temperature = amb_t;
+        l_dev_data_model.sky.temperature.object1_temperature = obj1_t;
+        l_dev_data_model.sky.temperature.object2_temperature = obj2_t;
         l_dev_data_model.system.temperature = ts;
         ENSURE_TRUE( xSemaphoreGive(l_dev_data_model_mutex) );
         //
@@ -287,9 +343,11 @@ static void i2c_0_task( void *pvParameters ) {
     }
     //
     // free up task resources and remove task from stack
-    i2c_sht4x_rm( sht4x_dev_hdl ); //remove sht4x device from master i2c bus
-    i2c_bh1750_rm( bh1750_dev_hdl ); //remove bh1750 device from master i2c bus
-    i2c_del_master_bus( i2c0_bus_hdl ); //delete master i2c bus
+    i2c_sht4x_rm( sht4x_dev_hdl );       //remove sht4x device from master i2c bus
+    i2c_bh1750_rm( bh1750_dev_hdl );     //remove bh1750 device from master i2c bus
+    i2c_bmp280_rm( bmp280_dev_hdl );     //remove bmp280 device from master i2c bus
+    i2c_mlx90614_rm( mlx90614_dev_hdl ); //remove mlx90614 device from master i2c bus
+    i2c_del_master_bus( i2c0_bus_hdl );  //delete master i2c bus
     vTaskDelete( NULL );
 }
 

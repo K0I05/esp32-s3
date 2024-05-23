@@ -54,6 +54,14 @@ extern "C" {
 #define I2C_SHT4X_ADDR_HI               UINT8_C(0x45)     //!< sht4x I2C address when ADDR pin high
 
 /*
+ * macros
+*/
+#define I2C_SHT4X_CONFIG_DEFAULT {                                      \
+        .dev_config.device_address     = I2C_SHT4X_ADDR_LO,             \
+        .heater                        = I2C_SHT4X_HEATER_OFF,          \
+        .repeatability                 = I2C_SHT4X_REPEAT_HIGH, }
+
+/*
  * SHT4X enumerator and sructure declerations
 */
 typedef struct i2c_sht4x_t i2c_sht4x_t;

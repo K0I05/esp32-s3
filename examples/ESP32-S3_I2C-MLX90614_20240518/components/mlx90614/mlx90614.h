@@ -47,21 +47,21 @@ extern "C" {
 /*
  * MLX90614 definitions
 */
-#define I2C_MLX90614_TX_DATA_SIZE          UINT8_C(1)        //!< mlx90614 I2C transmit data size in bytes
-#define I2C_MLX90614_RX_DATA_SIZE          UINT8_C(3)        //!< mlx90614 I2C recieve data size in bytes
 #define I2C_MLX90614_CRC8_POLYNOM          UINT8_C(7)        //!< mlx90614 I2C CRC8 polynomial
 #define I2C_MLX90614_FREQ_HZ               (100000)          //!< mlx90614 I2C default clock frequency (100KHz)
 #define I2C_MLX90614_ADDR                  UINT8_C(0x5A)     //!< mlx90614 I2C address when ADDR pin floating/low
 
-typedef uint8_t i2c_mlx90614_tx_data_t[I2C_MLX90614_TX_DATA_SIZE];
-typedef uint8_t i2c_mlx90614_rx_data_t[I2C_MLX90614_RX_DATA_SIZE];
-
-typedef struct i2c_mlx90614_t i2c_mlx90614_t;
-typedef struct i2c_mlx90614_t *i2c_mlx90614_handle_t;
+/*
+ * macros
+*/
+#define I2C_MLX90614_CONFIG_DEFAULT {                               \
+        .dev_config.device_address     = I2C_MLX90614_ADDR, }
 
 /*
  * SHT4X enumerator and sructure declerations
 */
+typedef struct i2c_mlx90614_t i2c_mlx90614_t;
+typedef struct i2c_mlx90614_t *i2c_mlx90614_handle_t;
 
 /*
  * supported commands

@@ -163,19 +163,19 @@ esp_err_t i2c_bh1750_init(i2c_master_bus_handle_t bus_handle, const i2c_bh1750_c
 esp_err_t i2c_bh1750_reset(i2c_bh1750_handle_t bh1750_handle) {
     ESP_ARG_CHECK( bh1750_handle );
 
-    return i2c_master_bus_write_uint8(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_RESET);
+    return i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_RESET);
 }
 
 esp_err_t i2c_bh1750_power_up(i2c_bh1750_handle_t bh1750_handle) {
     ESP_ARG_CHECK( bh1750_handle );
 
-    return i2c_master_bus_write_uint8(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_UP);
+    return i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_UP);
 }
 
 esp_err_t i2c_bh1750_power_down(i2c_bh1750_handle_t bh1750_handle) {
     ESP_ARG_CHECK( bh1750_handle );
 
-    return i2c_master_bus_write_uint8(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_DOWN);
+    return i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_DOWN);
 }
 
 esp_err_t i2c_bh1750_setup(i2c_bh1750_handle_t bh1750_handle) {
@@ -189,7 +189,7 @@ esp_err_t i2c_bh1750_setup(i2c_bh1750_handle_t bh1750_handle) {
         default:                    opcode |= I2C_BH1750_OPCODE_HIGH2; break;
     }
 
-    ESP_ERROR_CHECK( i2c_master_bus_write_uint8(bh1750_handle->i2c_dev_handle, opcode) );
+    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, opcode) );
 
     ESP_LOGD(TAG, "i2c_bh1750_setup(VAL = 0x%02x)", opcode);
 
@@ -199,8 +199,8 @@ esp_err_t i2c_bh1750_setup(i2c_bh1750_handle_t bh1750_handle) {
 esp_err_t i2c_bh1750_set_measurement_time(i2c_bh1750_handle_t bh1750_handle, uint8_t time) {
     ESP_ARG_CHECK( bh1750_handle );
 
-    ESP_ERROR_CHECK( i2c_master_bus_write_uint8(bh1750_handle->i2c_dev_handle, I2C_BH1750_OPCODE_MT_HI | (time >> 5)) );
-    ESP_ERROR_CHECK( i2c_master_bus_write_uint8(bh1750_handle->i2c_dev_handle, I2C_BH1750_OPCODE_MT_LO | (time >> 0x1f)) );
+    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_OPCODE_MT_HI | (time >> 5)) );
+    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_OPCODE_MT_LO | (time >> 0x1f)) );
 
     return ESP_OK;
 }
