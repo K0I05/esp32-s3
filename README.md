@@ -10,13 +10,11 @@
  - I2C: ROHM BH1750FVI
  - I2C: Melexis MLX90614
  - I2C: Sensirion SHT4x
+ - I2C: Bosch BMP280
  
- Above peripheral drivers have been tested and validated with a logic analyzer.  If any problems arise please feel free to create a bug ticket.
+ Above peripheral drivers have been tested and validated with a logic analyzer.  If any problems arise please feel free to log an issue.
 
 # WIP Peripheral Drivers
  Peripherial device drivers that are work in progress (WIP) include:
 
- - Bosch BMP280 (to be posted)
- - Honeywell HMC5883L (https://github.com/K0I05/esp32-s3/issues/1)
-
- Seeking assistance with above WIP drivers given they currently crash core and I am unable to decode the backtrace exception.  Any assistance or guidance would be greatly appreciated.
+ - Honeywell HMC5883L
