@@ -92,9 +92,6 @@ static void i2c_0_task( void *pvParameters ) {
     if (mlx90614_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "[APP] i2c0 i2c_bus_device_create mlx90614 handle init failed");
     //
     //
-    //if(i2c_mlx90614_write_emissivity(mlx90614_dev_hdl, 0.98) != 0) {
-    //        ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device write emissivity failed");
-    //}
     //
     // task loop entry point
     for ( ;; ) {
@@ -104,47 +101,32 @@ static void i2c_0_task( void *pvParameters ) {
         //
         float ambient_temperature;
         float obj1_temperature; float obj2_temperature;
-        float max_temperature; float min_temperature;
-        float emissivity;
-        uint32_t ident_num_hi, ident_num_lo;
         //
-        
-        if(i2c_mlx90614_read_ambient_temperature(mlx90614_dev_hdl, &ambient_temperature) != ESP_OK) {
+        //
+        ESP_LOGW(CONFIG_APP_TAG, "mlx90614 device configuration settings:");
+        ESP_LOGI(CONFIG_APP_TAG, "mlx90614 identification number (init),         Hi: %lu, Lo: %lu", mlx90614_dev_hdl->dev_params->ident_number_hi, mlx90614_dev_hdl->dev_params->ident_number_lo);
+        ESP_LOGI(CONFIG_APP_TAG, "mlx90614 object temperature range (init), maximum: %.2f C, minimum: %.2f C", mlx90614_dev_hdl->dev_params->obj_max_temperature, mlx90614_dev_hdl->dev_params->obj_min_temperature);
+        ESP_LOGI(CONFIG_APP_TAG, "mlx90614 emissivity (0.1 to 1.0 - init):           %.2f", mlx90614_dev_hdl->dev_params->emissivity);
+        //
+        ESP_LOGW(CONFIG_APP_TAG, "mlx90614 device measurements:");
+        if(i2c_mlx90614_get_ambient_temperature(mlx90614_dev_hdl, &ambient_temperature) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read ambient temperature failed");
         } else {
             ESP_LOGI(CONFIG_APP_TAG, "mlx90614 ambient temperature:   %.2f C", ambient_temperature);
         }
         //
-        if(i2c_mlx90614_read_object1_temperature(mlx90614_dev_hdl, &obj1_temperature) != ESP_OK) {
+        if(i2c_mlx90614_get_object1_temperature(mlx90614_dev_hdl, &obj1_temperature) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read object(1) temperature failed");
         } else {
             ESP_LOGI(CONFIG_APP_TAG, "mlx90614 object(1) temperature: %.2f C", obj1_temperature);
         }
         //
-        if(i2c_mlx90614_read_object2_temperature(mlx90614_dev_hdl, &obj2_temperature) != ESP_OK) {
+        if(i2c_mlx90614_get_object2_temperature(mlx90614_dev_hdl, &obj2_temperature) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read object(2) temperature failed");
         } else {
             ESP_LOGI(CONFIG_APP_TAG, "mlx90614 object(2) temperature: %.2f C", obj2_temperature);
         }
         //
-        if(i2c_mlx90614_read_object_temperature_ranges(mlx90614_dev_hdl, &max_temperature, &min_temperature) != ESP_OK) {
-            ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read maximum & minimum object temperature range failed");
-        } else {
-            ESP_LOGI(CONFIG_APP_TAG, "mlx90614 object temperature range, maximum: %.2f C, minimum: %.2f C", max_temperature, min_temperature);
-        }
-        //
-        if(i2c_mlx90614_read_emissivity(mlx90614_dev_hdl, &emissivity) != 0) {
-            ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read emissivity failed");
-        } else {
-            ESP_LOGI(CONFIG_APP_TAG, "mlx90614 emissivity (0.1 to 1.0): %.2f", emissivity);
-        }
-        
-        //
-        if(i2c_mlx90614_read_ident_numbers(mlx90614_dev_hdl, &ident_num_hi, &ident_num_lo) != ESP_OK) {
-            ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read identification number failed");
-        } else {
-            ESP_LOGI(CONFIG_APP_TAG, "mlx90614 identification number, Hi: %lu, Lo: %lu", ident_num_hi, ident_num_lo);
-        }
         //
         ESP_LOGI(CONFIG_APP_TAG, "######################## MLX90614 - END ###########################");
         //

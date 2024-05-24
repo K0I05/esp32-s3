@@ -47,14 +47,27 @@ extern "C" {
 /*
  * SHT4X definitions
 */
-#define I2C_SHT4X_CRC8_G_POLYNOM        UINT8_C(0x31)     //!< sht4x I2C CRC8 polynomial
-#define I2C_SHT4X_FREQ_HZ               (100000)          //!< sht4x I2C default clock frequency (100KHz)
+#define I2C_SHT4X_CRC8_G_POLYNOM        UINT8_C(0x31)   //!< sht4x I2C CRC8 polynomial
+#define I2C_SHT4X_DATA_RATE_HZ          (100000)        //!< sht4x I2C default clock frequency (100KHz)
+#define I2C_SHT4X_XFR_TIMEOUT           (100)           //!< sht4x I2C transaction timeout in milliseconds
 
-#define I2C_SHT4X_ADDR_LO               UINT8_C(0x44)     //!< sht4x I2C address when ADDR pin floating/low
-#define I2C_SHT4X_ADDR_HI               UINT8_C(0x45)     //!< sht4x I2C address when ADDR pin high
+#define I2C_SHT4X_ADDR_LO               UINT8_C(0x44)   //!< sht4x I2C address when ADDR pin floating/low
+#define I2C_SHT4X_ADDR_HI               UINT8_C(0x45)   //!< sht4x I2C address when ADDR pin high
+
+#define I2C_SHT4X_CMD_RESET             UINT8_C(0x94)   //!< sht4x I2C soft-reset command 
+#define I2C_SHT4X_CMD_SERIAL            UINT8_C(0x89)   //!< sht4x I2C serial number request command
+#define I2C_SHT4X_CMD_MEAS_HIGH         UINT8_C(0xFD)   //!< sht4x I2C high resolution measurement command
+#define I2C_SHT4X_CMD_MEAS_MED          UINT8_C(0xF6)   //!< sht4x I2C medium resolution measurement command
+#define I2C_SHT4X_CMD_MEAS_LOW          UINT8_C(0xE0)   //!< sht4x I2C low resolution measurement command
+#define I2C_SHT4X_CMD_MEAS_H_HIGH_LONG  UINT8_C(0x39)   //!< sht4x I2C high resolution measurement command with heater enabled long pulse
+#define I2C_SHT4X_CMD_MEAS_H_HIGH_SHORT UINT8_C(0x32)   //!< sht4x I2C high resolution measurement command with heater enabled short pulse
+#define I2C_SHT4X_CMD_MEAS_H_MED_LONG   UINT8_C(0x2F)   //!< sht4x I2C medium resolution measurement command with heater enabled long pulse
+#define I2C_SHT4X_CMD_MEAS_H_MED_SHORT  UINT8_C(0x24)   //!< sht4x I2C medium resolution measurement command with heater enabled short pulse
+#define I2C_SHT4X_CMD_MEAS_H_LOW_LONG   UINT8_C(0x1E)   //!< sht4x I2C low resolution measurement command with heater enabled long pulse
+#define I2C_SHT4X_CMD_MEAS_H_LOW_SHORT  UINT8_C(0x15)   //!< sht4x I2C low resolution measurement command with heater enabled short pulse
 
 /*
- * macros
+ * SHT4X macro definitions
 */
 #define I2C_SHT4X_CONFIG_DEFAULT {                                      \
         .dev_config.device_address     = I2C_SHT4X_ADDR_LO,             \
@@ -66,26 +79,6 @@ extern "C" {
 */
 typedef struct i2c_sht4x_t i2c_sht4x_t;
 typedef struct i2c_sht4x_t *i2c_sht4x_handle_t;
-
-/*
- * supported commands
-*/
-typedef enum {
-    /* soft reset */
-    I2C_SHT4X_CMD_RESET                     = 0x94,
-    /* read serial number */
-    I2C_SHT4X_CMD_SERIAL                    = 0x89,
-    /* measure with high precisioh (high repeatability) */
-    I2C_SHT4X_CMD_MEAS_HIGH                 = 0xFD,
-    I2C_SHT4X_CMD_MEAS_MED                  = 0xF6,
-    I2C_SHT4X_CMD_MEAS_LOW                  = 0xE0,
-    I2C_SHT4X_CMD_MEAS_H_HIGH_LONG          = 0x39,
-    I2C_SHT4X_CMD_MEAS_H_HIGH_SHORT         = 0x32,
-    I2C_SHT4X_CMD_MEAS_H_MED_LONG           = 0x2F,
-    I2C_SHT4X_CMD_MEAS_H_MED_SHORT          = 0x24,
-    I2C_SHT4X_CMD_MEAS_H_LOW_LONG           = 0x1E,
-    I2C_SHT4X_CMD_MEAS_H_LOW_SHORT          = 0x15
-} i2c_sht4x_commands_t;
 
 /*
  * possible heater modes
@@ -104,9 +97,9 @@ typedef enum {
  * possible repeatability modes
  */
 typedef enum {
-    I2C_SHT4X_REPEAT_HIGH = 0,
-    I2C_SHT4X_REPEAT_MEDIUM,
-    I2C_SHT4X_REPEAT_LOW
+    I2C_SHT4X_REPEAT_HIGH = 0,                  /*!< high repeatability */
+    I2C_SHT4X_REPEAT_MEDIUM,                    /*!< medium repeatability */
+    I2C_SHT4X_REPEAT_LOW                        /*!< low repeatability */
 } i2c_sht4x_repeat_modes_t;
 
 /**
@@ -114,18 +107,25 @@ typedef enum {
  */
 typedef struct {
     i2c_device_config_t      dev_config;       /*!< configuration for sht4x device */
-    i2c_sht4x_repeat_modes_t repeatability;    /*!< used repeatability */
-    i2c_sht4x_heater_modes_t heater;           /*!< used measurement mode */
+    i2c_sht4x_repeat_modes_t repeatability;    /*!< measurement repeatability */
+    i2c_sht4x_heater_modes_t heater;           /*!< measurement mode */
 } i2c_sht4x_config_t;
+
+/**
+ * @brief i2c sh4xt device configuration parameters.
+ */
+typedef struct {
+    i2c_sht4x_repeat_modes_t repeatability;   /*!< measurement repeatability */
+    i2c_sht4x_heater_modes_t heater;          /*!< measurement mode */
+    uint32_t                 serial_number;   /*!< sht4x device serial number */
+} i2c_sht4x_params_t;
 
 /**
  * @brief i2c sh4xt device handle.
  */
 struct i2c_sht4x_t {
     i2c_master_dev_handle_t  i2c_dev_handle;  /*!< I2C device handle */
-    i2c_sht4x_repeat_modes_t repeatability;   /*!< used repeatability */
-    i2c_sht4x_heater_modes_t heater;          /*!< used measurement mode */
-    uint32_t                 serial_number;    /*!< sht4x device serial number */
+    i2c_sht4x_params_t       *dev_params;     /*!< sht4x device configuration parameters */
 };
 
 
@@ -148,15 +148,6 @@ esp_err_t i2c_sht4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sht4x_con
 esp_err_t i2c_sht4x_reset(i2c_sht4x_handle_t sht4x_handle);
 
 /**
- * @brief read serial number from sensor
- *
- * @param[in] sht4x_config configuration of sht4x device
- * @param[out] serial_number serial number of sht4x device
- * @return ESP_OK: init success.
- */
-esp_err_t i2c_sht4x_read_serial_number(i2c_sht4x_handle_t sht4x_handle, uint32_t *serial_number);
-
-/**
  * @brief high-level measurement function
  *
  * this function comprises all three steps to perform
@@ -175,7 +166,18 @@ esp_err_t i2c_sht4x_read_serial_number(i2c_sht4x_handle_t sht4x_handle, uint32_t
  * @param[out] humidity humidity in percent
  * @return ESP_OK: init success.
  */
-esp_err_t i2c_sht4x_measure(i2c_sht4x_handle_t sht4x_handle, float *temperature, float *humidity);
+esp_err_t i2c_sht4x_get_measurement(i2c_sht4x_handle_t sht4x_handle, float *temperature, float *humidity);
+
+/**
+ * @brief similar function to `i2c_sht4x_read_measurement` but it includes dewpoint.
+ *
+ * @param[in] sht4x_handle sht4x device handle
+ * @param[out] temperature temperature in degree Celsius
+ * @param[out] humidity humidity in percent
+ * @param[out] dewpoint calculated dewpoint temperature in degree Celsius
+ * @return ESP_OK: init success.
+ */
+esp_err_t i2c_sht4x_get_measurements(i2c_sht4x_handle_t sht4x_handle, float *temperature, float *humidity, float *dewpoint);
 
 /**
  * @brief removes an sht4x device from master bus.

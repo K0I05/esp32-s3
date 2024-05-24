@@ -292,27 +292,26 @@ static void i2c_0_task( void *pvParameters ) {
         //
         // handle sht4x sensor
         float ta, rh, td;
-        if(i2c_sht4x_measure(sht4x_dev_hdl, &ta, &rh) != ESP_OK) {
+        if(i2c_sht4x_get_measurement(sht4x_dev_hdl, &ta, &rh) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] sht4x device read failed");
         }
         wx_td(ta, rh, &td); // compute dew-point temperature
         //
         // handle bh1750 sensor
         uint16_t lu;
-        if(i2c_bh1750_measure(bh1750_dev_hdl, &lu) != ESP_OK) {
+        if(i2c_bh1750_get_measurement(bh1750_dev_hdl, &lu) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] bh1750 device read failed");
         }
         //
         // handle bmp280 sensor
         float cmp_t, bp;
-        if(i2c_bmp280_read_measurement(bmp280_dev_hdl, &cmp_t, &bp) != ESP_OK) {
+        if(i2c_bmp280_get_measurement(bmp280_dev_hdl, &cmp_t, &bp) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] bmp280 device read failed");
         }
         //
         // handle mlx90614 sensor
-        float amb_t;
-        float obj1_t; float obj2_t;
-        if(i2c_mlx90614_read_temperatures(mlx90614_dev_hdl, &amb_t, &obj1_t, &obj2_t) != ESP_OK) {
+        float amb_t, obj1_t, obj2_t;
+        if(i2c_mlx90614_get_temperatures(mlx90614_dev_hdl, &amb_t, &obj1_t, &obj2_t) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] mlx90614 device read ambient temperature failed");
         }
         //

@@ -35,6 +35,7 @@
 #include "sht4x.h"
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 #include <esp_log.h>
 #include <esp_check.h>
 #include <driver/i2c_master.h>
@@ -57,10 +58,10 @@ static const char *TAG = "sht4x";
 */
 
 /**
- * @brief calculates sht4x crc8 value.  See datasheet for details.
+ * @brief Calculates sht4x crc8 value.  See datasheet for details.
  *
- * @param[in] data[] data buffer to perform crc8 check against
- * @param[in] len length of `data` buffer
+ * @param[in] data[] data buffer to perform crc8 check against.
+ * @param[in] len length of `data` buffer.
  * @return crc8 value.
  */
 static inline uint8_t i2c_sht4x_crc8(const uint8_t data[], const size_t len) {
@@ -76,11 +77,11 @@ static inline uint8_t i2c_sht4x_crc8(const uint8_t data[], const size_t len) {
 /**
  * @brief Gets sht4x millisecond duration from device handle.  See datasheet for details.
  *
- * @param[in] sht4x_handle sht4x device handle 
+ * @param[in] sht4x_handle sht4x device handle.
  * @return duration in milliseconds.
  */
 static inline size_t i2c_sht4x_get_ms_duration(i2c_sht4x_handle_t sht4x_handle) {
-    switch (sht4x_handle->heater) {
+    switch (sht4x_handle->dev_params->heater) {
         case I2C_SHT4X_HEATER_HIGH_LONG:
         case I2C_SHT4X_HEATER_MEDIUM_LONG:
         case I2C_SHT4X_HEATER_LOW_LONG:
@@ -90,7 +91,7 @@ static inline size_t i2c_sht4x_get_ms_duration(i2c_sht4x_handle_t sht4x_handle) 
         case I2C_SHT4X_HEATER_LOW_SHORT:
             return 110;
         default:
-            switch (sht4x_handle->repeatability) {
+            switch (sht4x_handle->dev_params->repeatability) {
                 case I2C_SHT4X_REPEAT_HIGH:
                     return 10;
                 case I2C_SHT4X_REPEAT_MEDIUM:
@@ -104,7 +105,7 @@ static inline size_t i2c_sht4x_get_ms_duration(i2c_sht4x_handle_t sht4x_handle) 
 /**
  * @brief Gets sht4x tick duration from device handle.
  *
- * @param[in] sht4x_handle sht4x device handle 
+ * @param[in] sht4x_handle sht4x device handle.
  * @return duration in ticks.
  */
 static inline size_t i2c_sht4x_get_tick_duration(i2c_sht4x_handle_t sht4x_handle) {
@@ -116,11 +117,11 @@ static inline size_t i2c_sht4x_get_tick_duration(i2c_sht4x_handle_t sht4x_handle
 /**
  * @brief Gets sht4x measurement command from device handle.  See datasheet for details.
  *
- * @param[in] sht4x_handle sht4x device handle 
+ * @param[in] sht4x_handle sht4x device handle.
  * @return command value.
  */
 static inline uint8_t i2c_sht4x_get_command(i2c_sht4x_handle_t sht4x_handle) {
-    switch (sht4x_handle->heater) {
+    switch (sht4x_handle->dev_params->heater) {
         case I2C_SHT4X_HEATER_HIGH_LONG:
             return I2C_SHT4X_CMD_MEAS_H_HIGH_LONG;
         case I2C_SHT4X_HEATER_HIGH_SHORT:
@@ -134,7 +135,7 @@ static inline uint8_t i2c_sht4x_get_command(i2c_sht4x_handle_t sht4x_handle) {
         case I2C_SHT4X_HEATER_LOW_SHORT:
             return I2C_SHT4X_CMD_MEAS_H_LOW_SHORT;
         default:
-            switch (sht4x_handle->repeatability) {
+            switch (sht4x_handle->dev_params->repeatability) {
                 case I2C_SHT4X_REPEAT_HIGH:
                     return I2C_SHT4X_CMD_MEAS_HIGH;
                 case I2C_SHT4X_REPEAT_MEDIUM:
@@ -143,6 +144,40 @@ static inline uint8_t i2c_sht4x_get_command(i2c_sht4x_handle_t sht4x_handle) {
                     return I2C_SHT4X_CMD_MEAS_LOW;
             }
     }
+}
+
+/**
+ * @brief Calculates dewpoint temperature from air temperature and relative humidity.
+ *
+ * @param[in] temperature air temperature in degrees Celsius.
+ * @param[in] humidity relative humiity in percent.
+ * @param[out] dewpoint calculated dewpoint temperature in degrees Celsius.
+ * @return ESP_OK: init success.
+ */
+static inline esp_err_t i2c_sht4x_calculate_dewpoint(const float temperature, const float humidity, float *dewpoint) {
+    ESP_ARG_CHECK(temperature && humidity && dewpoint);
+
+    // validate parameters
+    if(temperature > 80 || temperature < -40) return ESP_ERR_INVALID_ARG;
+    if(humidity > 100 || humidity < 0) return ESP_ERR_INVALID_ARG;
+    
+    // calculate dew-point temperature
+    double H = (log10(humidity)-2)/0.4343 + (17.62*temperature)/(243.12+temperature);
+    *dewpoint = 243.12*H/(17.62-H);
+    
+    return ESP_OK;
+}
+
+/**
+ * @brief read serial number from sensor
+ *
+ * @param[in] sht4x_config configuration of sht4x device
+ * @return ESP_OK: init success.
+ */
+static inline esp_err_t i2c_sht4x_get_serial_number(i2c_sht4x_handle_t sht4x_handle) {
+    ESP_ARG_CHECK( sht4x_handle );
+
+    return i2c_master_bus_read_uint32(sht4x_handle->i2c_dev_handle, I2C_SHT4X_CMD_SERIAL, &sht4x_handle->dev_params->serial_number);
 }
 
 esp_err_t i2c_sht4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sht4x_config_t *sht4x_config, i2c_sht4x_handle_t *sht4x_handle) {
@@ -154,25 +189,30 @@ esp_err_t i2c_sht4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sht4x_con
     out_handle = (i2c_sht4x_handle_t)calloc(1, sizeof(i2c_sht4x_handle_t));
     ESP_GOTO_ON_FALSE(out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for i2c sht4x device");
 
+    out_handle->dev_params = (i2c_sht4x_params_t*)calloc(1, sizeof(i2c_sht4x_params_t));
+    ESP_GOTO_ON_FALSE(out_handle->dev_params, ESP_ERR_NO_MEM, err, TAG, "no memory for i2c sht4x device configuration parameters");
+
     i2c_device_config_t i2c_dev_conf = {
         .dev_addr_length    = I2C_ADDR_BIT_LEN_7,
         .device_address     = sht4x_config->dev_config.device_address,
-        .scl_speed_hz       = I2C_SHT4X_FREQ_HZ,
+        .scl_speed_hz       = I2C_SHT4X_DATA_RATE_HZ,
     };
 
     if (out_handle->i2c_dev_handle == NULL) {
         ESP_GOTO_ON_ERROR(i2c_master_bus_add_device(bus_handle, &i2c_dev_conf, &out_handle->i2c_dev_handle), err, TAG, "i2c new bus failed");
     }
 
+    /* copy configuration */
+    out_handle->dev_params->heater = sht4x_config->heater;
+    out_handle->dev_params->repeatability = sht4x_config->repeatability;
+
     /* sht4x attempt to reset the device */
     ESP_GOTO_ON_ERROR(i2c_sht4x_reset(out_handle), err, TAG, "i2c sht4x soft-reset device failed");
 
     /* sht4x attempt to read device serial number */
-    ESP_GOTO_ON_ERROR(i2c_sht4x_read_serial_number(out_handle, &out_handle->serial_number), err, TAG, "i2c sht4x read serial number from device failed");
+    ESP_GOTO_ON_ERROR(i2c_sht4x_get_serial_number(out_handle), err, TAG, "i2c sht4x read serial number from device failed");
 
-    /* copy configuration and set device handle */
-    out_handle->heater = sht4x_config->heater;
-    out_handle->repeatability = sht4x_config->repeatability;
+    /* set device handle */
     *sht4x_handle = out_handle;
 
     return ESP_OK;
@@ -191,19 +231,13 @@ esp_err_t i2c_sht4x_reset(i2c_sht4x_handle_t sht4x_handle) {
     return i2c_master_bus_write_cmd(sht4x_handle->i2c_dev_handle, I2C_SHT4X_CMD_RESET);
 }
 
-esp_err_t i2c_sht4x_read_serial_number(i2c_sht4x_handle_t sht4x_handle, uint32_t *serial_number) {
-    ESP_ARG_CHECK( sht4x_handle );
-
-    return i2c_master_bus_read_uint32(sht4x_handle->i2c_dev_handle, I2C_SHT4X_CMD_SERIAL, serial_number);
-}
-
-esp_err_t i2c_sht4x_measure(i2c_sht4x_handle_t sht4x_handle, float *temperature, float *humidity) {
+esp_err_t i2c_sht4x_get_measurement(i2c_sht4x_handle_t sht4x_handle, float *temperature, float *humidity) {
     esp_err_t ret;
     size_t delay_ticks = 0;
     i2c_uint8_t i2c_tx_buffer = { 0 };
     i2c_uint48_t i2c_rx_buffer = { 0, 0, 0, 0, 0, 0 };
 
-    ESP_ARG_CHECK( sht4x_handle );
+    ESP_ARG_CHECK( sht4x_handle && temperature && humidity );
     
     i2c_tx_buffer[0] = i2c_sht4x_get_command(sht4x_handle);
     delay_ticks      = i2c_sht4x_get_tick_duration(sht4x_handle);
@@ -231,6 +265,16 @@ esp_err_t i2c_sht4x_measure(i2c_sht4x_handle_t sht4x_handle, float *temperature,
     } else {
         return ret;
     }
+    return ESP_OK;
+}
+
+esp_err_t i2c_sht4x_get_measurements(i2c_sht4x_handle_t sht4x_handle, float *temperature, float *humidity, float *dewpoint) {
+    ESP_ARG_CHECK( sht4x_handle && temperature && humidity && dewpoint );
+
+    ESP_ERROR_CHECK( i2c_sht4x_get_measurement(sht4x_handle, temperature, humidity) );
+
+    ESP_ERROR_CHECK( i2c_sht4x_calculate_dewpoint(*temperature, *humidity, dewpoint) );
+
     return ESP_OK;
 }
 

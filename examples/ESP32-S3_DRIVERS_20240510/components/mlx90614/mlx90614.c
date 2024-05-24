@@ -127,10 +127,10 @@ static inline esp_err_t i2c_mlx90614_read_word(i2c_mlx90614_handle_t mlx90614_ha
 
     ESP_ERROR_CHECK( i2c_master_bus_read_uint24(mlx90614_handle->i2c_dev_handle, reg_addr, &buffer) );
 
-    uint8_t crc = i2c_mlx90614_crc8(0, (mlx90614_handle->device_address << 1));
+    uint8_t crc = i2c_mlx90614_crc8(0, (mlx90614_handle->dev_params->address << 1));
 
     crc = i2c_mlx90614_crc8(crc, reg_addr);
-	crc = i2c_mlx90614_crc8(crc, (mlx90614_handle->device_address << 1) + 1);
+	crc = i2c_mlx90614_crc8(crc, (mlx90614_handle->dev_params->address << 1) + 1);
 	crc = i2c_mlx90614_crc8(crc, buffer[0]); // lsb
 	crc = i2c_mlx90614_crc8(crc, buffer[1]); // msb
 
@@ -154,7 +154,7 @@ static inline esp_err_t i2c_mlx90614_write_word(i2c_mlx90614_handle_t mlx90614_h
     tx[1] = data & 0x00FF;  // lsb
     tx[2] = data >> 8;      // msb
 
-    crc = i2c_mlx90614_crc8(0, (mlx90614_handle->device_address << 1));
+    crc = i2c_mlx90614_crc8(0, (mlx90614_handle->dev_params->address << 1));
 	crc = i2c_mlx90614_crc8(crc, tx[0]); // register
 	crc = i2c_mlx90614_crc8(crc, tx[1]); // lsb
 	crc = i2c_mlx90614_crc8(crc, tx[2]); // msb
@@ -184,10 +184,62 @@ static inline esp_err_t i2c_mlx90614_write_eeprom(i2c_mlx90614_handle_t mlx90614
     return ESP_OK;
 }
 
-static inline esp_err_t i2c_mlx90614_write_command(i2c_mlx90614_handle_t mlx90614_handle, const uint8_t command) {
+/**
+ * @brief reads the mlx90614 `uint64_t` identification number as two 32-bit values (hi and lo).
+ *
+ * @param[in] mlx90614_handle mlx90614 device handle
+ * @return ESP_OK: init success.
+ */
+static inline esp_err_t i2c_mlx90614_get_ident_numbers(i2c_mlx90614_handle_t mlx90614_handle) {
+    uint16_t id_num[I2C_UINT32_SIZE]; // 64-bit ident value
+
     ESP_ARG_CHECK( mlx90614_handle );
 
-    return ESP_ERR_NOT_FINISHED;
+    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RD_IDNUM1, &id_num[0]) );
+    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RD_IDNUM2, &id_num[1]) );
+    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RD_IDNUM3, &id_num[2]) );
+    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RD_IDNUM4, &id_num[3]) );
+
+    mlx90614_handle->dev_params->ident_number_hi = id_num[2] | (id_num[3] << 16);
+    mlx90614_handle->dev_params->ident_number_lo = id_num[0] | (id_num[1] << 16);
+
+    return ESP_OK;
+}
+
+/**
+ * @brief reads maximum object temperature range from the mlx90614.
+ *
+ * @param[in] mlx90614_handle mlx90614 device handle
+ * @return ESP_OK: init success.
+ */
+static inline esp_err_t i2c_mlx90614_get_object_maximum_temperature(i2c_mlx90614_handle_t mlx90614_handle) {
+    uint16_t raw_data;
+
+    ESP_ARG_CHECK( mlx90614_handle );
+
+    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_TOMAX, &raw_data) );
+
+    mlx90614_handle->dev_params->obj_max_temperature = i2c_mlx90614_decode_temperature(raw_data);
+
+    return ESP_OK;
+}
+
+/**
+ * @brief reads minimum object temperature range from the mlx90614.
+ *
+ * @param[in] mlx90614_handle mlx90614 device handle
+ * @return ESP_OK: init success.
+ */
+static inline esp_err_t i2c_mlx90614_get_object_minimum_temperature(i2c_mlx90614_handle_t mlx90614_handle) {
+    uint16_t raw_data;
+
+    ESP_ARG_CHECK( mlx90614_handle );
+
+    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_TOMIN, &raw_data) );
+
+    mlx90614_handle->dev_params->obj_min_temperature = i2c_mlx90614_decode_temperature(raw_data);
+
+    return ESP_OK;
 }
 
 esp_err_t i2c_mlx90614_init(i2c_master_bus_handle_t bus_handle, const i2c_mlx90614_config_t *mlx90614_config, i2c_mlx90614_handle_t *mlx90614_handle) {
@@ -202,18 +254,29 @@ esp_err_t i2c_mlx90614_init(i2c_master_bus_handle_t bus_handle, const i2c_mlx906
     i2c_device_config_t i2c_dev_conf = {
         .dev_addr_length    = I2C_ADDR_BIT_LEN_7,
         .device_address     = mlx90614_config->dev_config.device_address,
-        .scl_speed_hz       = I2C_MLX90614_FREQ_HZ,
+        .scl_speed_hz       = I2C_MLX90614_DATA_RATE_HZ,
     };
 
     if (out_handle->i2c_dev_handle == NULL) {
         ESP_GOTO_ON_ERROR(i2c_master_bus_add_device(bus_handle, &i2c_dev_conf, &out_handle->i2c_dev_handle), err, TAG, "i2c new bus failed");
     }
 
-    /* mlx90614 attempt to read identification numbers - CRASH!!! */
-    //ESP_GOTO_ON_ERROR(i2c_mlx90614_read_ident_numbers(out_handle, &out_handle->ident_number_hi, &out_handle->ident_number_lo), err, TAG, "i2c mlx90614 read identification numbers failed");
+    out_handle->dev_params = (i2c_mlx90614_params_t*)calloc(1, sizeof(i2c_mlx90614_params_t));
+    ESP_GOTO_ON_FALSE(out_handle->dev_params, ESP_ERR_NO_MEM, err, TAG, "no memory for i2c mlx90614 device parameters");
 
-    /* copy configuration and set device handle */
-    out_handle->device_address = mlx90614_config->dev_config.device_address;
+    /* copy configuration */
+    out_handle->dev_params->address = mlx90614_config->dev_config.device_address;
+
+    /* mlx90614 attempt to read configured identification numbers */
+    ESP_GOTO_ON_ERROR(i2c_mlx90614_get_ident_numbers(out_handle), err, TAG, "i2c mlx90614 read identification numbers failed");
+
+    /* mlx90614 attempt to read configured emissivity */
+    ESP_GOTO_ON_ERROR(i2c_mlx90614_get_emissivity(out_handle), err, TAG, "i2c mlx90614 read emissivity failed");
+
+    /* mlx90614 attempt to read configured maximum and minimum object temperature */
+    ESP_GOTO_ON_ERROR(i2c_mlx90614_get_object_temperature_ranges(out_handle), err, TAG, "i2c mlx90614 read object temperature ranges failed");
+
+    /* set device handle */
     *mlx90614_handle = out_handle;
 
     return ESP_OK;
@@ -226,7 +289,7 @@ esp_err_t i2c_mlx90614_init(i2c_master_bus_handle_t bus_handle, const i2c_mlx906
         return ret;
 }
 
-esp_err_t i2c_mlx90614_read_ambient_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *ambient_temperature) {
+esp_err_t i2c_mlx90614_get_ambient_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *ambient_temperature) {
     uint16_t raw_data;
 
     ESP_ARG_CHECK( mlx90614_handle );
@@ -240,7 +303,7 @@ esp_err_t i2c_mlx90614_read_ambient_temperature(i2c_mlx90614_handle_t mlx90614_h
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_read_object1_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *object1_temperature) {
+esp_err_t i2c_mlx90614_get_object1_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *object1_temperature) {
     uint16_t raw_data;
 
     ESP_ARG_CHECK( mlx90614_handle );
@@ -254,7 +317,7 @@ esp_err_t i2c_mlx90614_read_object1_temperature(i2c_mlx90614_handle_t mlx90614_h
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_read_object2_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *object2_temperature) {
+esp_err_t i2c_mlx90614_get_object2_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *object2_temperature) {
     uint16_t raw_data;
 
     ESP_ARG_CHECK( mlx90614_handle );
@@ -268,34 +331,17 @@ esp_err_t i2c_mlx90614_read_object2_temperature(i2c_mlx90614_handle_t mlx90614_h
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_read_temperatures(i2c_mlx90614_handle_t mlx90614_handle, float *ambient_temperature, float *object1_temperature, float *object2_temperature) {
+esp_err_t i2c_mlx90614_get_temperatures(i2c_mlx90614_handle_t mlx90614_handle, float *ambient_temperature, float *object1_temperature, float *object2_temperature) {
     ESP_ARG_CHECK( mlx90614_handle && ambient_temperature && object1_temperature && object2_temperature );
 
-    ESP_ERROR_CHECK( i2c_mlx90614_read_ambient_temperature(mlx90614_handle, ambient_temperature) );
-    ESP_ERROR_CHECK( i2c_mlx90614_read_object1_temperature(mlx90614_handle, object1_temperature) );
-    ESP_ERROR_CHECK( i2c_mlx90614_read_object2_temperature(mlx90614_handle, object2_temperature) );
+    ESP_ERROR_CHECK( i2c_mlx90614_get_ambient_temperature(mlx90614_handle, ambient_temperature) );
+    ESP_ERROR_CHECK( i2c_mlx90614_get_object1_temperature(mlx90614_handle, object1_temperature) );
+    ESP_ERROR_CHECK( i2c_mlx90614_get_object2_temperature(mlx90614_handle, object2_temperature) );
 
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_read_ident_numbers(i2c_mlx90614_handle_t mlx90614_handle, uint32_t *ident_number_hi, uint32_t *ident_number_lo) {
-    uint16_t id_num[I2C_UINT32_SIZE]; // 64-bit ident value
-
-    ESP_ARG_CHECK( mlx90614_handle );
-
-    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RD_IDNUM1, &id_num[0]) );
-    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RD_IDNUM2, &id_num[1]) );
-    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RD_IDNUM3, &id_num[2]) );
-    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RD_IDNUM4, &id_num[3]) );
-
-    *ident_number_hi = id_num[2] | (id_num[3] << 16);
-    *ident_number_lo = id_num[0] | (id_num[1] << 16);
-
-    return ESP_OK;
-}
-
-
-esp_err_t i2c_mlx90614_read_emissivity(i2c_mlx90614_handle_t mlx90614_handle, float *emissivity) {
+esp_err_t i2c_mlx90614_get_emissivity(i2c_mlx90614_handle_t mlx90614_handle) {
     uint16_t raw_data;
 
     ESP_ARG_CHECK( mlx90614_handle );
@@ -304,16 +350,16 @@ esp_err_t i2c_mlx90614_read_emissivity(i2c_mlx90614_handle_t mlx90614_handle, fl
 
     // if we successfully read from the ke register
 	// calculate the emissivity between 0.1 and 1.0:
-    *emissivity = ((float)raw_data) / 0xffff;
+    mlx90614_handle->dev_params->emissivity = ((float)raw_data) / 0xffff;
 
     return ESP_OK;
 }
 
-
-esp_err_t i2c_mlx90614_write_emissivity(i2c_mlx90614_handle_t mlx90614_handle, const float emissivity) {
-    uint16_t raw_data = (uint16_t)(0xffff * emissivity);
-
+esp_err_t i2c_mlx90614_set_emissivity(i2c_mlx90614_handle_t mlx90614_handle) {
     ESP_ARG_CHECK( mlx90614_handle );
+
+    const float emissivity = mlx90614_handle->dev_params->emissivity;
+    uint16_t raw_data = (uint16_t)(0xffff * emissivity);
 
     // make sure emissivity is between 0.1 and 1.0
 	if ((emissivity > 1.0) || (emissivity < 0.1))
@@ -324,75 +370,54 @@ esp_err_t i2c_mlx90614_write_emissivity(i2c_mlx90614_handle_t mlx90614_handle, c
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_read_object_temperature_ranges(i2c_mlx90614_handle_t mlx90614_handle, float *maximum_temperature, float *minimum_temperature) {
+esp_err_t i2c_mlx90614_get_object_temperature_ranges(i2c_mlx90614_handle_t mlx90614_handle) {
     ESP_ARG_CHECK( mlx90614_handle );
 
-    ESP_ERROR_CHECK( i2c_mlx90614_read_object_maximum_temperature(mlx90614_handle, maximum_temperature) );
-    ESP_ERROR_CHECK( i2c_mlx90614_read_object_minimum_temperature(mlx90614_handle, minimum_temperature) );
+    ESP_ERROR_CHECK( i2c_mlx90614_get_object_maximum_temperature(mlx90614_handle) );
+    ESP_ERROR_CHECK( i2c_mlx90614_get_object_minimum_temperature(mlx90614_handle) );
 
     return ESP_OK;    
 }
 
-esp_err_t i2c_mlx90614_read_object_maximum_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *maximum_temperature) {
-    uint16_t raw_data;
-
+esp_err_t i2c_mlx90614_set_object_maximum_temperature(i2c_mlx90614_handle_t mlx90614_handle) {
     ESP_ARG_CHECK( mlx90614_handle );
 
-    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_TOMAX, &raw_data) );
-
-    *maximum_temperature = i2c_mlx90614_decode_temperature(raw_data);
-
-    return ESP_OK;
-}
-
-esp_err_t i2c_mlx90614_write_object_maximum_temperature(i2c_mlx90614_handle_t mlx90614_handle, const float maximum_temperature) {
+    const float maximum_temperature = mlx90614_handle->dev_params->obj_max_temperature;
     uint16_t raw_data = i2c_mlx90614_encode_temperature(maximum_temperature);
-
-    ESP_ARG_CHECK( mlx90614_handle );
 
     ESP_ERROR_CHECK( i2c_mlx90614_write_eeprom(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_TOMAX, raw_data) );
 
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_read_object_minimum_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *minimum_temperature) {
-    uint16_t raw_data;
-
+esp_err_t i2c_mlx90614_set_object_minimum_temperature(i2c_mlx90614_handle_t mlx90614_handle) {
     ESP_ARG_CHECK( mlx90614_handle );
 
-    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_TOMIN, &raw_data) );
-
-    *minimum_temperature = i2c_mlx90614_decode_temperature(raw_data);
-
-    return ESP_OK;
-}
-
-esp_err_t i2c_mlx90614_write_object_minimum_temperature(i2c_mlx90614_handle_t mlx90614_handle, const float minimum_temperature) {
+    const float minimum_temperature = mlx90614_handle->dev_params->obj_min_temperature;
     uint16_t raw_data = i2c_mlx90614_encode_temperature(minimum_temperature);
-
-    ESP_ARG_CHECK( mlx90614_handle );
 
     ESP_ERROR_CHECK( i2c_mlx90614_write_eeprom(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_TOMIN, raw_data) );
 
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_read_device_address(i2c_mlx90614_handle_t mlx90614_handle, uint8_t *address) {
+esp_err_t i2c_mlx90614_get_address(i2c_mlx90614_handle_t mlx90614_handle) {
     uint16_t raw_data;
 
     ESP_ARG_CHECK( mlx90614_handle );
 
     ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_SMBADDR, &raw_data) );
 
-    *address = (uint8_t)raw_data;
+    mlx90614_handle->dev_params->address = (uint8_t)raw_data;
 
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_write_device_address(i2c_mlx90614_handle_t mlx90614_handle, const uint8_t address) {
-    uint16_t raw_data;
-
+esp_err_t i2c_mlx90614_set_address(i2c_mlx90614_handle_t mlx90614_handle) {
     ESP_ARG_CHECK( mlx90614_handle );
+
+    const uint8_t address = mlx90614_handle->dev_params->address;
+    uint16_t raw_data;
 
     // make sure the address is within the proper range:
 	if ((address >= 0x80) || (address == 0x00))
@@ -409,13 +434,13 @@ esp_err_t i2c_mlx90614_write_device_address(i2c_mlx90614_handle_t mlx90614_handl
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_device_sleep(i2c_mlx90614_handle_t mlx90614_handle) {
+esp_err_t i2c_mlx90614_sleep(i2c_mlx90614_handle_t mlx90614_handle) {
     ESP_ARG_CHECK( mlx90614_handle );
 
     return ESP_ERR_NOT_FINISHED;
 }
 
-esp_err_t i2c_mlx90614_device_wake(i2c_mlx90614_handle_t mlx90614_handle) {
+esp_err_t i2c_mlx90614_wake(i2c_mlx90614_handle_t mlx90614_handle) {
     ESP_ARG_CHECK( mlx90614_handle );
 
     return ESP_ERR_NOT_FINISHED;

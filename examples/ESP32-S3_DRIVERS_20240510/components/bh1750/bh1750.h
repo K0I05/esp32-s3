@@ -47,20 +47,30 @@ extern "C" {
 /*
  * BH1750 definitions
 */
-#define I2C_BH1750_FREQ_HZ          (100000)          //!< bh1750 I2C default clock frequency (100KHz)
+#define I2C_BH1750_DATA_RATE_HZ         (100000)          //!< bh1750 I2C default clock frequency (100KHz)
 
-#define I2C_BH1750_ADDR_LO          UINT8_C(0x23)     //!< bh1750 I2C address when ADDR pin floating/low
-#define I2C_BH1750_ADDR_HI          UINT8_C(0x5C)     //!< bh1750 I2C address when ADDR pin high
+#define I2C_BH1750_ADDR_LO              UINT8_C(0x23)     //!< bh1750 I2C address when ADDR pin floating/low
+#define I2C_BH1750_ADDR_HI              UINT8_C(0x5C)     //!< bh1750 I2C address when ADDR pin high
 
-#define I2C_BH1750_OPCODE_HIGH      0x0
-#define I2C_BH1750_OPCODE_HIGH2     0x1
-#define I2C_BH1750_OPCODE_LOW       0x3
+#define I2C_BH1750_OPCODE_HIGH          0x0
+#define I2C_BH1750_OPCODE_HIGH2         0x1
+#define I2C_BH1750_OPCODE_LOW           0x3
 
-#define I2C_BH1750_OPCODE_CONT      0x10
-#define I2C_BH1750_OPCODE_OT        0x20
+#define I2C_BH1750_OPCODE_CONT          UINT8_C(0x10)
+#define I2C_BH1750_OPCODE_OT            UINT8_C(0x20)
 
-#define I2C_BH1750_OPCODE_MT_HI     0x40
-#define I2C_BH1750_OPCODE_MT_LO     0x60
+#define I2C_BH1750_OPCODE_MT_HI         UINT8_C(0x40)
+#define I2C_BH1750_OPCODE_MT_LO         UINT8_C(0x60)
+
+#define I2C_BH1750_CMD_POWER_DOWN       UINT8_C(0x00)
+#define I2C_BH1750_CMD_POWER_UP         UINT8_C(0x01)
+#define I2C_BH1750_CMD_RESET            UINT8_C(0x07)
+#define I2C_BH1750_CMD_MEAS_CM_HIGH     UINT8_C(0x10)
+#define I2C_BH1750_CMD_MEAS_CM2_HIGH    UINT8_C(0x11)
+#define I2C_BH1750_CMD_MEAS_CM_LOW      UINT8_C(0x13)
+#define I2C_BH1750_CMD_MEAS_OM_HIGH     UINT8_C(0x20)
+#define I2C_BH1750_CMD_MEAS_OM2_HIGH    UINT8_C(0x21)
+#define I2C_BH1750_CMD_MEAS_OM_LOW      UINT8_C(0x23)
 
 /*
  * macros
@@ -75,21 +85,6 @@ extern "C" {
 */
 typedef struct i2c_bh1750_t i2c_bh1750_t;
 typedef struct i2c_bh1750_t *i2c_bh1750_handle_t;
-
-/*
- * supported commands
-*/
-typedef enum {
-    I2C_BH1750_CMD_POWER_DOWN               = 0x00,
-    I2C_BH1750_CMD_POWER_UP                 = 0x01,
-    I2C_BH1750_CMD_RESET                    = 0x07,
-    I2C_BH1750_CMD_MEAS_CM_HIGH             = 0x10,
-    I2C_BH1750_CMD_MEAS_CM2_HIGH            = 0x11,
-    I2C_BH1750_CMD_MEAS_CM_LOW              = 0x13,
-    I2C_BH1750_CMD_MEAS_OM_HIGH             = 0x20,
-    I2C_BH1750_CMD_MEAS_OM2_HIGH            = 0x21,
-    I2C_BH1750_CMD_MEAS_OM_LOW              = 0x23
-} i2c_bh1750_commands_t;
 
 /**
  * possible measurement modes
@@ -112,18 +107,25 @@ typedef enum {
  * @brief i2c bh1750 device configuration.
  */
 typedef struct {
-    i2c_device_config_t      dev_config;  /*!< configuration for bh1750 device */
-    i2c_bh1750_modes_t       mode;        /*!< bh1750 measurement mode */
-    i2c_bh1750_resolutions_t resolution;  /*!< bh1750 measurement resolution */
+    i2c_device_config_t      dev_config;        /*!< configuration for bh1750 device */
+    i2c_bh1750_modes_t       mode;              /*!< bh1750 measurement mode */
+    i2c_bh1750_resolutions_t resolution;        /*!< bh1750 measurement resolution */
 } i2c_bh1750_config_t;
+
+/**
+ * @brief i2c bh1750 device configuration parameters.
+ */
+typedef struct {
+    i2c_bh1750_modes_t       mode;              /*!< bh1750 measurement mode */
+    i2c_bh1750_resolutions_t resolution;        /*!< bh1750 measurement resolution */
+} i2c_bh1750_params_t;
 
 /**
  * @brief i2c bh1750 device handle.
  */
 struct i2c_bh1750_t {
     i2c_master_dev_handle_t  i2c_dev_handle;  /*!< I2C device handle */
-    i2c_bh1750_modes_t       mode;            /*!< bh1750 measurement mode */
-    i2c_bh1750_resolutions_t resolution;      /*!< bh1750 measurement resolution */
+    i2c_bh1750_params_t      *dev_params;     /*!< bh1750 device configuration parameters */
 };
 
 /**
@@ -161,30 +163,13 @@ esp_err_t i2c_bh1750_power_up(i2c_bh1750_handle_t bh1750_handle);
 esp_err_t i2c_bh1750_power_down(i2c_bh1750_handle_t bh1750_handle);
 
 /**
- * @brief configures bh1750 sensor measurement mode and resolution
- *
- * @param[in] bh1750_handle bh1750 device handle
- * @return ESP_OK: init success.
- */
-esp_err_t i2c_bh1750_setup(i2c_bh1750_handle_t bh1750_handle);
-
-/**
- * @brief sets bh1750 sensor measurement time. see datasheet for details.
- *
- * @param[in] bh1750_handle bh1750 device handle
- * @param[in] time bh1750 measurement timespan
- * @return ESP_OK: init success.
- */
-esp_err_t i2c_bh1750_set_measurement_time(i2c_bh1750_handle_t bh1750_handle, uint8_t time);
-
-/**
  * @brief measure bh1750 illuminance.
  *
  * @param[in] bh1750_handle bh1750 device handle
  * @param[out] illuminance bh1750 illuminance measurement
  * @return ESP_OK: init success.
  */
-esp_err_t i2c_bh1750_measure(i2c_bh1750_handle_t bh1750_handle, uint16_t *illuminance);
+esp_err_t i2c_bh1750_get_measurement(i2c_bh1750_handle_t bh1750_handle, uint16_t *illuminance);
 
 /**
  * @brief removes an bh1750 device from master bus.

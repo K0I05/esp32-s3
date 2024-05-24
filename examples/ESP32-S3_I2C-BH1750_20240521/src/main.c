@@ -101,10 +101,10 @@ static void i2c_0_task( void *pvParameters ) {
         //
         uint16_t illuminance;
         //
-        if(i2c_bh1750_measure(bh1750_dev_hdl, &illuminance) != ESP_OK) {
+        if(i2c_bh1750_get_measurement(bh1750_dev_hdl, &illuminance) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] bh1750 device illuminance measurement failed");
         } else {
-            ESP_LOGI(CONFIG_APP_TAG, "bh1750 illuminance:   %u ", illuminance);
+            ESP_LOGI(CONFIG_APP_TAG, "bh1750 illuminance:   %u Lux", illuminance);
         }
         //
         ESP_LOGI(CONFIG_APP_TAG, "######################## BH1750 - END ###########################");

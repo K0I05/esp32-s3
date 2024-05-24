@@ -48,7 +48,7 @@ extern "C" {
 /*
  * BMP280 definitions
 */
-#define I2C_BMP280_FREQ_HZ               (100000)          //!< bmp280 I2C default clock frequency (100KHz)
+#define I2C_BMP280_DATA_RATE_HZ               (100000)          //!< bmp280 I2C default clock frequency (100KHz)
 
 /*
  * BMP280 macros
@@ -215,7 +215,7 @@ esp_err_t i2c_bmp280_reset(i2c_bmp280_handle_t bmp280_handle);
  * @param[out] pressure pressure in pascal
  * @return ESP_OK: init success.
  */
-esp_err_t i2c_bmp280_read_measurement(i2c_bmp280_handle_t bmp280_handle, float *temperature, float *pressure);
+esp_err_t i2c_bmp280_get_measurement(i2c_bmp280_handle_t bmp280_handle, float *temperature, float *pressure);
 
 /**
  * @brief forces the bmp280 to make a measurement
@@ -223,7 +223,7 @@ esp_err_t i2c_bmp280_read_measurement(i2c_bmp280_handle_t bmp280_handle, float *
  * @param[in] bmp280_handle bmp280 device handle
  * @return ESP_OK: init success.
  */
-esp_err_t i2c_bmp280_write_forced_measurement(i2c_bmp280_handle_t bmp280_handle);
+esp_err_t i2c_bmp280_set_forced_measurement(i2c_bmp280_handle_t bmp280_handle);
 
 /**
  * @brief determines if the bmp280 is busy
@@ -232,7 +232,7 @@ esp_err_t i2c_bmp280_write_forced_measurement(i2c_bmp280_handle_t bmp280_handle)
  * @param[out] busy bmp280 is busy when true
  * @return ESP_OK: init success.
  */
-esp_err_t i2c_bmp280_read_is_measuring(i2c_bmp280_handle_t bmp280_handle, bool *busy);
+esp_err_t i2c_bmp280_get_is_measuring(i2c_bmp280_handle_t bmp280_handle, bool *busy);
 
 /**
  * @brief removes an bmp280 device from master bus.

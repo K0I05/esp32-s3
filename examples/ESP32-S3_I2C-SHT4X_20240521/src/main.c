@@ -98,13 +98,14 @@ static void i2c_0_task( void *pvParameters ) {
         //
         // handle sht4x sensor
         //
-        float air_temperature; float relative_humidity;
+        float air_temperature, dewpoint_temperature, relative_humidity;
         //
-        
-        if(i2c_sht4x_measure(sht4x_dev_hdl, &air_temperature, &relative_humidity) != ESP_OK) {
+        if(i2c_sht4x_get_measurements(sht4x_dev_hdl, &air_temperature, &relative_humidity, &dewpoint_temperature) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] sht4x device air temperature and relative humidity measurement failed");
         } else {
-            ESP_LOGI(CONFIG_APP_TAG, "sht4x air temperature:   %.2f C, relative humidity: %.2f %%", air_temperature, relative_humidity);
+            ESP_LOGI(CONFIG_APP_TAG, "sht4x air temperature:       %.2f C", air_temperature);
+            ESP_LOGI(CONFIG_APP_TAG, "sht4x relative humidity:     %.2f %%", relative_humidity);
+            ESP_LOGI(CONFIG_APP_TAG, "sht4x dewpoint temperature:  %.2f C", dewpoint_temperature);
         }
         //
         ESP_LOGI(CONFIG_APP_TAG, "######################## SHT4X - END ###########################");
@@ -115,7 +116,7 @@ static void i2c_0_task( void *pvParameters ) {
     }
     //
     // free up task resources and remove task from stack
-    i2c_sht4x_rm( sht4x_dev_hdl ); //remove sht4x device from master i2c bus
+    i2c_sht4x_rm( sht4x_dev_hdl );      //remove sht4x device from master i2c bus
     i2c_del_master_bus( i2c0_bus_hdl ); //delete master i2c bus
     vTaskDelete( NULL );
 }

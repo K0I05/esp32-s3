@@ -64,7 +64,7 @@ static const char *TAG = "bh1750";
  * @return duration in milliseconds.
  */
 static inline size_t i2c_bh1750_get_ms_duration(i2c_bh1750_handle_t bh1750_handle) {
-    switch (bh1750_handle->resolution) {
+    switch (bh1750_handle->dev_params->resolution) {
         case I2C_BH1750_RES_LOW:
             return 16;
         case I2C_BH1750_RES_HIGH:
@@ -95,8 +95,8 @@ static inline size_t i2c_bh1750_get_tick_duration(i2c_bh1750_handle_t bh1750_han
  * @return command value.
  */
 static inline uint8_t i2c_bh1750_get_command(i2c_bh1750_handle_t bh1750_handle) {
-    if(bh1750_handle->mode == I2C_BH1750_MODE_CONTINUOUS) {
-        switch (bh1750_handle->resolution) {
+    if(bh1750_handle->dev_params->mode == I2C_BH1750_MODE_CONTINUOUS) {
+        switch (bh1750_handle->dev_params->resolution) {
             case I2C_BH1750_RES_LOW:
                 return I2C_BH1750_CMD_MEAS_CM_LOW;
             case I2C_BH1750_RES_HIGH:
@@ -107,7 +107,7 @@ static inline uint8_t i2c_bh1750_get_command(i2c_bh1750_handle_t bh1750_handle) 
                 return I2C_BH1750_CMD_MEAS_CM_LOW;
         }
     } else {
-        switch (bh1750_handle->resolution) {
+        switch (bh1750_handle->dev_params->resolution) {
             case I2C_BH1750_RES_LOW:
                 return I2C_BH1750_CMD_MEAS_OM_LOW;
             case I2C_BH1750_RES_HIGH:
@@ -120,6 +120,52 @@ static inline uint8_t i2c_bh1750_get_command(i2c_bh1750_handle_t bh1750_handle) 
     }
 }
 
+/**
+ * @brief configures bh1750 sensor measurement mode and resolution
+ *
+ * @param[in] bh1750_handle bh1750 device handle
+ * @return ESP_OK: init success.
+ */
+static inline esp_err_t i2c_bh1750_setup(i2c_bh1750_handle_t bh1750_handle) {
+    ESP_ARG_CHECK( bh1750_handle );
+
+    const i2c_bh1750_modes_t mode = bh1750_handle->dev_params->mode;
+    const i2c_bh1750_resolutions_t resolution = bh1750_handle->dev_params->resolution;
+
+    uint8_t opcode = mode == I2C_BH1750_MODE_CONTINUOUS ? I2C_BH1750_OPCODE_CONT : I2C_BH1750_OPCODE_OT;
+
+    switch (resolution) {
+        case I2C_BH1750_RES_LOW:    opcode |= I2C_BH1750_OPCODE_LOW;   break;
+        case I2C_BH1750_RES_HIGH:   opcode |= I2C_BH1750_OPCODE_HIGH;  break;
+        default:                    opcode |= I2C_BH1750_OPCODE_HIGH2; break;
+    }
+
+    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, opcode) );
+
+    ESP_LOGD(TAG, "i2c_bh1750_setup(VAL = 0x%02x)", opcode);
+
+    return ESP_OK;
+}
+
+/**
+ * @brief sets bh1750 sensor measurement time. see datasheet for details.
+ *
+ * @param[in] bh1750_handle bh1750 device handle
+ * @return ESP_OK: init success.
+ */
+/*
+static inline esp_err_t i2c_bh1750_write_measurement_time(i2c_bh1750_handle_t bh1750_handle) {
+    ESP_ARG_CHECK( bh1750_handle );
+
+    const uint8_t time = bh1750_handle->dev_params->measurement_time;
+
+    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_OPCODE_MT_HI | (time >> 5)) );
+    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_OPCODE_MT_LO | (time >> 0x1f)) );
+
+    return ESP_OK;
+}
+*/
+
 esp_err_t i2c_bh1750_init(i2c_master_bus_handle_t bus_handle, const i2c_bh1750_config_t *bh1750_config, i2c_bh1750_handle_t *bh1750_handle) {
     esp_err_t           ret = ESP_OK;
     i2c_bh1750_handle_t out_handle;
@@ -129,26 +175,31 @@ esp_err_t i2c_bh1750_init(i2c_master_bus_handle_t bus_handle, const i2c_bh1750_c
     out_handle = (i2c_bh1750_handle_t)calloc(1, sizeof(i2c_bh1750_handle_t));
     ESP_GOTO_ON_FALSE(out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for i2c bh1750 device");
 
+    out_handle->dev_params = (i2c_bh1750_params_t*)calloc(1, sizeof(i2c_bh1750_params_t));
+    ESP_GOTO_ON_FALSE(out_handle->dev_params, ESP_ERR_NO_MEM, err, TAG, "no memory for i2c bmp280 device configuration parameters");
+
     i2c_device_config_t i2c_dev_conf = {
         .dev_addr_length    = I2C_ADDR_BIT_LEN_7,
         .device_address     = bh1750_config->dev_config.device_address,
-        .scl_speed_hz       = I2C_BH1750_FREQ_HZ,
+        .scl_speed_hz       = I2C_BH1750_DATA_RATE_HZ,
     };
 
     if (out_handle->i2c_dev_handle == NULL) {
         ESP_GOTO_ON_ERROR(i2c_master_bus_add_device(bus_handle, &i2c_dev_conf, &out_handle->i2c_dev_handle), err, TAG, "i2c new bus failed");
     }
 
+    /* copy configuration */
+    out_handle->dev_params->mode = bh1750_config->mode;
+    out_handle->dev_params->resolution = bh1750_config->resolution;
+
     /* bh1750 attempt to reset the device */
     ESP_GOTO_ON_ERROR(i2c_bh1750_reset(out_handle), err, TAG, "i2c bh1750 soft-reset device failed");
 
-    /* copy configuration and set device handle */
-    out_handle->mode = bh1750_config->mode;
-    out_handle->resolution = bh1750_config->resolution;
-    *bh1750_handle = out_handle;
-
     /* bh1750 attempt to configure the device */
     ESP_GOTO_ON_ERROR(i2c_bh1750_setup(out_handle), err, TAG, "i2c bh1750 device configuration failed");
+
+    /* set device handle */
+    *bh1750_handle = out_handle;
 
     return ESP_OK;
 
@@ -178,34 +229,7 @@ esp_err_t i2c_bh1750_power_down(i2c_bh1750_handle_t bh1750_handle) {
     return i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_DOWN);
 }
 
-esp_err_t i2c_bh1750_setup(i2c_bh1750_handle_t bh1750_handle) {
-    ESP_ARG_CHECK( bh1750_handle );
-
-    uint8_t opcode = bh1750_handle->mode == I2C_BH1750_MODE_CONTINUOUS ? I2C_BH1750_OPCODE_CONT : I2C_BH1750_OPCODE_OT;
-
-    switch (bh1750_handle->resolution) {
-        case I2C_BH1750_RES_LOW:    opcode |= I2C_BH1750_OPCODE_LOW;   break;
-        case I2C_BH1750_RES_HIGH:   opcode |= I2C_BH1750_OPCODE_HIGH;  break;
-        default:                    opcode |= I2C_BH1750_OPCODE_HIGH2; break;
-    }
-
-    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, opcode) );
-
-    ESP_LOGD(TAG, "i2c_bh1750_setup(VAL = 0x%02x)", opcode);
-
-    return ESP_OK;
-}
-
-esp_err_t i2c_bh1750_set_measurement_time(i2c_bh1750_handle_t bh1750_handle, uint8_t time) {
-    ESP_ARG_CHECK( bh1750_handle );
-
-    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_OPCODE_MT_HI | (time >> 5)) );
-    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_OPCODE_MT_LO | (time >> 0x1f)) );
-
-    return ESP_OK;
-}
-
-esp_err_t i2c_bh1750_measure(i2c_bh1750_handle_t bh1750_handle, uint16_t *illuminance) {
+esp_err_t i2c_bh1750_get_measurement(i2c_bh1750_handle_t bh1750_handle, uint16_t *illuminance) {
     esp_err_t ret;
     size_t delay_ticks = 0;
     i2c_uint8_t i2c_tx_buffer = { 0 };

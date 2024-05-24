@@ -47,9 +47,7 @@
 /*
  * macro definitions
 */
-#define ARRAY_SIZE(arr)	(sizeof(arr) / sizeof((arr)[0]))
 #define ESP_ARG_CHECK(VAL) do { if (!(VAL)) return ESP_ERR_INVALID_ARG; } while (0)
-
 
 /*
 * static constant declerations
@@ -128,7 +126,9 @@ static inline uint32_t i2c_bmp280_compensate_pressure(i2c_bmp280_handle_t bmp280
  * @param[in] bmp280_handle bmp280 device handle.
  * @return ESP_OK: init success.
  */
-static inline esp_err_t i2c_bmp280_read_cal_factors(i2c_bmp280_handle_t bmp280_handle) {
+static inline esp_err_t i2c_bmp280_get_cal_factors(i2c_bmp280_handle_t bmp280_handle) {
+    ESP_ARG_CHECK( bmp280_handle );
+
     /* bmp280 attempt to request T1-T3 calibration values from device */
     ESP_ERROR_CHECK( i2c_master_bus_read_uint16(bmp280_handle->i2c_dev_handle, 0x88, &bmp280_handle->dev_cal_factors->dig_T1) );
     ESP_ERROR_CHECK( i2c_master_bus_read_uint16(bmp280_handle->i2c_dev_handle, 0x8a, (uint16_t *)&bmp280_handle->dev_cal_factors->dig_T2) );
@@ -169,12 +169,12 @@ static inline esp_err_t i2c_bmp280_read_cal_factors(i2c_bmp280_handle_t bmp280_h
  * @param[out] pressure fixed temperature.
  * @return ESP_OK: init success.
  */
-static inline esp_err_t i2c_bmp280_read_fixed_measurement(i2c_bmp280_handle_t bmp280_handle, int32_t *temperature, uint32_t *pressure) {
+static inline esp_err_t i2c_bmp280_get_fixed_measurement(i2c_bmp280_handle_t bmp280_handle, int32_t *temperature, uint32_t *pressure) {
     int32_t         adc_press;
     int32_t         adc_temp;
     i2c_uint48_t    data;
 
-    ESP_ARG_CHECK(bmp280_handle && temperature && pressure);
+    ESP_ARG_CHECK( bmp280_handle && temperature && pressure );
 
     // need to read in one sequence to ensure they match.
     ESP_ERROR_CHECK( i2c_master_bus_read_uint48(bmp280_handle->i2c_dev_handle, I2C_BMP280_REG_PRESSURE, &data) );
@@ -195,7 +195,7 @@ esp_err_t i2c_bmp280_init(i2c_master_bus_handle_t bus_handle, const i2c_bmp280_c
     esp_err_t           ret = ESP_OK;
     i2c_bmp280_handle_t out_handle;
 
-    ESP_ARG_CHECK(bus_handle && bmp280_config);
+    ESP_ARG_CHECK( bus_handle && bmp280_config );
 
     out_handle = (i2c_bmp280_handle_t)calloc(1, sizeof(i2c_bmp280_handle_t));
     ESP_GOTO_ON_FALSE(out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for i2c0 bmp280 device");
@@ -203,7 +203,7 @@ esp_err_t i2c_bmp280_init(i2c_master_bus_handle_t bus_handle, const i2c_bmp280_c
     i2c_device_config_t i2c_dev_conf = {
         .dev_addr_length    = I2C_ADDR_BIT_LEN_7,
         .device_address     = bmp280_config->dev_config.device_address,
-        .scl_speed_hz       = I2C_BMP280_FREQ_HZ,
+        .scl_speed_hz       = I2C_BMP280_DATA_RATE_HZ,
     };
 
     if (out_handle->i2c_dev_handle == NULL) {
@@ -232,7 +232,7 @@ esp_err_t i2c_bmp280_init(i2c_master_bus_handle_t bus_handle, const i2c_bmp280_c
     vTaskDelay( i2c_bmp280_get_tick_duration(30) );
 
     /* bmp280 attempt to read calibration factors from device */
-    ESP_GOTO_ON_ERROR(i2c_bmp280_read_cal_factors(out_handle), err, TAG, "i2c0 bmp280 read calibration factors failed");
+    ESP_GOTO_ON_ERROR(i2c_bmp280_get_cal_factors(out_handle), err, TAG, "i2c0 bmp280 read calibration factors failed");
     
     /* bmp280 attempt to write configuration params to device */
     uint8_t config = (bmp280_config->dev_params.standby << 5) | (bmp280_config->dev_params.filter << 2);
@@ -264,13 +264,13 @@ esp_err_t i2c_bmp280_init(i2c_master_bus_handle_t bus_handle, const i2c_bmp280_c
         return ret;
 }
 
-esp_err_t i2c_bmp280_read_measurement(i2c_bmp280_handle_t bmp280_handle, float *temperature, float *pressure) {
+esp_err_t i2c_bmp280_get_measurement(i2c_bmp280_handle_t bmp280_handle, float *temperature, float *pressure) {
     int32_t fixed_temperature;
     uint32_t fixed_pressure;
 
-    ESP_ARG_CHECK(bmp280_handle && temperature && pressure);
+    ESP_ARG_CHECK( bmp280_handle && temperature && pressure );
 
-    ESP_ERROR_CHECK( i2c_bmp280_read_fixed_measurement(bmp280_handle, &fixed_temperature, &fixed_pressure) );
+    ESP_ERROR_CHECK( i2c_bmp280_get_fixed_measurement(bmp280_handle, &fixed_temperature, &fixed_pressure) );
 
     *temperature = (float)fixed_temperature / 100;
     *pressure = (float)fixed_pressure / 256;
@@ -278,11 +278,11 @@ esp_err_t i2c_bmp280_read_measurement(i2c_bmp280_handle_t bmp280_handle, float *
     return ESP_OK;
 }
 
-esp_err_t i2c_bmp280_write_forced_measurement(i2c_bmp280_handle_t bmp280_handle) {
+esp_err_t i2c_bmp280_set_forced_measurement(i2c_bmp280_handle_t bmp280_handle) {
     esp_err_t ret = ESP_OK;
     uint8_t   ctrl;
 
-    ESP_ARG_CHECK(bmp280_handle);
+    ESP_ARG_CHECK( bmp280_handle );
 
     ESP_ERROR_CHECK( i2c_master_bus_read_uint8(bmp280_handle->i2c_dev_handle, I2C_BMP280_REG_CTRL, &ctrl) );
 
@@ -299,12 +299,12 @@ esp_err_t i2c_bmp280_write_forced_measurement(i2c_bmp280_handle_t bmp280_handle)
     return ESP_OK;
 }
 
-esp_err_t i2c_bmp280_read_is_measuring(i2c_bmp280_handle_t bmp280_handle, bool *busy) {
+esp_err_t i2c_bmp280_get_is_measuring(i2c_bmp280_handle_t bmp280_handle, bool *busy) {
     esp_err_t           ret = ESP_OK;
     const i2c_uint16_t  regs = { I2C_BMP280_REG_STATUS, I2C_BMP280_REG_CTRL };
     i2c_uint16_t        status;
 
-    ESP_ARG_CHECK(bmp280_handle && busy);
+    ESP_ARG_CHECK( bmp280_handle && busy );
 
     ret = i2c_master_transmit_receive(bmp280_handle->i2c_dev_handle, regs, I2C_UINT16_SIZE, status, I2C_UINT16_SIZE, -1);
     if(ret != ESP_OK) {
@@ -320,7 +320,7 @@ esp_err_t i2c_bmp280_read_is_measuring(i2c_bmp280_handle_t bmp280_handle, bool *
 }
 
 esp_err_t i2c_bmp280_reset(i2c_bmp280_handle_t bmp280_handle) {
-    ESP_ARG_CHECK(bmp280_handle);
+    ESP_ARG_CHECK( bmp280_handle );
 
     return i2c_master_bus_write_uint8(bmp280_handle->i2c_dev_handle, I2C_BMP280_REG_RESET, I2C_BMP280_RESET_VALUE);
 }

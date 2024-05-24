@@ -118,16 +118,20 @@ static void i2c_0_task( void *pvParameters ) {
     //
     // task loop entry point
     for ( ;; ) {
+        ESP_LOGI(CONFIG_APP_TAG, "######################## BMP280 - START #########################");
         //
         // handle bmp280 sensor
         float temperature;
         float pressure;
-        if(i2c_bmp280_read_measurement(bmp280_dev_hdl, &temperature, &pressure) != ESP_OK) {
+        if(i2c_bmp280_get_measurement(bmp280_dev_hdl, &temperature, &pressure) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] bmp280 device read failed");
         } else {
             pressure = pressure / 100;
-            ESP_LOGI(CONFIG_APP_TAG, "bmp280 air temperature:   %.2f C, barometric pressure: %.2f hPa", temperature, pressure);
+            ESP_LOGI(CONFIG_APP_TAG, "bmp280 air temperature:     %.2f C", temperature);
+            ESP_LOGI(CONFIG_APP_TAG, "bmp280 barometric pressure: %.2f hPa", pressure);
         }
+        //
+        ESP_LOGI(CONFIG_APP_TAG, "######################## BMP280 - END ###########################");
         //
         //
         // pause the task per defined wait period
