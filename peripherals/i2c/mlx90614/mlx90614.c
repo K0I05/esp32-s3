@@ -125,7 +125,7 @@ static inline esp_err_t i2c_mlx90614_read_word(i2c_mlx90614_handle_t mlx90614_ha
 
     ESP_ARG_CHECK( mlx90614_handle );
 
-    ESP_ERROR_CHECK( i2c_master_bus_read_uint24(mlx90614_handle->i2c_dev_handle, reg_addr, &buffer) );
+    ESP_ERROR_CHECK( i2c_master_bus_read_byte24(mlx90614_handle->i2c_dev_handle, reg_addr, &buffer) );
 
     uint8_t crc = i2c_mlx90614_crc8(0, (mlx90614_handle->dev_params->address << 1));
 

@@ -177,7 +177,7 @@ static inline esp_err_t i2c_bmp280_get_fixed_measurement(i2c_bmp280_handle_t bmp
     ESP_ARG_CHECK( bmp280_handle && temperature && pressure );
 
     // need to read in one sequence to ensure they match.
-    ESP_ERROR_CHECK( i2c_master_bus_read_uint48(bmp280_handle->i2c_dev_handle, I2C_BMP280_REG_PRESSURE, &data) );
+    ESP_ERROR_CHECK( i2c_master_bus_read_byte48(bmp280_handle->i2c_dev_handle, I2C_BMP280_REG_PRESSURE, &data) );
 
     adc_press = data[0] << 12 | data[1] << 4 | data[2] >> 4;
     adc_temp  = data[3] << 12 | data[4] << 4 | data[5] >> 4;
