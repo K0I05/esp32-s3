@@ -56,7 +56,6 @@ extern "C" {
 #define I2C_MLX90614_CMD_RAM_READ_TA         UINT8_C(0x06)
 #define I2C_MLX90614_CMD_RAM_READ_TOBJ1      UINT8_C(0x07)
 #define I2C_MLX90614_CMD_RAM_READ_TOBJ2      UINT8_C(0x08)
-    //MLX90614_CMD_EEPROM_,           // 001x xxxx or 0x20
 #define I2C_MLX90614_CMD_EEPROM_RDWR_TOMAX   UINT8_C(0x20)
 #define I2C_MLX90614_CMD_EEPROM_RDWR_TOMIN   UINT8_C(0x21)
 #define I2C_MLX90614_CMD_EEPROM_RDWR_PWMCTRL UINT8_C(0x22)
@@ -194,7 +193,7 @@ esp_err_t i2c_mlx90614_get_emissivity(i2c_mlx90614_handle_t mlx90614_handle);
  * @param[in] mlx90614_handle mlx90614 device handle
  * @return ESP_OK: init success.
  */
-esp_err_t i2c_mlx90614_set_emissivity(i2c_mlx90614_handle_t mlx90614_handle);
+esp_err_t i2c_mlx90614_set_emissivity(i2c_mlx90614_handle_t mlx90614_handle, const float emissivity);
 
 /**
  * @brief reads object temperature ranges (maximum and minimum) from the mlx90614.
@@ -210,7 +209,7 @@ esp_err_t i2c_mlx90614_get_object_temperature_ranges(i2c_mlx90614_handle_t mlx90
  * @param[in] mlx90614_handle mlx90614 device handle
  * @return ESP_OK: init success.
  */
-esp_err_t i2c_mlx90614_set_object_maximum_temperature(i2c_mlx90614_handle_t mlx90614_handle);
+esp_err_t i2c_mlx90614_set_object_maximum_temperature(i2c_mlx90614_handle_t mlx90614_handle, const float temperature);
 
 /**
  * @brief writes user defined minimum object temperature range to the mlx90614.
@@ -218,7 +217,7 @@ esp_err_t i2c_mlx90614_set_object_maximum_temperature(i2c_mlx90614_handle_t mlx9
  * @param[in] mlx90614_handle mlx90614 device handle
  * @return ESP_OK: init success.
  */
-esp_err_t i2c_mlx90614_set_object_minimum_temperature(i2c_mlx90614_handle_t mlx90614_handle);
+esp_err_t i2c_mlx90614_set_object_minimum_temperature(i2c_mlx90614_handle_t mlx90614_handle, const float temperature);
 
 /**
  * @brief reads the I2C address from the mlx90614.
@@ -234,7 +233,7 @@ esp_err_t i2c_mlx90614_get_address(i2c_mlx90614_handle_t mlx90614_handle);
  * @param[in] mlx90614_handle mlx90614 device handle
  * @return ESP_OK: init success.
  */
-esp_err_t i2c_mlx90614_set_address(i2c_mlx90614_handle_t mlx90614_handle);
+esp_err_t i2c_mlx90614_set_address(i2c_mlx90614_handle_t mlx90614_handle, const uint8_t address);
 
 /**
  * @brief puts the mlx90614 to sleep.

@@ -355,10 +355,9 @@ esp_err_t i2c_mlx90614_get_emissivity(i2c_mlx90614_handle_t mlx90614_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_set_emissivity(i2c_mlx90614_handle_t mlx90614_handle) {
+esp_err_t i2c_mlx90614_set_emissivity(i2c_mlx90614_handle_t mlx90614_handle, const float emissivity) {
     ESP_ARG_CHECK( mlx90614_handle );
 
-    const float emissivity = mlx90614_handle->dev_params->emissivity;
     uint16_t raw_data = (uint16_t)(0xffff * emissivity);
 
     // make sure emissivity is between 0.1 and 1.0
@@ -366,6 +365,8 @@ esp_err_t i2c_mlx90614_set_emissivity(i2c_mlx90614_handle_t mlx90614_handle) {
 		return ESP_ERR_INVALID_ARG;
 
     ESP_ERROR_CHECK( i2c_mlx90614_write_eeprom(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_EMISS, raw_data) );
+
+    mlx90614_handle->dev_params->emissivity = emissivity;
 
     return ESP_OK;
 }
@@ -379,24 +380,26 @@ esp_err_t i2c_mlx90614_get_object_temperature_ranges(i2c_mlx90614_handle_t mlx90
     return ESP_OK;    
 }
 
-esp_err_t i2c_mlx90614_set_object_maximum_temperature(i2c_mlx90614_handle_t mlx90614_handle) {
+esp_err_t i2c_mlx90614_set_object_maximum_temperature(i2c_mlx90614_handle_t mlx90614_handle, const float temperature) {
     ESP_ARG_CHECK( mlx90614_handle );
 
-    const float maximum_temperature = mlx90614_handle->dev_params->obj_max_temperature;
-    uint16_t raw_data = i2c_mlx90614_encode_temperature(maximum_temperature);
+    uint16_t raw_data = i2c_mlx90614_encode_temperature(temperature);
 
     ESP_ERROR_CHECK( i2c_mlx90614_write_eeprom(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_TOMAX, raw_data) );
+
+    mlx90614_handle->dev_params->obj_max_temperature = temperature;
 
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_set_object_minimum_temperature(i2c_mlx90614_handle_t mlx90614_handle) {
+esp_err_t i2c_mlx90614_set_object_minimum_temperature(i2c_mlx90614_handle_t mlx90614_handle, const float temperature) {
     ESP_ARG_CHECK( mlx90614_handle );
 
-    const float minimum_temperature = mlx90614_handle->dev_params->obj_min_temperature;
-    uint16_t raw_data = i2c_mlx90614_encode_temperature(minimum_temperature);
+    uint16_t raw_data = i2c_mlx90614_encode_temperature(temperature);
 
     ESP_ERROR_CHECK( i2c_mlx90614_write_eeprom(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_TOMIN, raw_data) );
+
+    mlx90614_handle->dev_params->obj_min_temperature = temperature;
 
     return ESP_OK;
 }
@@ -413,11 +416,10 @@ esp_err_t i2c_mlx90614_get_address(i2c_mlx90614_handle_t mlx90614_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_set_address(i2c_mlx90614_handle_t mlx90614_handle) {
-    ESP_ARG_CHECK( mlx90614_handle );
-
-    const uint8_t address = mlx90614_handle->dev_params->address;
+esp_err_t i2c_mlx90614_set_address(i2c_mlx90614_handle_t mlx90614_handle, const uint8_t address) {
     uint16_t raw_data;
+    
+    ESP_ARG_CHECK( mlx90614_handle );
 
     // make sure the address is within the proper range:
 	if ((address >= 0x80) || (address == 0x00))
@@ -430,6 +432,8 @@ esp_err_t i2c_mlx90614_set_address(i2c_mlx90614_handle_t mlx90614_handle) {
 	raw_data |= address; // add the new address
 
     ESP_ERROR_CHECK( i2c_mlx90614_write_eeprom(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_SMBADDR, raw_data) );
+
+    mlx90614_handle->dev_params->address = address;
 
     return ESP_OK;
 }
