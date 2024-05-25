@@ -12,9 +12,4 @@
  - I2C: Sensirion SHT4x
  - I2C: Bosch BMP280
  
- Above peripheral drivers have been tested and validated with a logic analyzer.  If any problems arise please feel free to log an issue.
-
-# WIP Peripheral Drivers
- Peripherial device drivers that are work in progress (WIP) include:
-
- - Honeywell HMC5883L
+ Above peripheral drivers have been tested, validated with a logic analyzer, and still under development.  If any problems arise please feel free to log an issue.
