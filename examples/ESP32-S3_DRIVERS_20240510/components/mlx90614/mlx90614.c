@@ -56,7 +56,6 @@ static const char *TAG = "mlx90614";
 * functions and subrountines
 */
 
-
 /**
  * @brief calculates mlx90614 crc8 value using a x^8+x^2+x^1+1 poly.  See datasheet for details.
  *
@@ -161,7 +160,7 @@ static inline esp_err_t i2c_mlx90614_write_word(i2c_mlx90614_handle_t mlx90614_h
 
     tx[3] = crc;            // pec
 
-    ESP_ERROR_CHECK( i2c_master_transmit(mlx90614_handle->i2c_dev_handle, tx, I2C_UINT32_SIZE, -1) );
+    ESP_RETURN_ON_ERROR( i2c_master_transmit(mlx90614_handle->i2c_dev_handle, tx, I2C_UINT32_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_mlx90614_write_word failed" );
 
     return ESP_OK;
 }
@@ -275,6 +274,12 @@ esp_err_t i2c_mlx90614_init(i2c_master_bus_handle_t bus_handle, const i2c_mlx906
 
     /* mlx90614 attempt to read configured maximum and minimum object temperature */
     ESP_GOTO_ON_ERROR(i2c_mlx90614_get_object_temperature_ranges(out_handle), err, TAG, "i2c mlx90614 read object temperature ranges failed");
+
+    /* mlx90614 attempt to read configuration register */
+    ESP_GOTO_ON_ERROR(i2c_mlx90614_get_config_register(out_handle), err, TAG, "i2c mlx90614 read configuration register failed");
+
+    /* mlx90614 attempt to read pwmctrl register */
+    ESP_GOTO_ON_ERROR(i2c_mlx90614_get_pwmctrl_register(out_handle), err, TAG, "i2c mlx90614 read pwmctrl register failed");
 
     /* set device handle */
     *mlx90614_handle = out_handle;
@@ -448,6 +453,56 @@ esp_err_t i2c_mlx90614_wake(i2c_mlx90614_handle_t mlx90614_handle) {
     ESP_ARG_CHECK( mlx90614_handle );
 
     return ESP_ERR_NOT_FINISHED;
+}
+
+esp_err_t i2c_mlx90614_get_config_register(i2c_mlx90614_handle_t mlx90614_handle) {
+    uint16_t config_reg = 0;
+
+    ESP_ARG_CHECK( mlx90614_handle );
+
+    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_CFGREG1, &config_reg) );
+
+    mlx90614_handle->dev_params->config_reg.reg = config_reg;
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_mlx90614_set_config_register(i2c_mlx90614_handle_t mlx90614_handle, i2c_mlx90614_config_register_t config_reg) {
+    ESP_ARG_CHECK( mlx90614_handle );
+
+    ESP_ERROR_CHECK( i2c_mlx90614_write_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_CFGREG1, config_reg.reg) );
+
+    mlx90614_handle->dev_params->config_reg = config_reg;
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_mlx90614_get_pwmctrl_register(i2c_mlx90614_handle_t mlx90614_handle) {
+    uint16_t pwmctrl_reg = 0;
+
+    ESP_ARG_CHECK( mlx90614_handle );
+
+    ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_PWMCTRL, &pwmctrl_reg) );
+
+    mlx90614_handle->dev_params->pwmctrl_reg.reg = pwmctrl_reg;
+
+    if(mlx90614_handle->dev_params->pwmctrl_reg.bit.pwm_mode == I2C_MLX90614_PWM_MODE_SINGLE) {
+        mlx90614_handle->dev_params->pwmctrl_reg.pwm_period = (float)mlx90614_handle->dev_params->pwmctrl_reg.bit.pwm_period_mult * 1.024;
+    } else {
+        mlx90614_handle->dev_params->pwmctrl_reg.pwm_period = (float)mlx90614_handle->dev_params->pwmctrl_reg.bit.pwm_period_mult * 2.048;
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_mlx90614_set_pwmctrl_register(i2c_mlx90614_handle_t mlx90614_handle, i2c_mlx90614_pwmctrl_register_t pwmctrl_reg) {
+    ESP_ARG_CHECK( mlx90614_handle );
+
+    ESP_ERROR_CHECK( i2c_mlx90614_write_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_PWMCTRL, pwmctrl_reg.reg) );
+
+    mlx90614_handle->dev_params->pwmctrl_reg = pwmctrl_reg;
+
+    return ESP_OK;
 }
 
 esp_err_t i2c_mlx90614_rm(i2c_mlx90614_handle_t mlx90614_handle) {

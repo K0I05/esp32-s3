@@ -69,6 +69,10 @@ extern "C" {
 /*
  * SHT4X macro definitions
 */
+
+/**
+ * @brief Macro that initializes `i2c_sht4x_config_t` to default configuration settings.
+ */
 #define I2C_SHT4X_CONFIG_DEFAULT {                                      \
         .dev_config.device_address     = I2C_SHT4X_ADDR_LO,             \
         .heater                        = I2C_SHT4X_HEATER_OFF,          \
@@ -77,12 +81,10 @@ extern "C" {
 /*
  * SHT4X enumerator and sructure declerations
 */
-typedef struct i2c_sht4x_t i2c_sht4x_t;
-typedef struct i2c_sht4x_t *i2c_sht4x_handle_t;
 
-/*
- * possible heater modes
- */
+/** 
+ * @brief SHT4X heater modes enumerator.
+*/
 typedef enum {
     I2C_SHT4X_HEATER_OFF = 0,      /*!< heater is off, default */
     I2C_SHT4X_HEATER_HIGH_LONG,    /*!< high power (~200mW), 1 second pulse */
@@ -93,8 +95,8 @@ typedef enum {
     I2C_SHT4X_HEATER_LOW_SHORT,    /*!< low power (~20mW), 0.1 second pulse */
 } i2c_sht4x_heater_modes_t;
 
-/*
- * possible repeatability modes
+/**
+  * @brief SHT4X repeatability modes enumerator.
  */
 typedef enum {
     I2C_SHT4X_REPEAT_HIGH = 0,                  /*!< high repeatability */
@@ -103,25 +105,34 @@ typedef enum {
 } i2c_sht4x_repeat_modes_t;
 
 /**
- * @brief i2c sht4x device configuration.
+ * @brief SHT4X I2C device structure definition.
+ */
+typedef struct i2c_sht4x_t i2c_sht4x_t;
+/**
+ * @brief SHT4X I2C device handle structure.
+ */
+typedef struct i2c_sht4x_t *i2c_sht4x_handle_t;
+
+/**
+ * @brief SHT4X I2C device configuration structure.
  */
 typedef struct {
     i2c_device_config_t      dev_config;       /*!< configuration for sht4x device */
-    i2c_sht4x_repeat_modes_t repeatability;    /*!< measurement repeatability */
-    i2c_sht4x_heater_modes_t heater;           /*!< measurement mode */
+    i2c_sht4x_repeat_modes_t repeatability;    /*!< measurement repeatability mode */
+    i2c_sht4x_heater_modes_t heater;           /*!< measurement heater mode */
 } i2c_sht4x_config_t;
 
 /**
- * @brief i2c sh4xt device configuration parameters.
+ * @brief SHT4X I2C device parameters structure.
  */
 typedef struct {
-    i2c_sht4x_repeat_modes_t repeatability;   /*!< measurement repeatability */
-    i2c_sht4x_heater_modes_t heater;          /*!< measurement mode */
+    i2c_sht4x_repeat_modes_t repeatability;   /*!< measurement repeatability mode */
+    i2c_sht4x_heater_modes_t heater;          /*!< measurement heater mode */
     uint32_t                 serial_number;   /*!< sht4x device serial number */
 } i2c_sht4x_params_t;
 
 /**
- * @brief i2c sh4xt device handle.
+ * @brief SHT4X I2C device structure.
  */
 struct i2c_sht4x_t {
     i2c_master_dev_handle_t  i2c_dev_handle;  /*!< I2C device handle */
@@ -130,60 +141,53 @@ struct i2c_sht4x_t {
 
 
 /**
- * @brief initializes an sht4x device onto the I2C master bus.
+ * @brief Initializes an SHT4X device onto the I2C master bus.
  *
- * @param[in] bus_handle I2C master bus handle
- * @param[in] sht4x_config configuration of sht4x device
- * @param[out] sht4x_handle sht4x device handle
- * @return ESP_OK: init success.
+ * @param[in] bus_handle I2C master bus handle.
+ * @param[in] sht4x_config configuration of sht4x device.
+ * @param[out] sht4x_handle SHT4X device handle.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sht4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sht4x_config_t *sht4x_config, i2c_sht4x_handle_t *sht4x_handle);
 
 /**
- * @brief soft-reset sensor
+ * @brief Issues soft-reset to SHT4X.
  *
- * @param[in] sht4x_handle sht4x device handle
- * @return ESP_OK: init success.
+ * @param[in] sht4x_handle SHT4X device handle.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sht4x_reset(i2c_sht4x_handle_t sht4x_handle);
 
 /**
- * @brief high-level measurement function
- *
- * this function comprises all three steps to perform
- * one measurement in only one function:
- *
- * 1. starts a measurement
- * 2. waits using `vTaskDelay()` until measurement results are available
- * 3. returns the results in kind of floating point sensor values
+ * @brief Read high-level measurements from SHT4X.
  *
  * @note The function delays the calling task up to 1.1 s to wait for
  *       the measurement results. This might lead to problems when the function
  *       is called from a software timer callback function.
  *
- * @param[in] sht4x_handle sht4x device handle
- * @param[out] temperature temperature in degree Celsius
- * @param[out] humidity humidity in percent
- * @return ESP_OK: init success.
+ * @param[in] sht4x_handle SHT4X device handle.
+ * @param[out] temperature temperature in degree Celsius.
+ * @param[out] humidity humidity in percent.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sht4x_get_measurement(i2c_sht4x_handle_t sht4x_handle, float *temperature, float *humidity);
 
 /**
- * @brief similar function to `i2c_sht4x_read_measurement` but it includes dewpoint.
+ * @brief Similar to `i2c_sht4x_read_measurement` but it includes dewpoint in the results.
  *
- * @param[in] sht4x_handle sht4x device handle
- * @param[out] temperature temperature in degree Celsius
- * @param[out] humidity humidity in percent
- * @param[out] dewpoint calculated dewpoint temperature in degree Celsius
- * @return ESP_OK: init success.
+ * @param[in] sht4x_handle SHT4X device handle.
+ * @param[out] temperature temperature in degree Celsius.
+ * @param[out] humidity humidity in percent.
+ * @param[out] dewpoint calculated dewpoint temperature in degree Celsius.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sht4x_get_measurements(i2c_sht4x_handle_t sht4x_handle, float *temperature, float *humidity, float *dewpoint);
 
 /**
- * @brief removes an sht4x device from master bus.
+ * @brief Removes an SHT4X device from master I2C bus.
  *
- * @param[in] sht4x_handle sht4x device handle
- * @return ESP_OK: init success.
+ * @param[in] sht4x_handle SHT4X device handle.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sht4x_rm(i2c_sht4x_handle_t sht4x_handle);
 

@@ -176,7 +176,7 @@ esp_err_t i2c_bh1750_init(i2c_master_bus_handle_t bus_handle, const i2c_bh1750_c
     ESP_GOTO_ON_FALSE(out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for i2c bh1750 device");
 
     out_handle->dev_params = (i2c_bh1750_params_t*)calloc(1, sizeof(i2c_bh1750_params_t));
-    ESP_GOTO_ON_FALSE(out_handle->dev_params, ESP_ERR_NO_MEM, err, TAG, "no memory for i2c bmp280 device configuration parameters");
+    ESP_GOTO_ON_FALSE(out_handle->dev_params, ESP_ERR_NO_MEM, err, TAG, "no memory for i2c bh1750 device configuration parameters");
 
     i2c_device_config_t i2c_dev_conf = {
         .dev_addr_length    = I2C_ADDR_BIT_LEN_7,
@@ -214,51 +214,65 @@ esp_err_t i2c_bh1750_init(i2c_master_bus_handle_t bus_handle, const i2c_bh1750_c
 esp_err_t i2c_bh1750_reset(i2c_bh1750_handle_t bh1750_handle) {
     ESP_ARG_CHECK( bh1750_handle );
 
-    return i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_RESET);
+    esp_err_t ret = i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_RESET);
+
+    /* delay before next command - power cycle */
+    if(ret == ESP_OK) vTaskDelay(pdMS_TO_TICKS(10));
+
+    return ret;
 }
 
 esp_err_t i2c_bh1750_power_up(i2c_bh1750_handle_t bh1750_handle) {
     ESP_ARG_CHECK( bh1750_handle );
 
-    return i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_UP);
+    esp_err_t ret =  i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_UP);
+
+    /* delay before next command - power cycle */
+    if(ret == ESP_OK) vTaskDelay(pdMS_TO_TICKS(10));
+
+    return ret;
 }
 
 esp_err_t i2c_bh1750_power_down(i2c_bh1750_handle_t bh1750_handle) {
     ESP_ARG_CHECK( bh1750_handle );
 
-    return i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_DOWN);
+    esp_err_t ret = i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_DOWN);
+
+    /* delay before next command - power cycle */
+    if(ret == ESP_OK) vTaskDelay(pdMS_TO_TICKS(10));
+
+    return ret;
 }
 
-esp_err_t i2c_bh1750_get_measurement(i2c_bh1750_handle_t bh1750_handle, uint16_t *illuminance) {
-    esp_err_t ret;
-    size_t delay_ticks = 0;
-    i2c_uint8_t i2c_tx_buffer = { 0 };
-    i2c_uint16_t i2c_rx_buffer = { 0, 0 };
+esp_err_t i2c_bh1750_get_measurement(i2c_bh1750_handle_t bh1750_handle, float *lux) {
+    esp_err_t ret               = ESP_OK;
+    size_t delay_ticks          = 0;
+    i2c_uint8_t i2c_tx_buffer   = { 0 };
+    i2c_uint16_t i2c_rx_buffer  = { 0, 0 };
 
     ESP_ARG_CHECK( bh1750_handle );
     
     i2c_tx_buffer[0] = i2c_bh1750_get_command(bh1750_handle);
     delay_ticks = i2c_bh1750_get_tick_duration(bh1750_handle);
 
-    do {
-        ret = i2c_master_transmit(bh1750_handle->i2c_dev_handle, i2c_tx_buffer, I2C_UINT8_SIZE, -1);
-    } while (ret == ESP_ERR_TIMEOUT);
-    if (ret == ESP_OK) {
-        if(delay_ticks) vTaskDelay(delay_ticks);
-        do {
-            // bh1750 read response
-            ret = i2c_master_receive(bh1750_handle->i2c_dev_handle, i2c_rx_buffer, I2C_UINT16_SIZE, -1); 
-        } while (ret == ESP_ERR_TIMEOUT);
-        if (ret == ESP_OK) {
-            // convert bh1750 results to engineering units of measure (lux)
-            *illuminance = i2c_rx_buffer[0] << 8 | i2c_rx_buffer[1];
-            *illuminance = (*illuminance * 10) / 12;
-        } else {
-            return ret;
-        }
-    } else {
-        return ret;
-    }
+    /* attempt i2c write transaction */
+    ret = i2c_master_transmit(bh1750_handle->i2c_dev_handle, i2c_tx_buffer, I2C_UINT8_SIZE, I2C_XFR_TIMEOUT_MS);
+  
+    /* validate i2c transaction results */
+    if (ret != ESP_OK) return ret;
+
+    /* delay task */
+    if(delay_ticks) vTaskDelay(delay_ticks);
+
+    /* attempt i2c read transaction */
+    ret = i2c_master_receive(bh1750_handle->i2c_dev_handle, i2c_rx_buffer, I2C_UINT16_SIZE, I2C_XFR_TIMEOUT_MS); 
+
+    /* validate i2c transaction results */
+    if (ret != ESP_OK) return ret;
+
+    /* convert bh1750 results to engineering units of measure (lux) */
+    *lux = i2c_rx_buffer[0] << 8 | i2c_rx_buffer[1];
+    *lux = (float)(*lux * 10) / 12;
 
     return ESP_OK;
 }

@@ -11,5 +11,8 @@
  - I2C: Melexis MLX90614
  - I2C: Sensirion SHT4x
  - I2C: Bosch BMP280
+ - I2C: AKM AK8975
+ - I2C: ScioSense ENS160
+ - I2C: Vishay VEML7700
  
  Above peripheral drivers have been tested, validated with a logic analyzer, and still under development.  If any problems arise please feel free to log an issue.

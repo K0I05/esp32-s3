@@ -39,7 +39,6 @@
 #include <esp_log.h>
 #include <esp_check.h>
 #include <driver/i2c_master.h>
-#include <esp_check.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -61,7 +60,9 @@ esp_err_t i2c_master_bus_read_uint8(i2c_master_dev_handle_t handle, const uint8_
     i2c_uint8_t tx = { reg_addr };
     i2c_uint8_t rx = { 0 };
 
-    ESP_ERROR_CHECK( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, rx, I2C_UINT8_SIZE, -1) );
+    ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, rx, I2C_UINT8_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_read_uint8 failed" );
 
     ESP_LOGD(TAG, "i2c_master_bus_read_uint8 - rx[0] %02x", rx[0]);
 
@@ -71,10 +72,12 @@ esp_err_t i2c_master_bus_read_uint8(i2c_master_dev_handle_t handle, const uint8_
 }
 
 esp_err_t i2c_master_bus_read_uint16(i2c_master_dev_handle_t handle, const uint8_t reg_addr, uint16_t *data) {
-    i2c_uint8_t tx = { reg_addr };
+    i2c_uint8_t tx  = { reg_addr };
     i2c_uint16_t rx = { 0, 0 };
 
-    ESP_ERROR_CHECK( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, rx, I2C_UINT16_SIZE, -1) );
+    ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, rx, I2C_UINT16_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_read_uint16 failed" );
 
     ESP_LOGD(TAG, "i2c_master_bus_read_uint16 - rx[0] %02x | rx[1] %02x", rx[0], rx[1]);
 
@@ -86,7 +89,9 @@ esp_err_t i2c_master_bus_read_uint16(i2c_master_dev_handle_t handle, const uint8
 esp_err_t i2c_master_bus_read_byte16(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint16_t *data) {
     i2c_uint8_t tx = { reg_addr };
 
-    ESP_ERROR_CHECK( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, *data, I2C_UINT16_SIZE, -1) );
+    ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, *data, I2C_UINT16_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_read_byte16 failed" );
 
     ESP_LOGD(TAG, "i2c_master_bus_read_uint16 - data[0] %02x | data[1] %02x", *data[0], *data[1]);
 
@@ -96,18 +101,36 @@ esp_err_t i2c_master_bus_read_byte16(i2c_master_dev_handle_t handle, const uint8
 esp_err_t i2c_master_bus_read_byte24(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint24_t *data) {
     i2c_uint8_t tx = { reg_addr };
 
-    ESP_ERROR_CHECK( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, *data, I2C_UINT24_SIZE, -1) );
+    ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, *data, I2C_UINT24_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_read_byte24 failed" );
 
     ESP_LOGD(TAG, "i2c_master_bus_read_uint24 - data[0] %02x | data[1] %02x | data[2] %02x", *data[0], *data[1], *data[2]);
 
     return ESP_OK;
 }
 
+esp_err_t i2c_master_bus_read16_byte24(i2c_master_dev_handle_t handle, const uint16_t reg_addr, i2c_uint24_t *data) {
+    i2c_bytes_to_uint16_t tx;
+
+    ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
+
+    tx.value = reg_addr;
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit_receive(handle, tx.bytes, I2C_UINT16_SIZE, *data, I2C_UINT24_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_read16_byte24 failed" );
+
+    ESP_LOGD(TAG, "i2c_master_bus_read16_uint24 - data[0] %02x | data[1] %02x | data[2] %02x", *data[0], *data[1], *data[2]);
+
+    return ESP_OK;
+}
+
 esp_err_t i2c_master_bus_read_uint32(i2c_master_dev_handle_t handle, const uint8_t reg_addr, uint32_t *data) {
-    i2c_uint8_t tx = { reg_addr };
+    i2c_uint8_t tx  = { reg_addr };
     i2c_uint32_t rx = { 0, 0, 0, 0 };
 
-    ESP_ERROR_CHECK( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, rx, I2C_UINT32_SIZE, -1) );
+    ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, rx, I2C_UINT32_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_read_uint32 failed" );
 
     ESP_LOGD(TAG, "i2c_master_bus_read_uint32 - rx[0] %02x | rx[1] %02x | rx[2] %02x | rx[3] %02x", rx[0], rx[1], rx[2], rx[3]);
 
@@ -119,19 +142,51 @@ esp_err_t i2c_master_bus_read_uint32(i2c_master_dev_handle_t handle, const uint8
 esp_err_t i2c_master_bus_read_byte32(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint32_t *data) {
     i2c_uint8_t tx = { reg_addr };
 
-    ESP_ERROR_CHECK( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, *data, I2C_UINT32_SIZE, -1) );
+    ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, *data, I2C_UINT32_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_read_byte32 failed" );
 
     ESP_LOGD(TAG, "i2c_master_bus_read_uint32 - rx[0] %02x | rx[1] %02x | rx[2] %02x | rx[3] %02x", *data[0], *data[1], *data[2], *data[3]);
 
     return ESP_OK;
 }
 
-esp_err_t i2c_master_bus_read_byte48(i2c_master_dev_handle_t handle, const uint8_t command, i2c_uint48_t *data) {
-    i2c_uint8_t tx = {command};
+esp_err_t i2c_master_bus_read_byte48(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint48_t *data) {
+    i2c_uint8_t tx = {reg_addr};
 
-    ESP_ERROR_CHECK( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, *data, I2C_UINT48_SIZE, -1) );
+    ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit_receive(handle, tx, I2C_UINT8_SIZE, *data, I2C_UINT48_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_read_byte48 failed" );
 
     ESP_LOGD(TAG, "i2c_master_bus_read_uint48 - rx[0] %02x | rx[1] %02x | rx[2] %02x | rx[3] %02x | rx[4] %02x | rx[5] %02x", *data[0], *data[1], *data[2], *data[3], *data[4], *data[5]);
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_master_bus_read16_byte48(i2c_master_dev_handle_t handle, const uint16_t reg_addr, i2c_uint48_t *data) {
+    i2c_bytes_to_uint16_t tx;
+
+    ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
+
+    tx.value = reg_addr;
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit_receive(handle, tx.bytes, I2C_UINT16_SIZE, *data, I2C_UINT48_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_read16_byte48 failed" );
+
+    ESP_LOGD(TAG, "i2c_master_bus_read16_uint48 - rx[0] %02x | rx[1] %02x | rx[2] %02x | rx[3] %02x | rx[4] %02x | rx[5] %02x", *data[0], *data[1], *data[2], *data[3], *data[4], *data[5]);
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_master_bus_read16_byte64(i2c_master_dev_handle_t handle, const uint16_t reg_addr, i2c_uint64_t *data) {
+    i2c_bytes_to_uint16_t tx;
+
+    ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
+
+    tx.value = reg_addr;
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit_receive(handle, tx.bytes, I2C_UINT16_SIZE, *data, I2C_UINT64_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_read16_byte48 failed" );
+
+    ESP_LOGD(TAG, "i2c_master_bus_read16_uint64 - rx[0] %02x | rx[1] %02x | rx[2] %02x | rx[3] %02x | rx[4] %02x | rx[5] %02x | rx[6] %02x | rx[7] %02x", *data[0], *data[1], *data[2], *data[3], *data[4], *data[5], *data[6], *data[7]);
 
     return ESP_OK;
 }
@@ -140,19 +195,54 @@ esp_err_t i2c_master_bus_read_byte48(i2c_master_dev_handle_t handle, const uint8
 esp_err_t i2c_master_bus_write_cmd(i2c_master_dev_handle_t handle, const uint8_t command) {
     i2c_uint8_t tx = { command };
 
-    ESP_ERROR_CHECK( i2c_master_transmit(handle, tx, I2C_UINT8_SIZE, -1) );
+    ESP_ARG_CHECK( handle ); // ignore `command` given a range of 0x00 to 0xff is acceptable
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit(handle, tx, I2C_UINT8_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_write_cmd failed" );
 
     ESP_LOGD(TAG, "i2c_master_bus_write_cmd - tx[0] %02x", tx[0]);
 
     return ESP_OK;
 }
 
-esp_err_t i2c_master_bus_write_uint8(i2c_master_dev_handle_t handle, const uint8_t command, const uint8_t data) {
-    i2c_uint16_t tx = { command, data };
+esp_err_t i2c_master_bus_write16_cmd(i2c_master_dev_handle_t handle, const uint16_t command) {
+    i2c_bytes_to_uint16_t tx;
 
-    ESP_ERROR_CHECK( i2c_master_transmit(handle, tx, I2C_UINT16_SIZE, -1) );
+    ESP_ARG_CHECK( handle ); // ignore `command` given a range of 0x00 to 0xff is acceptable
+
+    tx.value = command;
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit(handle, tx.bytes, I2C_UINT16_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_write16_cmd failed" );
+
+    ESP_LOGD(TAG, "i2c_master_bus_write16_cmd - tx[0] %02x | tx[1] %02x ", tx.bytes[0], tx.bytes[1]);
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_master_bus_write_uint8(i2c_master_dev_handle_t handle, const uint8_t reg_addr, const uint8_t data) {
+    i2c_uint16_t tx = { reg_addr, data };
+
+    ESP_ARG_CHECK( handle ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit(handle, tx, I2C_UINT16_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_write_uint8 failed" );
 
     ESP_LOGD(TAG, "i2c_master_bus_write_uint8 - tx[0] %02x | tx[1] %02x", tx[0], tx[1]);
+
+    return ESP_OK;
+}
+
+
+esp_err_t i2c_master_bus_write_uint16(i2c_master_dev_handle_t handle, const uint8_t reg_addr, const uint16_t data) {
+    i2c_uint24_t tx = { 0, 0, 0 };
+
+    ESP_ARG_CHECK( handle ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
+
+    tx[0] = reg_addr;       // register
+    tx[1] = data & 0x00FF;  // lsb
+    tx[2] = data >> 8;      // msb
+
+    ESP_RETURN_ON_ERROR( i2c_master_transmit(handle, tx, I2C_UINT24_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_bus_write_uint16 failed" );
+
+    ESP_LOGD(TAG, "i2c_master_bus_write_uint8 - tx[0] %02x | tx[1] %02x | tx[2] %02x", tx[0], tx[1], tx[2]);
 
     return ESP_OK;
 }

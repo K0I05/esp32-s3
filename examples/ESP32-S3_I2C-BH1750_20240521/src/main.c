@@ -45,7 +45,7 @@
 #define CONFIG_I2C_0_TASK_STACK_SIZE    (configMINIMAL_STACK_SIZE * 4)
 #define CONFIG_I2C_0_TASK_PRIORITY      (tskIDLE_PRIORITY + 2)
 
-#define CONFIG_APP_TAG                  "ECG_BH1750_TEST"
+#define CONFIG_APP_TAG                  "BH1750 [APP]"
 
 // macros
 #define CONFIG_I2C_0_MASTER_DEFAULT {                               \
@@ -84,13 +84,13 @@ static void i2c_0_task( void *pvParameters ) {
     //
     // instantiate i2c 0 master bus
     i2c_new_master_bus(&i2c0_master_cfg, &i2c0_bus_hdl);
-    if (i2c0_bus_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "[APP] i2c0 i2c_bus_create handle init failed");
+    if (i2c0_bus_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "i2c0 i2c_bus_create handle init failed");
     //
     // init i2c devices
     //
     // bh1750 init device
     i2c_bh1750_init(i2c0_bus_hdl, &bh1750_dev_cfg, &bh1750_dev_hdl);
-    if (bh1750_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "[APP] i2c0 i2c_bus_device_create bh1750 handle init failed");
+    if (bh1750_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "i2c0 i2c_bus_device_create bh1750 handle init failed");
     //
     //
     // task loop entry point
@@ -99,12 +99,12 @@ static void i2c_0_task( void *pvParameters ) {
         //
         // handle bh1750 sensor
         //
-        uint16_t illuminance;
+        float illuminance;
         //
         if(i2c_bh1750_get_measurement(bh1750_dev_hdl, &illuminance) != ESP_OK) {
-            ESP_LOGE(CONFIG_APP_TAG, "[APP] bh1750 device illuminance measurement failed");
+            ESP_LOGE(CONFIG_APP_TAG, "bh1750 device illuminance measurement failed");
         } else {
-            ESP_LOGI(CONFIG_APP_TAG, "bh1750 illuminance:   %u Lux", illuminance);
+            ESP_LOGI(CONFIG_APP_TAG, "bh1750 illuminance:   %0.2f Lux", illuminance);
         }
         //
         ESP_LOGI(CONFIG_APP_TAG, "######################## BH1750 - END ###########################");
@@ -122,9 +122,9 @@ static void i2c_0_task( void *pvParameters ) {
 
 
 void app_main( void ) {
-    ESP_LOGI(CONFIG_APP_TAG, "[APP] Startup..");
-    ESP_LOGI(CONFIG_APP_TAG, "[APP] Free memory: %lu bytes", esp_get_free_heap_size());
-    ESP_LOGI(CONFIG_APP_TAG, "[APP] IDF version: %s", esp_get_idf_version());
+    ESP_LOGI(CONFIG_APP_TAG, "Startup..");
+    ESP_LOGI(CONFIG_APP_TAG, "Free memory: %lu bytes", esp_get_free_heap_size());
+    ESP_LOGI(CONFIG_APP_TAG, "IDF version: %s", esp_get_idf_version());
 
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set(CONFIG_APP_TAG, ESP_LOG_VERBOSE);

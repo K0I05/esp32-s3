@@ -111,7 +111,7 @@ typedef struct {
         uint16_t    heading;
     } position;
     struct {
-        uint16_t    illuminance;
+        float       illuminance;
         uint8_t     uv_index;
         struct {
             float   ambient_temperature;
@@ -201,7 +201,7 @@ static inline void print_data_model(const device_data_model_t data) {
     */
    ESP_LOGI(CONFIG_APP_TAG, "[APP] ################################################");
    ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 board temperature:               %.2f C", data.system.temperature);
-   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 bh1750 ambient light:            %u Lux", data.sky.illuminance);
+   ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 bh1750 ambient light:            %.2f Lux", data.sky.illuminance);
    ESP_LOGI(CONFIG_APP_TAG, "[APP] adc0 s12sd uv index:                  %u", data.sky.uv_index);
    ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 sht4x air temperature:           %.2f C", data.environment.air_temperature);
    ESP_LOGI(CONFIG_APP_TAG, "[APP] i2c0 sht4x dewpoint temperature:      %.2f C", data.environment.dewpoint_temperature);
@@ -298,7 +298,7 @@ static void i2c_0_task( void *pvParameters ) {
         wx_td(ta, rh, &td); // compute dew-point temperature
         //
         // handle bh1750 sensor
-        uint16_t lu;
+        float lu;
         if(i2c_bh1750_get_measurement(bh1750_dev_hdl, &lu) != ESP_OK) {
             ESP_LOGE(CONFIG_APP_TAG, "[APP] bh1750 device read failed");
         }

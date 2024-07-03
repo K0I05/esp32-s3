@@ -153,13 +153,16 @@ typedef enum {
  * use macro ::I2C_BMP280_PARAMS_DEFAULT to use default configuration.
  */
 typedef struct {
-    i2c_bmp280_modes_t mode;
-    i2c_bmp280_filters_t filter;
+    i2c_bmp280_modes_t        mode;
+    i2c_bmp280_filters_t      filter;
     i2c_bmp280_oversampling_t oversampling_pressure;
     i2c_bmp280_oversampling_t oversampling_temperature;
     i2c_bmp280_standbytimes_t standby;
 } i2c_bmp280_params_t;
 
+/**
+ * @brief BMP280 temperature and pressure calibration factors structure.
+ */
 typedef struct {
     /* temperature and pressure compensation */
     uint16_t                dig_T1;
@@ -194,7 +197,7 @@ struct i2c_bmp280_t {
  * @param[in] bus_handle I2C master bus handle
  * @param[in] bmp280_config configuration of sht4x device
  * @param[out] bmp280_handle bmp280 device handle
- * @return ESP_OK: init success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bmp280_init(i2c_master_bus_handle_t bus_handle, const i2c_bmp280_config_t *bmp280_config, i2c_bmp280_handle_t *bmp280_handle);
 
@@ -202,7 +205,7 @@ esp_err_t i2c_bmp280_init(i2c_master_bus_handle_t bus_handle, const i2c_bmp280_c
  * @brief soft-reset sensor
  *
  * @param[in] bmp280_handle bmp280 device handle
- * @return ESP_OK: init success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bmp280_reset(i2c_bmp280_handle_t bmp280_handle);
 
@@ -213,7 +216,7 @@ esp_err_t i2c_bmp280_reset(i2c_bmp280_handle_t bmp280_handle);
  * @param[in] bmp280_handle bmp280 device handle
  * @param[out] temperature temperature in degree Celsius
  * @param[out] pressure pressure in pascal
- * @return ESP_OK: init success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bmp280_get_measurement(i2c_bmp280_handle_t bmp280_handle, float *temperature, float *pressure);
 
@@ -221,7 +224,7 @@ esp_err_t i2c_bmp280_get_measurement(i2c_bmp280_handle_t bmp280_handle, float *t
  * @brief forces the bmp280 to make a measurement
  *
  * @param[in] bmp280_handle bmp280 device handle
- * @return ESP_OK: init success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bmp280_set_forced_measurement(i2c_bmp280_handle_t bmp280_handle);
 
@@ -230,7 +233,7 @@ esp_err_t i2c_bmp280_set_forced_measurement(i2c_bmp280_handle_t bmp280_handle);
  *
  * @param[in] bmp280_handle bmp280 device handle
  * @param[out] busy bmp280 is busy when true
- * @return ESP_OK: init success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bmp280_get_is_measuring(i2c_bmp280_handle_t bmp280_handle, bool *busy);
 
@@ -238,7 +241,7 @@ esp_err_t i2c_bmp280_get_is_measuring(i2c_bmp280_handle_t bmp280_handle, bool *b
  * @brief removes an bmp280 device from master bus.
  *
  * @param[in] bmp280_handle bmp280 device handle
- * @return ESP_OK: init success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bmp280_rm(i2c_bmp280_handle_t bmp280_handle);
 

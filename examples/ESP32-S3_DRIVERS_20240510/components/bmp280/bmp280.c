@@ -200,6 +200,9 @@ esp_err_t i2c_bmp280_init(i2c_master_bus_handle_t bus_handle, const i2c_bmp280_c
     out_handle = (i2c_bmp280_handle_t)calloc(1, sizeof(i2c_bmp280_handle_t));
     ESP_GOTO_ON_FALSE(out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for i2c0 bmp280 device");
 
+    out_handle->dev_cal_factors = (i2c_bmp280_cal_factors_t*)calloc(1, sizeof(i2c_bmp280_cal_factors_t));
+    ESP_GOTO_ON_FALSE(out_handle->dev_cal_factors, ESP_ERR_NO_MEM, err, TAG, "no memory for i2c bmp280 device calibration factors");
+
     i2c_device_config_t i2c_dev_conf = {
         .dev_addr_length    = I2C_ADDR_BIT_LEN_7,
         .device_address     = bmp280_config->dev_config.device_address,
@@ -209,9 +212,6 @@ esp_err_t i2c_bmp280_init(i2c_master_bus_handle_t bus_handle, const i2c_bmp280_c
     if (out_handle->i2c_dev_handle == NULL) {
         ESP_GOTO_ON_ERROR(i2c_master_bus_add_device(bus_handle, &i2c_dev_conf, &out_handle->i2c_dev_handle), err, TAG, "i2c0 new bus failed");
     }
-
-    out_handle->dev_cal_factors = (i2c_bmp280_cal_factors_t*)calloc(1, sizeof(i2c_bmp280_cal_factors_t));
-    ESP_GOTO_ON_FALSE(out_handle->dev_cal_factors, ESP_ERR_NO_MEM, err, TAG, "no memory for i2c bmp280 device calibration factors");
 
     /* read and validate device type */
     ESP_GOTO_ON_ERROR(i2c_master_bus_read_uint8(out_handle->i2c_dev_handle, I2C_BMP280_REG_ID, &out_handle->dev_type), err, TAG, "i2c0 read device type failed");
@@ -306,7 +306,7 @@ esp_err_t i2c_bmp280_get_is_measuring(i2c_bmp280_handle_t bmp280_handle, bool *b
 
     ESP_ARG_CHECK( bmp280_handle && busy );
 
-    ret = i2c_master_transmit_receive(bmp280_handle->i2c_dev_handle, regs, I2C_UINT16_SIZE, status, I2C_UINT16_SIZE, -1);
+    ret = i2c_master_transmit_receive(bmp280_handle->i2c_dev_handle, regs, I2C_UINT16_SIZE, status, I2C_UINT16_SIZE, I2C_XFR_TIMEOUT_MS);
     if(ret != ESP_OK) {
         ESP_LOGE(TAG, "read status registers failed");
         return ret;

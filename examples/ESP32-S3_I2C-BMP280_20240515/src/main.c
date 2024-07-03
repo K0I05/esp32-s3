@@ -48,7 +48,7 @@
 #define CONFIG_I2C_0_TASK_STACK_SIZE    (configMINIMAL_STACK_SIZE * 4)
 #define CONFIG_I2C_0_TASK_PRIORITY      (tskIDLE_PRIORITY + 2)
 
-#define CONFIG_APP_TAG                  "ECG_BMP280_TEST"
+#define CONFIG_APP_TAG                  "BMP280 [APP]"
 
 // macros
 #define CONFIG_I2C_0_MASTER_DEFAULT {                               \
@@ -124,7 +124,7 @@ static void i2c_0_task( void *pvParameters ) {
         float temperature;
         float pressure;
         if(i2c_bmp280_get_measurement(bmp280_dev_hdl, &temperature, &pressure) != ESP_OK) {
-            ESP_LOGE(CONFIG_APP_TAG, "[APP] bmp280 device read failed");
+            ESP_LOGE(CONFIG_APP_TAG, "bmp280 device read failed");
         } else {
             pressure = pressure / 100;
             ESP_LOGI(CONFIG_APP_TAG, "bmp280 air temperature:     %.2f C", temperature);
@@ -146,9 +146,9 @@ static void i2c_0_task( void *pvParameters ) {
 
 
 void app_main( void ) {
-    ESP_LOGI(CONFIG_APP_TAG, "[APP] Startup..");
-    ESP_LOGI(CONFIG_APP_TAG, "[APP] Free memory: %lu bytes", esp_get_free_heap_size());
-    ESP_LOGI(CONFIG_APP_TAG, "[APP] IDF version: %s", esp_get_idf_version());
+    ESP_LOGI(CONFIG_APP_TAG, "Startup..");
+    ESP_LOGI(CONFIG_APP_TAG, "Free memory: %lu bytes", esp_get_free_heap_size());
+    ESP_LOGI(CONFIG_APP_TAG, "IDF version: %s", esp_get_idf_version());
 
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set(CONFIG_APP_TAG, ESP_LOG_VERBOSE);

@@ -44,7 +44,7 @@
 #define CONFIG_I2C_0_TASK_STACK_SIZE    (configMINIMAL_STACK_SIZE * 4)
 #define CONFIG_I2C_0_TASK_PRIORITY      (tskIDLE_PRIORITY + 2)
 
-#define CONFIG_APP_TAG                  "ECG_SHT4X_TEST"
+#define CONFIG_APP_TAG                  "SHT4X [APP]"
 
 // macros
 #define CONFIG_I2C_0_MASTER_DEFAULT {                               \
@@ -83,13 +83,13 @@ static void i2c_0_task( void *pvParameters ) {
     //
     // instantiate i2c 0 master bus
     i2c_new_master_bus(&i2c0_master_cfg, &i2c0_bus_hdl);
-    if (i2c0_bus_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "[APP] i2c0 i2c_bus_create handle init failed");
+    if (i2c0_bus_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "i2c0 i2c_bus_create handle init failed");
     //
     // init i2c devices
     //
     // sht4x init device
     i2c_sht4x_init(i2c0_bus_hdl, &sht4x_dev_cfg, &sht4x_dev_hdl);
-    if (sht4x_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "[APP] i2c0 i2c_bus_device_create mlx90614 handle init failed");
+    if (sht4x_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "i2c0 i2c_bus_device_create sht4x handle init failed");
     //
     //
     // task loop entry point
@@ -101,7 +101,7 @@ static void i2c_0_task( void *pvParameters ) {
         float air_temperature, dewpoint_temperature, relative_humidity;
         //
         if(i2c_sht4x_get_measurements(sht4x_dev_hdl, &air_temperature, &relative_humidity, &dewpoint_temperature) != ESP_OK) {
-            ESP_LOGE(CONFIG_APP_TAG, "[APP] sht4x device air temperature and relative humidity measurement failed");
+            ESP_LOGE(CONFIG_APP_TAG, "sht4x device air temperature and relative humidity measurement failed");
         } else {
             ESP_LOGI(CONFIG_APP_TAG, "sht4x air temperature:       %.2f C", air_temperature);
             ESP_LOGI(CONFIG_APP_TAG, "sht4x relative humidity:     %.2f %%", relative_humidity);
@@ -123,9 +123,9 @@ static void i2c_0_task( void *pvParameters ) {
 
 
 void app_main( void ) {
-    ESP_LOGI(CONFIG_APP_TAG, "[APP] Startup..");
-    ESP_LOGI(CONFIG_APP_TAG, "[APP] Free memory: %lu bytes", esp_get_free_heap_size());
-    ESP_LOGI(CONFIG_APP_TAG, "[APP] IDF version: %s", esp_get_idf_version());
+    ESP_LOGI(CONFIG_APP_TAG, "Startup..");
+    ESP_LOGI(CONFIG_APP_TAG, "Free memory: %lu bytes", esp_get_free_heap_size());
+    ESP_LOGI(CONFIG_APP_TAG, "IDF version: %s", esp_get_idf_version());
 
     esp_log_level_set("*", ESP_LOG_INFO);
     esp_log_level_set(CONFIG_APP_TAG, ESP_LOG_VERBOSE);

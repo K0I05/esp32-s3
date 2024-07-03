@@ -58,7 +58,7 @@ static const char *TAG = "sht4x";
 */
 
 /**
- * @brief Calculates sht4x crc8 value.  See datasheet for details.
+ * @brief Calculates SHT4X crc8 value.  See datasheet for details.
  *
  * @param[in] data[] data buffer to perform crc8 check against.
  * @param[in] len length of `data` buffer.
@@ -75,9 +75,9 @@ static inline uint8_t i2c_sht4x_crc8(const uint8_t data[], const size_t len) {
 }
 
 /**
- * @brief Gets sht4x millisecond duration from device handle.  See datasheet for details.
+ * @brief Gets SHT4X millisecond duration from device handle.  See datasheet for details.
  *
- * @param[in] sht4x_handle sht4x device handle.
+ * @param[in] sht4x_handle SHT4X device handle.
  * @return duration in milliseconds.
  */
 static inline size_t i2c_sht4x_get_ms_duration(i2c_sht4x_handle_t sht4x_handle) {
@@ -103,9 +103,9 @@ static inline size_t i2c_sht4x_get_ms_duration(i2c_sht4x_handle_t sht4x_handle) 
 }
 
 /**
- * @brief Gets sht4x tick duration from device handle.
+ * @brief Gets SHT4X tick duration from device handle.
  *
- * @param[in] sht4x_handle sht4x device handle.
+ * @param[in] sht4x_handle SHT4X device handle.
  * @return duration in ticks.
  */
 static inline size_t i2c_sht4x_get_tick_duration(i2c_sht4x_handle_t sht4x_handle) {
@@ -115,9 +115,9 @@ static inline size_t i2c_sht4x_get_tick_duration(i2c_sht4x_handle_t sht4x_handle
 }
 
 /**
- * @brief Gets sht4x measurement command from device handle.  See datasheet for details.
+ * @brief Gets SHT4X measurement command from device handle parameters.  See datasheet for details.
  *
- * @param[in] sht4x_handle sht4x device handle.
+ * @param[in] sht4x_handle SHT4X device handle.
  * @return command value.
  */
 static inline uint8_t i2c_sht4x_get_command(i2c_sht4x_handle_t sht4x_handle) {
@@ -152,7 +152,7 @@ static inline uint8_t i2c_sht4x_get_command(i2c_sht4x_handle_t sht4x_handle) {
  * @param[in] temperature air temperature in degrees Celsius.
  * @param[in] humidity relative humiity in percent.
  * @param[out] dewpoint calculated dewpoint temperature in degrees Celsius.
- * @return ESP_OK: init success.
+ * @return esp_err_t ESP_OK on success.
  */
 static inline esp_err_t i2c_sht4x_calculate_dewpoint(const float temperature, const float humidity, float *dewpoint) {
     ESP_ARG_CHECK(temperature && humidity && dewpoint);
@@ -169,10 +169,10 @@ static inline esp_err_t i2c_sht4x_calculate_dewpoint(const float temperature, co
 }
 
 /**
- * @brief read serial number from sensor
+ * @brief Read serial number from SHT4X.
  *
  * @param[in] sht4x_config configuration of sht4x device
- * @return ESP_OK: init success.
+ * @return esp_err_t ESP_OK on success.
  */
 static inline esp_err_t i2c_sht4x_get_serial_number(i2c_sht4x_handle_t sht4x_handle) {
     ESP_ARG_CHECK( sht4x_handle );
@@ -228,43 +228,47 @@ esp_err_t i2c_sht4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sht4x_con
 esp_err_t i2c_sht4x_reset(i2c_sht4x_handle_t sht4x_handle) {
     ESP_ARG_CHECK( sht4x_handle );
 
-    return i2c_master_bus_write_cmd(sht4x_handle->i2c_dev_handle, I2C_SHT4X_CMD_RESET);
+    esp_err_t ret = i2c_master_bus_write_cmd(sht4x_handle->i2c_dev_handle, I2C_SHT4X_CMD_RESET);
+
+    /* delay before next command - power cycle */
+    if(ret == ESP_OK) vTaskDelay(pdMS_TO_TICKS(10));
+
+    return ret;
 }
 
 esp_err_t i2c_sht4x_get_measurement(i2c_sht4x_handle_t sht4x_handle, float *temperature, float *humidity) {
-    esp_err_t ret;
-    size_t delay_ticks = 0;
-    i2c_uint8_t i2c_tx_buffer = { 0 };
-    i2c_uint48_t i2c_rx_buffer = { 0, 0, 0, 0, 0, 0 };
+    esp_err_t ret 				= ESP_OK;
+    size_t delay_ticks 			= 0;
+    i2c_uint8_t i2c_tx_buffer 	= { 0 };
+    i2c_uint48_t i2c_rx_buffer	= { 0, 0, 0, 0, 0, 0 };
 
     ESP_ARG_CHECK( sht4x_handle && temperature && humidity );
     
     i2c_tx_buffer[0] = i2c_sht4x_get_command(sht4x_handle);
     delay_ticks      = i2c_sht4x_get_tick_duration(sht4x_handle);
 
-    do {
-        ret = i2c_master_transmit(sht4x_handle->i2c_dev_handle, i2c_tx_buffer, I2C_UINT8_SIZE, -1);
-    } while (ret == ESP_ERR_TIMEOUT);
-    if (ret == ESP_OK) {
-        if(delay_ticks) vTaskDelay(delay_ticks);
-        do {
-            // sht4x read response
-            ret = i2c_master_receive(sht4x_handle->i2c_dev_handle, i2c_rx_buffer, I2C_UINT48_SIZE, -1); 
-        } while (ret == ESP_ERR_TIMEOUT);
-        if (ret == ESP_OK) {
-            // convert sht4x results to engineering units of measure (C and %)
-            if (i2c_rx_buffer[2] != i2c_sht4x_crc8(i2c_rx_buffer, 2) || i2c_rx_buffer[5] != i2c_sht4x_crc8(i2c_rx_buffer + 3, 2)) {
-                return ESP_ERR_INVALID_CRC;
-            } else {
-                *temperature = ((uint16_t)i2c_rx_buffer[0] << 8 | i2c_rx_buffer[1]) * 175.0 / 65535.0 - 45.0;
-                *humidity    = ((uint16_t)i2c_rx_buffer[3] << 8 | i2c_rx_buffer[4]) * 125.0 / 65535.0 - 6.0;
-            }
-        } else {
-            return ret;
-        }
-    } else {
-        return ret;
-    }
+    /* attempt i2c write transaction */
+    ret = i2c_master_transmit(sht4x_handle->i2c_dev_handle, i2c_tx_buffer, I2C_UINT8_SIZE, I2C_XFR_TIMEOUT_MS);
+
+	/* validate i2c transaction results */
+    if (ret != ESP_OK) return ret;
+	
+	/* delay task */
+    if(delay_ticks) vTaskDelay(delay_ticks);
+
+    /* attempt i2c read transaction */
+    ret = i2c_master_receive(sht4x_handle->i2c_dev_handle, i2c_rx_buffer, I2C_UINT48_SIZE, I2C_XFR_TIMEOUT_MS); 
+
+	/* validate i2c transaction results */
+    if (ret != ESP_OK) return ret;
+	
+    /* validate crc values */
+    if (i2c_rx_buffer[2] != i2c_sht4x_crc8(i2c_rx_buffer, 2) || i2c_rx_buffer[5] != i2c_sht4x_crc8(i2c_rx_buffer + 3, 2)) return ESP_ERR_INVALID_CRC;
+
+	// convert sht4x results to engineering units of measure (C and %)
+    *temperature = ((uint16_t)i2c_rx_buffer[0] << 8 | i2c_rx_buffer[1]) * 175.0 / 65535.0 - 45.0;
+    *humidity    = ((uint16_t)i2c_rx_buffer[3] << 8 | i2c_rx_buffer[4]) * 125.0 / 65535.0 - 6.0;
+
     return ESP_OK;
 }
 
