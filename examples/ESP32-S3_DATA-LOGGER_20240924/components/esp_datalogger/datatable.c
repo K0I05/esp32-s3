@@ -99,7 +99,7 @@ static inline esp_err_t datatable_get_column_data_buffer_size(datatable_handle_t
     ESP_ARG_CHECK( datatable_handle );
 
     /* normalize sampling and processing periods to seconds */
-    sampling_interval = datalogger_normalize_interval_to_sec(datatable_handle->sampling_interval_type, datatable_handle->sampling_interval_period);
+    sampling_interval = datalogger_normalize_interval_to_sec(datatable_handle->sampling_task_schedule_handle->params->interval_type, datatable_handle->sampling_task_schedule_handle->params->interval_period);
     processing_interval = datalogger_normalize_interval_to_sec(datatable_handle->processing_interval_type, datatable_handle->processing_interval_period);
 
     /* calculate data-table column data buffer sample size */
@@ -876,7 +876,7 @@ static inline esp_err_t datatable_process_int16_data_buffer(datatable_handle_t d
 
 
 
-esp_err_t datatable_new(char *name, const datatable_config_t *datatable_config, datatable_handle_t *datatable_handle) {
+esp_err_t datatable_new(char *name, uint8_t columns_size, uint16_t rows_size, datalogger_time_interval_types_t processing_interval_type, uint16_t processing_interval_period, uint16_t processing_interval_offset, task_schedule_handle_t sampling_task_schedule_handle, datatable_data_storage_types_t data_storage_type, datatable_handle_t *datatable_handle) {
     esp_err_t           ret = ESP_OK;
     int64_t             interval_delta = 0;
     datatable_column_t  dt_id_column;
@@ -884,27 +884,27 @@ esp_err_t datatable_new(char *name, const datatable_config_t *datatable_config, 
     datatable_handle_t  out_handle = NULL;
 
     /* validate arguments */
-    ESP_ARG_CHECK( datatable_config );
+    ESP_ARG_CHECK( sampling_task_schedule_handle );
 
     /* validate data-table config arguments */
-    ESP_GOTO_ON_FALSE( (datatable_config->columns_size > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table columns size cannot be 0, new data-table handle failed" );
-    ESP_GOTO_ON_FALSE( (datatable_config->rows_size > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table rows size cannot be 0, new data-table handle failed" );
-    ESP_GOTO_ON_FALSE( (datatable_config->sampling_interval_period > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table sampling interval period cannot be 0, new data-table failed" );
-    ESP_GOTO_ON_FALSE( (datatable_config->processing_interval_period > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period cannot be 0, new data-table failed" );
+    ESP_GOTO_ON_FALSE( (columns_size > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table columns size cannot be 0, new data-table handle failed" );
+    ESP_GOTO_ON_FALSE( (rows_size > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table rows size cannot be 0, new data-table handle failed" );
+    ESP_GOTO_ON_FALSE( (sampling_task_schedule_handle->params->interval_period > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table sampling interval period cannot be 0, new data-table failed" );
+    ESP_GOTO_ON_FALSE( (processing_interval_period > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period cannot be 0, new data-table failed" );
 
     /* validate sampling and processing interval periods */
-    interval_delta = datalogger_normalize_interval_to_sec(datatable_config->processing_interval_type, datatable_config->processing_interval_period) - 
-                            datalogger_normalize_interval_to_sec(datatable_config->sampling_interval_type, datatable_config->sampling_interval_period); 
+    interval_delta = datalogger_normalize_interval_to_sec(processing_interval_type, processing_interval_period) - 
+                            datalogger_normalize_interval_to_sec(sampling_task_schedule_handle->params->interval_type, sampling_task_schedule_handle->params->interval_period); 
     ESP_GOTO_ON_FALSE((interval_delta > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period must be larger than the sampling interval period, new data-table handle failed" );
 
     /* validate sampling period and offset intervals */
-    interval_delta = datalogger_normalize_interval_to_sec(datatable_config->sampling_interval_type, datatable_config->sampling_interval_period) - 
-                            datalogger_normalize_interval_to_sec(datatable_config->sampling_interval_type, datatable_config->sampling_interval_offset); 
+    interval_delta = datalogger_normalize_interval_to_sec(sampling_task_schedule_handle->params->interval_type, sampling_task_schedule_handle->params->interval_period) - 
+                            datalogger_normalize_interval_to_sec(sampling_task_schedule_handle->params->interval_type, sampling_task_schedule_handle->params->interval_offset); 
     ESP_GOTO_ON_FALSE((interval_delta > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period must be larger than the sampling interval offset, new data-table handle failed" );
     
     /* validate processing period and offset intervals */
-    interval_delta = datalogger_normalize_interval_to_sec(datatable_config->processing_interval_type, datatable_config->processing_interval_period) - 
-                            datalogger_normalize_interval_to_sec(datatable_config->processing_interval_type, datatable_config->processing_interval_offset); 
+    interval_delta = datalogger_normalize_interval_to_sec(processing_interval_type, processing_interval_period) - 
+                            datalogger_normalize_interval_to_sec(processing_interval_type, processing_interval_offset); 
     ESP_GOTO_ON_FALSE((interval_delta > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period must be larger than the processing interval offset, new data-table handle failed" );
     
     /**
@@ -925,18 +925,16 @@ esp_err_t datatable_new(char *name, const datatable_config_t *datatable_config, 
     /* initialize data-table state object */
     strcpy(out_handle->name, name);
     out_handle->columns_index               = 0;
-    out_handle->columns_size                = datatable_config->columns_size + 2; // add record id and timestamp columns
+    out_handle->columns_size                = columns_size + 2; // add record id and timestamp columns
     out_handle->rows_index                  = 0;
     out_handle->rows_count                  = 0;
-    out_handle->rows_size                   = datatable_config->rows_size;
+    out_handle->rows_size                   = rows_size;
     out_handle->sampling_count              = 0;
-    out_handle->sampling_interval_type      = datatable_config->sampling_interval_type;
-    out_handle->sampling_interval_period    = datatable_config->sampling_interval_period;
-    out_handle->sampling_interval_offset    = datatable_config->sampling_interval_offset;
-    out_handle->processing_interval_type    = datatable_config->processing_interval_type;
-    out_handle->processing_interval_period  = datatable_config->processing_interval_period;
-    out_handle->processing_interval_offset  = datatable_config->processing_interval_offset;
-    out_handle->data_storage_type           = datatable_config->data_storage_type;
+    out_handle->sampling_task_schedule_handle = sampling_task_schedule_handle;
+    out_handle->processing_interval_type    = processing_interval_type;
+    out_handle->processing_interval_period  = processing_interval_period;
+    out_handle->processing_interval_offset  = processing_interval_offset;
+    out_handle->data_storage_type           = data_storage_type;
     out_handle->record_id                   = 0;
 
     /* define default data-table columns (record id and timestamp) */

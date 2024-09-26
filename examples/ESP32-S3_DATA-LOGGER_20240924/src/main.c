@@ -104,16 +104,8 @@ static const int NTP_EVENT_GROUP_NTP_SYNCHRONIZED_BIT  = BIT0;
 static const int NTP_EVENT_GROUP_NTP_SYNCH_FAIL_BIT    = BIT1;
 
 // data-table variables
+static task_schedule_handle_t sampling_task_sch_hdl;
 static datatable_handle_t dt_sample_hdl;
-static datatable_config_t dt_sample_cfg = {
-        .columns_size               = 9, 
-        .rows_size                  = 10, 
-        .sampling_interval_type     = DATALOGGER_TIME_INTERVAL_SEC, 
-        .sampling_interval_period   = 10, 
-        .processing_interval_type   = DATALOGGER_TIME_INTERVAL_MIN, 
-        .processing_interval_period = 1, 
-        .data_storage_type          = DATATABLE_DATA_STORAGE_MEMORY_RING
-    };
 static uint8_t dt_pa_avg_column_index;
 static uint8_t dt_ta_avg_column_index;
 static uint8_t dt_ta_max_column_index;
@@ -430,7 +422,6 @@ static inline void sntp_time_sync_start(void) {
 }
 
 static void i2c_0_task( void *pvParameters ) {
-    task_schedule_handle_t      task_schedule_hdl;
     time_into_interval_handle_t time_into_interval_hdl;
     float                       ta; 
     float                       td; 
@@ -463,12 +454,8 @@ static void i2c_0_task( void *pvParameters ) {
     
     // instantiate a new time into interval handle - task system clock synchronization
     time_into_interval_new(DATALOGGER_TIME_INTERVAL_MIN, 5, 0, &time_into_interval_hdl);
-    if (time_into_interval_hdl == NULL) ESP_LOGE(APP_TAG, "i2c0 time_into_new_interval new time into interval handle failed");
+    if (time_into_interval_hdl == NULL) ESP_LOGE(APP_TAG, "time_into_new_interval, new time into interval handle failed");
     // 
-    // instantiate a new task schedule handle - task system clock synchronization
-    task_schedule_new(DATALOGGER_TIME_INTERVAL_SEC, 10, 0, &task_schedule_hdl);
-    if (task_schedule_hdl == NULL) ESP_LOGE(APP_TAG, "i2c0 task_new_schedule new task schedule handle failed");
-    //
     //
     // initialize master i2c 0 bus configuration
     i2c_master_bus_config_t     i2c0_master_cfg = CONFIG_I2C_0_MASTER_DEFAULT;
@@ -505,7 +492,7 @@ static void i2c_0_task( void *pvParameters ) {
         start_time = esp_timer_get_time(); 
         //
         // delay task until task schedule condition is valid
-        task_schedule_delay(task_schedule_hdl);
+        task_schedule_delay(sampling_task_sch_hdl);
         //
         //
         ESP_LOGI(APP_TAG, "######################## AHT20+BMP280 - START #########################");
@@ -597,7 +584,6 @@ static void i2c_0_task( void *pvParameters ) {
     i2c_bmp280_rm( bmp280_dev_hdl );    // remove bmp280 device from master i2c bus
     i2c_ahtxx_rm( aht20_dev_hdl );      // remove aht20 device from master i2c bus
     i2c_del_master_bus( i2c0_bus_hdl ); // delete master i2c bus
-    task_schedule_del( task_schedule_hdl );  // delete task schedule
     time_into_interval_del( time_into_interval_hdl ); //delete time into interval
     vTaskDelete( NULL );
 }
@@ -627,8 +613,13 @@ void app_main( void ) {
 
     // data-table testing
     //
+    // instantiate a new task schedule handle - task system clock synchronization
+    task_schedule_new(DATALOGGER_TIME_INTERVAL_SEC, 10, 0, &sampling_task_sch_hdl);
+    if (sampling_task_sch_hdl == NULL) ESP_LOGE(APP_TAG, "task_schedule_new, new task schedule handle failed");
+    //
     // create new data-table handle
-    datatable_new("Tbl_1-Min", &dt_sample_cfg, &dt_sample_hdl);
+    datatable_new("Tbl_1-Min", 9, 10, DATALOGGER_TIME_INTERVAL_MIN, 1, 0, sampling_task_sch_hdl, DATATABLE_DATA_STORAGE_MEMORY_RING, &dt_sample_hdl);
+    if (dt_sample_hdl == NULL) ESP_LOGE(APP_TAG, "datatable_new, new data-table handle failed");
     //
     // add float average column to data-table
     datatable_add_float_avg_column(dt_sample_hdl, "Pa_1-Min", &dt_pa_avg_column_index);                 // column index 2

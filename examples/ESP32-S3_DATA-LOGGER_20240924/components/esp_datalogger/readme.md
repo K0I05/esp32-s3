@@ -1,5 +1,5 @@
 # ESP Data-Logger Component
-The ESP data-logger component simplifies in-situ data processing and recording for measurement and control use-cases.  The ESP data-logger component integrates with FreeRTOS and synchronizes tasks with the system clock for temporal based task execution with a resolution of +/- 20 micro-seconds.
+The ESP data-logger component simplifies in-situ data processing and recording for measurement and control use-cases.  The ESP data-logger component integrates with FreeRTOS and synchronizes tasks with the system clock for temporal based task execution with a resolution of +/- 100 micro-seconds.
 
 The ESP data-logger component includes the following common helper components:
 
