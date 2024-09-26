@@ -14,11 +14,12 @@
  - I2C: AKM AK8975
  - I2C: ScioSense ENS160
  - I2C: Vishay VEML7700
+ - I2C: MEMSIC MMC56X3
  
- Above peripheral drivers have been tested, validated with a logic analyzer, and still under development.  If any problems arise please feel free to log an issue.
+ Above peripheral drivers have been tested, validated with a logic analyzer where applicable, and still under development.  If any problems arise please feel free to log an issue.
 
 # ESP Data-Logger
-User friendly table based data logging for measurement and control use-cases.  See examples for more details.
+User friendly table based data logging for measurement and control use-cases.  See Data-Logger examples for more details.
 
 
 
