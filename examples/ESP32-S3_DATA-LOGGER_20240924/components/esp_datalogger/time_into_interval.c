@@ -78,7 +78,7 @@ esp_err_t time_into_interval_new(const datalogger_time_interval_types_t interval
     out_handle->params->interval_offset = interval_offset;
 
     /* set epoch time of the next scheduled task */
-    datalogger_set_epoch_time_event(out_handle->params->interval_type, out_handle->params->interval_period, &out_handle->params->epoch_time);
+    datalogger_set_epoch_time_event(out_handle->params->interval_type, out_handle->params->interval_period, out_handle->params->interval_offset, &out_handle->params->epoch_time);
 
     /* set output handle */
     *time_into_interval_handle = out_handle;
@@ -94,7 +94,6 @@ bool time_into_interval(time_into_interval_handle_t time_into_interval_handle) {
     bool            status = false;
     struct timeval  tv_now;
     uint64_t        now_msec;
-    uint64_t        next_msec;
     int64_t         delta_msec;
 
     /* validate arguments */
@@ -108,17 +107,14 @@ bool time_into_interval(time_into_interval_handle_t time_into_interval_handle) {
     // convert system time to msec
     now_msec = (uint64_t)tv_now.tv_sec * 1000U + (uint64_t)tv_now.tv_usec / 1000U;
 
-    // convert next scan event epoch time to msec
-    next_msec = (uint64_t)time_into_interval_handle->params->epoch_time * 1000U;
-
     // compute time delta until next time into interval condition
-    delta_msec = next_msec - now_msec;
+    delta_msec = time_into_interval_handle->params->epoch_time - now_msec;
 
     if(delta_msec <= 0) {
 
         status = true;
 
-        datalogger_set_epoch_time_event(time_into_interval_handle->params->interval_type, time_into_interval_handle->params->interval_period, &time_into_interval_handle->params->epoch_time);
+        datalogger_set_epoch_time_event(time_into_interval_handle->params->interval_type, time_into_interval_handle->params->interval_period, time_into_interval_handle->params->interval_offset, &time_into_interval_handle->params->epoch_time);
     }
     
     return status;

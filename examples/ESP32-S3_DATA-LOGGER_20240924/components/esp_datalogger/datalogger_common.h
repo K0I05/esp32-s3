@@ -71,25 +71,25 @@ typedef struct {
 } datalogger_time_interval_t;
 
 /**
- * @brief Normalizes data-logger time interval period to seconds.
+ * @brief Normalizes data-logger time interval period or offset to seconds.
  * 
  * @param[in] interval_type Data-logger time interval type.
- * @param[in] interval_period Data-logger time interval period for interval type.
+ * @param[in] interval Data-logger time interval period or offset for interval type.
  * @return uint64_t Normalized time interval period in seconds.
  */
-static inline uint64_t datalogger_normalize_period_to_sec(const datalogger_time_interval_types_t interval_type, const uint16_t interval_period) {
+static inline uint64_t datalogger_normalize_interval_to_sec(const datalogger_time_interval_types_t interval_type, const uint16_t interval) {
     uint64_t interval_sec = 0;
 
     // normalize interval to sec
     switch(interval_type) {
         case DATALOGGER_TIME_INTERVAL_SEC:
-            interval_sec = interval_period;
+            interval_sec = interval;
             break;
         case DATALOGGER_TIME_INTERVAL_MIN:
-            interval_sec = (interval_period * 60);  // 1-minute has 60-seconds
+            interval_sec = (interval * 60);  // 1-minute has 60-seconds
             break;
         case DATALOGGER_TIME_INTERVAL_HR:
-            interval_sec = (interval_period * (60 * 60)); // 1-hour has 60-minutes, 1-minute has 60-seconds
+            interval_sec = (interval * (60 * 60)); // 1-hour has 60-minutes, 1-minute has 60-seconds
             break;
     }
 
@@ -97,56 +97,68 @@ static inline uint64_t datalogger_normalize_period_to_sec(const datalogger_time_
 }
 
 /**
- * @brief Normalizes data-logger time interval offset to seconds.
+ * @brief Normalizes data-logger time interval period or offset to milli-seconds.
  * 
  * @param[in] interval_type Data-logger time interval type.
- * @param[in] interval_offset Data-logger time interval offset for interval type.
- * @return uint64_t Normalized time interval offset in seconds.
+ * @param[in] interval_offset Data-logger time interval period or offset for interval type.
+ * @return uint64_t Normalized time interval offset in milli-seconds.
  */
-static inline uint64_t datalogger_normalize_offset_to_sec(const datalogger_time_interval_types_t interval_type, const uint16_t interval_offset) {
-    uint64_t interval_sec = 0;
+static inline uint64_t datalogger_normalize_interval_to_msec(const datalogger_time_interval_types_t interval_type, const uint16_t interval) {
+    uint64_t interval_msec = 0;
 
     // normalize interval to sec
     switch(interval_type) {
         case DATALOGGER_TIME_INTERVAL_SEC:
-            interval_sec = interval_offset;
+            interval_msec = interval * 1000U;
             break;
         case DATALOGGER_TIME_INTERVAL_MIN:
-            interval_sec = (interval_offset * 60); // 1-minute has 60-seconds
+            interval_msec = (interval * 60) * 1000U; // 1-minute has 60-seconds
             break;
         case DATALOGGER_TIME_INTERVAL_HR:
-            interval_sec = ((interval_offset * 60) * 60); // 1-hour has 60-minutes, 1-minute has 60-seconds
+            interval_msec = ((interval * 60) * 60) * 1000U; // 1-hour has 60-minutes, 1-minute has 60-seconds
             break;
     }
 
-    return interval_sec;
+    return interval_msec;
 }
 
 /**
  * @brief Sets the next epoch event time from system clock based on the time interval type and period. 
  * 
- * The task interval should be divisible by 60 i.e. no remainder if the task interval type and 
- * period is every 10-seconds, the event will trigger on-time with the system clock i.e. 09:00:00, 09:00:10, 09:00:20, etc.
+ * The interval should be divisible by 60 i.e. no remainder if the interval type and period
+ * is every 10-seconds, the event will trigger on-time with the system clock i.e. 09:00:00, 
+ * 09:00:10, 09:00:20, etc.
+ * 
+ * The interval offset is used to offset the start of the interval period.  If the interval type
+ * and period is every 5-minutes with a 1-minute offset, the event will trigger on-time with the
+ * system clock i.e. 09:01:00, 09:06:00, 09:11:00, etc.
  * 
  * @param[in] interval_type Data-logger time interval type.
  * @param[in] interval_period Data-logger time interval period for interval type.
- * @param[out] epoch_time Unix epoch time of next event in seconds.
+ * @param[in] interval_offset Data-logger time interval offset for interval type.
+ * @param[out] epoch_time Unix epoch time of next event in milli-seconds.
  */
-static inline void datalogger_set_epoch_time_event(const datalogger_time_interval_types_t interval_type, const uint16_t interval_period, time_t *epoch_time) {
+static inline void datalogger_set_epoch_time_event(const datalogger_time_interval_types_t interval_type, const uint16_t interval_period, const uint16_t interval_offset, uint64_t *epoch_time) {
     struct timeval  now_tv;
     struct tm       now_tm;
     time_t          now_unix_time;
+    uint64_t        now_unix_time_msec;
     struct tm       next_tm;
-    uint64_t        interval_period_sec;
+    time_t          next_unix_time;
+    uint64_t        next_unix_time_msec;
+    uint64_t        interval_period_msec;
+    uint64_t        interval_offset_msec;
 
-    /* normalize interval period to seconds */
-    interval_period_sec = datalogger_normalize_period_to_sec(interval_type, interval_period);
+    /* normalize interval period and offset to seconds */
+    interval_period_msec = datalogger_normalize_interval_to_msec(interval_type, interval_period);
+    interval_offset_msec = datalogger_normalize_interval_to_msec(interval_type, interval_offset);
 
     // get system time
     gettimeofday(&now_tv, NULL);
 
     // extract unix time
     now_unix_time = now_tv.tv_sec;
+    now_unix_time_msec = (uint64_t)now_tv.tv_sec * 1000U + (uint64_t)now_tv.tv_usec / 1000U;
 
     // convert now tm to time-parts
     localtime_r(&now_unix_time, &now_tm);
@@ -182,35 +194,51 @@ static inline void datalogger_set_epoch_time_event(const datalogger_time_interva
     // validate if the next task event was computed
     if(*epoch_time != 0) {
         // add task interval to next task event epoch to compute next task event epoch
-        *epoch_time = *epoch_time + interval_period_sec;
+        *epoch_time = *epoch_time + interval_period_msec;
 
-        // convert next unix time to tm components
-        localtime_r(epoch_time, &next_tm);
+        // convert epoch in msec to sec - debug
+        time_t epoch_time_sec = *epoch_time / 1000U;
+
+        // convert next unix time to tm components - debug
+        localtime_r(&epoch_time_sec, &next_tm);
     } else {
         // convert to unix time (seconds)
-        time_t next_unix_time = mktime(&next_tm);
+        next_unix_time = mktime(&next_tm);
 
-        // initialize next unix time by adding the task event interval
-        next_unix_time = next_unix_time + interval_period_sec;
+        // convert unix time to milli-seconds
+        next_unix_time_msec = next_unix_time * 1000U;
+
+        // initialize next unix time by adding the task event interval period and offset
+        next_unix_time_msec = next_unix_time_msec + interval_period_msec + interval_offset_msec;
 
         // compute the delta between now and next unix times
-        double delta_time_sec = difftime(next_unix_time, now_unix_time);
+        int64_t delta_time_msec = next_unix_time_msec - now_unix_time_msec;
+
+        ESP_LOGD(TAG_DL_COMMON, "Time-Into-Interval Delta Time (ms): %lli", delta_time_msec);
 
         // ensure next task event is ahead in time
-        if(delta_time_sec <= 0) {
+        if(delta_time_msec <= 0) {
             // next task event is not ahead in time
             do {
                 // keep adding task event intervals until next task event is ahead in time
-                next_unix_time = next_unix_time + interval_period_sec;
-                delta_time_sec = difftime(next_unix_time, now_unix_time);
-            } while(delta_time_sec <= 0);
+                next_unix_time_msec = next_unix_time_msec + interval_period_msec;
+                
+                // compute the delta between now and next unix times
+                delta_time_msec = next_unix_time_msec - now_unix_time_msec;
+            } while(delta_time_msec <= 0);
         }
 
-        // convert next unix time to tm components
+        ESP_LOGD(TAG_DL_COMMON, "Time-Into-Interval Now Unix (ms):   %llu", now_unix_time_msec);
+        ESP_LOGD(TAG_DL_COMMON, "Time-Into-Interval Next Unix (ms):  %llu", next_unix_time_msec);
+
+        // convert epoch in msec to sec - debug
+        next_unix_time = next_unix_time_msec / 1000U;
+
+        // convert next unix time to tm components - debug
         localtime_r(&next_unix_time, &next_tm);
 
         // set next task event epoch time
-        *epoch_time = next_unix_time;
+        *epoch_time = next_unix_time_msec;
     }
 
     //printf("Time Into Interval System Time:          %s", asctime(&now_tm));
@@ -230,7 +258,7 @@ static inline void datalogger_set_epoch_time_event(const datalogger_time_interva
 /**
  * @brief Gets unix epoch GMT time from system clock.
  * 
- * @return time_t Unix epoch timestamp (GMT)
+ * @return time_t Unix epoch timestamp (GMT) in seconds.
  */
 static inline time_t datalogger_get_epoch_time(void) {
     // get current time as 'struct timeval'.

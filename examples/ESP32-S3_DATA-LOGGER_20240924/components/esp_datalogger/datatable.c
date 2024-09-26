@@ -99,8 +99,8 @@ static inline esp_err_t datatable_get_column_data_buffer_size(datatable_handle_t
     ESP_ARG_CHECK( datatable_handle );
 
     /* normalize sampling and processing periods to seconds */
-    sampling_interval = datalogger_normalize_period_to_sec(datatable_handle->sampling_interval_type, datatable_handle->sampling_interval_period);
-    processing_interval = datalogger_normalize_period_to_sec(datatable_handle->processing_interval_type, datatable_handle->processing_interval_period);
+    sampling_interval = datalogger_normalize_interval_to_sec(datatable_handle->sampling_interval_type, datatable_handle->sampling_interval_period);
+    processing_interval = datalogger_normalize_interval_to_sec(datatable_handle->processing_interval_type, datatable_handle->processing_interval_period);
 
     /* calculate data-table column data buffer sample size */
     *size = processing_interval / sampling_interval;
@@ -497,13 +497,13 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
     ESP_RETURN_ON_ERROR( datatable_column_exist(datatable_handle, index), TAG, "column does not exist or index is out of range for process vector data buffer failed" );
     
     /* validate column data-type */
-    ESP_RETURN_ON_FALSE( datatable_handle->columns[index].data_type == DATATABLE_COLUMN_DATA_FLOAT, ESP_ERR_INVALID_ARG, TAG, "column data-type is incorrect for process vector data buffer failed" );
+    ESP_RETURN_ON_FALSE( datatable_handle->columns[index].data_type == DATATABLE_COLUMN_DATA_VECTOR, ESP_ERR_INVALID_ARG, TAG, "column data-type is incorrect for process vector data buffer failed" );
 
     // validate number of appended samples against expected number of samples
     if(datatable_handle->columns[index].data.samples_count != datatable_handle->columns[index].data.samples_size) {
         /* set default data */
-        *value_uc = NAN;
-        *value_vc = NAN;
+        *value_uc = tmp_uc_value;
+        *value_vc = tmp_vc_value;
 
         return ESP_ERR_INVALID_SIZE;
     }
@@ -893,18 +893,18 @@ esp_err_t datatable_new(char *name, const datatable_config_t *datatable_config, 
     ESP_GOTO_ON_FALSE( (datatable_config->processing_interval_period > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period cannot be 0, new data-table failed" );
 
     /* validate sampling and processing interval periods */
-    interval_delta = datalogger_normalize_period_to_sec(datatable_config->processing_interval_type, datatable_config->processing_interval_period) - 
-                            datalogger_normalize_period_to_sec(datatable_config->sampling_interval_type, datatable_config->sampling_interval_period); 
+    interval_delta = datalogger_normalize_interval_to_sec(datatable_config->processing_interval_type, datatable_config->processing_interval_period) - 
+                            datalogger_normalize_interval_to_sec(datatable_config->sampling_interval_type, datatable_config->sampling_interval_period); 
     ESP_GOTO_ON_FALSE((interval_delta > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period must be larger than the sampling interval period, new data-table handle failed" );
 
     /* validate sampling period and offset intervals */
-    interval_delta = datalogger_normalize_period_to_sec(datatable_config->sampling_interval_type, datatable_config->sampling_interval_period) - 
-                            datalogger_normalize_period_to_sec(datatable_config->sampling_interval_type, datatable_config->sampling_interval_offset); 
+    interval_delta = datalogger_normalize_interval_to_sec(datatable_config->sampling_interval_type, datatable_config->sampling_interval_period) - 
+                            datalogger_normalize_interval_to_sec(datatable_config->sampling_interval_type, datatable_config->sampling_interval_offset); 
     ESP_GOTO_ON_FALSE((interval_delta > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period must be larger than the sampling interval offset, new data-table handle failed" );
     
     /* validate processing period and offset intervals */
-    interval_delta = datalogger_normalize_period_to_sec(datatable_config->processing_interval_type, datatable_config->processing_interval_period) - 
-                            datalogger_normalize_period_to_sec(datatable_config->processing_interval_type, datatable_config->processing_interval_offset); 
+    interval_delta = datalogger_normalize_interval_to_sec(datatable_config->processing_interval_type, datatable_config->processing_interval_period) - 
+                            datalogger_normalize_interval_to_sec(datatable_config->processing_interval_type, datatable_config->processing_interval_offset); 
     ESP_GOTO_ON_FALSE((interval_delta > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period must be larger than the processing interval offset, new data-table handle failed" );
     
     /**

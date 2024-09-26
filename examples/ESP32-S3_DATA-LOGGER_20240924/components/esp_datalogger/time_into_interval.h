@@ -61,7 +61,7 @@ typedef struct time_into_interval_t *time_into_interval_handle_t;
  * @brief Time into interval handle parameters structure.
  */
 typedef struct {
-    time_t                           epoch_time;         /*!< time into interval unix epoch time in seconds */
+    uint64_t                         epoch_time;         /*!< time into interval unix epoch time in milli-seconds */
     datalogger_time_interval_types_t interval_type;      /*!< time into interval, interval type setting */
     uint16_t                         interval_period;    /*!< time into interval, a non-zero interval period setting */
     uint16_t                         interval_offset;    /*!< time into interval, interval period setting */

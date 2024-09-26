@@ -204,6 +204,7 @@ typedef union __attribute__((packed)) {
 typedef union __attribute__((packed)) {
     struct {
         bool                        spi_enabled:1;  /*!< bmp280 3-wire SPI interface enabled when true  (bit:0)  */
+        uint8_t                     reserved:1;     /*!< bmp280 reserved                                (bit:1) */
         i2c_bmp280_iir_filters_t    iir_filter:3;   /*!< bmp280 time constant of the IIR filter         (bit:2-4) */
         i2c_bmp280_standby_times_t  standby_time:3; /*!< bmp280 inactive duration in normal mode        (bit:5-7) */
     } bits;

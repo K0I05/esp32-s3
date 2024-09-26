@@ -79,7 +79,7 @@ esp_err_t task_schedule_new(const datalogger_time_interval_types_t interval_type
     out_handle->params->interval_offset = interval_offset;
 
     /* set epoch time of the next scheduled task */
-    datalogger_set_epoch_time_event(out_handle->params->interval_type, out_handle->params->interval_period, &out_handle->params->epoch_time);
+    datalogger_set_epoch_time_event(out_handle->params->interval_type, out_handle->params->interval_period, out_handle->params->interval_offset, &out_handle->params->epoch_time);
 
     /* set output handle */
     *task_schedule_handle = out_handle;
@@ -95,7 +95,6 @@ esp_err_t task_schedule_delay(task_schedule_handle_t task_schedule_handle) {
     TickType_t      delay;
     struct timeval  tv_now;
     uint64_t        now_msec;
-    uint64_t        next_msec;
     int64_t         delta_msec;
 
     /* validate arguments */
@@ -107,11 +106,8 @@ esp_err_t task_schedule_delay(task_schedule_handle_t task_schedule_handle) {
     // convert system time to msec
     now_msec = (uint64_t)tv_now.tv_sec * 1000U + (uint64_t)tv_now.tv_usec / 1000U;
 
-    // convert next scan event epoch time to msec
-    next_msec = (uint64_t)task_schedule_handle->params->epoch_time * 1000U;
-
     // compute time delta until next scan event
-    delta_msec = next_msec - now_msec;
+    delta_msec = task_schedule_handle->params->epoch_time - now_msec;
 
     // validate time is into the future, otherwise, reset next epoch time
     if(delta_msec < 0) {
@@ -119,14 +115,10 @@ esp_err_t task_schedule_delay(task_schedule_handle_t task_schedule_handle) {
         task_schedule_handle->params->epoch_time = 0;
 
         // set epoch time of the next scheduled task
-        datalogger_set_epoch_time_event(task_schedule_handle->params->interval_type, task_schedule_handle->params->interval_period, &task_schedule_handle->params->epoch_time);
-
-
-        // convert next scan event epoch time to msec
-        next_msec = (uint64_t)task_schedule_handle->params->epoch_time * 1000U;
+        datalogger_set_epoch_time_event(task_schedule_handle->params->interval_type, task_schedule_handle->params->interval_period, task_schedule_handle->params->interval_offset, &task_schedule_handle->params->epoch_time);
 
         // compute time delta until next scan event
-        delta_msec = next_msec - now_msec;
+        delta_msec = task_schedule_handle->params->epoch_time - now_msec;
     }
 
     // compute ticks delay from time delta
@@ -136,7 +128,7 @@ esp_err_t task_schedule_delay(task_schedule_handle_t task_schedule_handle) {
     vTaskDelay( delay );
 
     /* set epoch time of the next scheduled task */
-    datalogger_set_epoch_time_event(task_schedule_handle->params->interval_type, task_schedule_handle->params->interval_period, &task_schedule_handle->params->epoch_time);
+    datalogger_set_epoch_time_event(task_schedule_handle->params->interval_type, task_schedule_handle->params->interval_period, task_schedule_handle->params->interval_offset, &task_schedule_handle->params->epoch_time);
 
     return ESP_OK;
 }

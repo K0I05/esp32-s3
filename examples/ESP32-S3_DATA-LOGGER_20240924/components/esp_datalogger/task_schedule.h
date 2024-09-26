@@ -63,7 +63,7 @@ typedef struct task_schedule_t *task_schedule_handle_t;
  * @brief Task schedule handle parameters structure.
  */
 typedef struct {
-    time_t                           epoch_time;         /*!< unix epoch time in seconds of the scheduled task */
+    uint64_t                         epoch_time;         /*!< unix epoch time in milli-seconds of the scheduled task */
     datalogger_time_interval_types_t interval_type;      /*!< task interval type setting */
     uint16_t                         interval_period;    /*!< task interval period setting */
     uint16_t                         interval_offset;    /*!< task interval period setting */
