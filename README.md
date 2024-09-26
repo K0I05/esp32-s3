@@ -18,4 +18,8 @@
  Above peripheral drivers have been tested, validated with a logic analyzer, and still under development.  If any problems arise please feel free to log an issue.
 
 # ESP Data-Logger
-User friendly table based data logging for measurement and control use-cases.
+User friendly table based data logging for measurement and control use-cases.  See examples for more details.
+
+
+
+Copyright (c) 2024 Eric Gionet (gionet.c.eric@gmail.com)
