@@ -331,6 +331,9 @@ esp_err_t i2c_bmp280_set_configuration_register(i2c_bmp280_handle_t bmp280_handl
     /* validate arguments */
     ESP_ARG_CHECK( bmp280_handle );
 
+    /* set reserved to 0 */
+    config_reg.bits.reserved = 0;
+
     /* attempt i2c write transaction */
     ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(bmp280_handle->i2c_dev_handle, I2C_BMP280_REG_CONFIG, config_reg.reg), TAG, "write configuration register failed" );
 
