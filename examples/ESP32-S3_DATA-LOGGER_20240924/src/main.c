@@ -59,8 +59,10 @@
 #define SNTP_TIME_SYNC_MAX_RETRY        (10)
 #define INET4_ADDRSTRLEN                (15) // (255.255.255.255)
 
-#define CONFIG_WIFI_SSID                "NOKIA-8764"
-#define CONFIG_WIFI_PASSWORD            "qpLQaC.pbk"
+//#define CONFIG_WIFI_SSID                "NOKIA-8764"
+//#define CONFIG_WIFI_PASSWORD            "qpLQaC.pbk"
+#define CONFIG_WIFI_SSID                "APOLLO"
+#define CONFIG_WIFI_PASSWORD            "41F43DA524D6"
 
 #define CONFIG_I2C_0_PORT               I2C_NUM_0
 #define CONFIG_I2C_0_SDA_IO             (gpio_num_t)(45) // blue
@@ -427,10 +429,6 @@ static void i2c_0_task( void *pvParameters ) {
     float                       td; 
     float                       rh;
     float                       pa;
-    float                       ta_max          = NAN;
-    float                       ta_min          = NAN;
-    float                       pa_max          = NAN;
-    float                       pa_min          = NAN;
     char                        deg_char        = 176;
     uint64_t                    start_time      = 0;
     uint64_t                    end_time        = 0;
@@ -455,8 +453,7 @@ static void i2c_0_task( void *pvParameters ) {
     // instantiate a new time into interval handle - task system clock synchronization
     time_into_interval_new(DATALOGGER_TIME_INTERVAL_MIN, 5, 0, &time_into_interval_hdl);
     if (time_into_interval_hdl == NULL) ESP_LOGE(APP_TAG, "time_into_new_interval, new time into interval handle failed");
-    // 
-    //
+    
     // initialize master i2c 0 bus configuration
     i2c_master_bus_config_t     i2c0_master_cfg = CONFIG_I2C_0_MASTER_DEFAULT;
     i2c_master_bus_handle_t     i2c0_bus_hdl;
@@ -506,41 +503,14 @@ static void i2c_0_task( void *pvParameters ) {
             // convert pressure to hPa
             pa = pa / 100;
             //
-            // process min and max pa since reboot
-            if(isnan(pa_max) && isnan(pa_min)) {
-                // initialize
-                pa_max = pa;
-                pa_min = pa;
-            }
-            //
-            // set min and max values
-            if(pa > pa_max) pa_max = pa;
-            if(pa < pa_min) pa_min = pa;
-            //
             ESP_LOGI(APP_TAG, "pressure:     %.1f hPa", pa);
-            ESP_LOGI(APP_TAG, "pressure-min: %.1f hPa", pa_min);
-            ESP_LOGI(APP_TAG, "pressure-max: %.1f hPa", pa_max);
         }
         //
         // handle aht2x sensor
         if(i2c_ahtxx_get_measurements(aht20_dev_hdl, &ta, &rh, &td) != 0) {
             ESP_LOGI(APP_TAG, "i2c_ahtxx_get_measurements failed");
         } else {
-            //
-            // process min and max ta since reboot
-            if(isnan(ta_max) && isnan(ta_min)) {
-                // initialize
-                ta_max = ta;
-                ta_min = ta;
-            }
-            //
-            // set min and max values
-            if(ta > ta_max) ta_max = ta;
-            if(ta < ta_min) ta_min = ta;
-            //
             ESP_LOGI(APP_TAG, "air:          %.2f%cC", ta, deg_char);
-			ESP_LOGI(APP_TAG, "air-min:      %.2f%cC", ta_min, deg_char);
-            ESP_LOGI(APP_TAG, "air-max:      %.2f%cC", ta_max, deg_char);
             ESP_LOGI(APP_TAG, "dew-point:    %.2f%cC", td, deg_char);
             ESP_LOGI(APP_TAG, "humidity:     %.2f %%", rh);
         }
@@ -613,11 +583,11 @@ void app_main( void ) {
 
     // data-table testing
     //
-    // instantiate a new task schedule handle - task system clock synchronization
+    // create a new task schedule handle - task system clock synchronization
     task_schedule_new(DATALOGGER_TIME_INTERVAL_SEC, 10, 0, &sampling_task_sch_hdl);
     if (sampling_task_sch_hdl == NULL) ESP_LOGE(APP_TAG, "task_schedule_new, new task schedule handle failed");
     //
-    // create new data-table handle
+    // create a new data-table handle
     datatable_new("Tbl_1-Min", 9, 10, DATALOGGER_TIME_INTERVAL_MIN, 1, 0, sampling_task_sch_hdl, DATATABLE_DATA_STORAGE_MEMORY_RING, &dt_sample_hdl);
     if (dt_sample_hdl == NULL) ESP_LOGE(APP_TAG, "datatable_new, new data-table handle failed");
     //

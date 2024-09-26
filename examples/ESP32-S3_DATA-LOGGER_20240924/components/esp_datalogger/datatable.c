@@ -177,7 +177,9 @@ static inline esp_err_t datatable_fifo_rows(datatable_handle_t datatable_handle)
     }
 
     /* free up memory used by the tmp rows */
-    free(tmp_rows);
+    if(tmp_rows) {
+        free(tmp_rows);
+    }
 
     return ESP_OK;
 }
@@ -193,7 +195,9 @@ static inline esp_err_t datatable_reset_rows(datatable_handle_t datatable_handle
     ESP_ARG_CHECK( datatable_handle );
 
     /* reset rows by freeing up memory */
-    free(datatable_handle->rows);
+    if(datatable_handle->rows) {
+        free(datatable_handle->rows);
+    }
 
     /* reset row attributes */
     datatable_handle->rows_index = 0;
@@ -369,7 +373,9 @@ static inline esp_err_t datatable_fifo_data_buffer(datatable_handle_t datatable_
             }
 
             /* free-up memory */
-            free(tmp_vector_samples);
+            if(tmp_vector_samples) {
+                free(tmp_vector_samples);
+            }
 
             break;
         case DATATABLE_COLUMN_DATA_BOOL:
@@ -393,7 +399,9 @@ static inline esp_err_t datatable_fifo_data_buffer(datatable_handle_t datatable_
             }
 
             /* free-up memory */
-            free(tmp_bool_samples);
+            if(tmp_bool_samples) {
+                free(tmp_bool_samples);
+            }
 
             break;
         case DATATABLE_COLUMN_DATA_FLOAT:
@@ -417,7 +425,9 @@ static inline esp_err_t datatable_fifo_data_buffer(datatable_handle_t datatable_
             }
 
             /* free-up memory */
-            free(tmp_float_samples);
+            if(tmp_float_samples) {
+                free(tmp_float_samples);
+            }
 
             break;
         case DATATABLE_COLUMN_DATA_INT16:
@@ -441,7 +451,9 @@ static inline esp_err_t datatable_fifo_data_buffer(datatable_handle_t datatable_
             }
 
             /* free-up memory */
-            free(tmp_int16_samples);
+            if(tmp_int16_samples) {
+                free(tmp_int16_samples);
+            }
 
             break;
     }
@@ -682,7 +694,7 @@ static inline esp_err_t datatable_process_float_data_buffer(datatable_handle_t d
     if(datatable_handle->columns[index].data.samples_count != datatable_handle->columns[index].data.samples_size) {
         /* set default data */
         *value = tmp_value;
-        *value_ts  = tmp_ts;
+        *value_ts = tmp_ts;
 
         return ESP_ERR_INVALID_SIZE;
     }
@@ -702,7 +714,7 @@ static inline esp_err_t datatable_process_float_data_buffer(datatable_handle_t d
                 //ESP_LOGW(TAG, "datatable_process_float_data_buffer(column-index: %u) data-sum: %.2f", column_index, tmp_data);
             }
             *value = tmp_value / datatable_handle->columns[index].data.samples_count;
-            *value_ts  = tmp_ts;
+            *value_ts = tmp_ts;
             ESP_LOGW(TAG, "datatable_process_float_data_buffer(column-index: %u) data-count: %u data-avg: %.2f", index, datatable_handle->columns[index].data.samples_count, *value);
             break;
         case DATATABLE_COLUMN_PROCESS_MIN:
@@ -716,7 +728,7 @@ static inline esp_err_t datatable_process_float_data_buffer(datatable_handle_t d
                 }
             }
             *value = tmp_value;
-            *value_ts  = tmp_ts;
+            *value_ts = tmp_ts;
             break;
         case DATATABLE_COLUMN_PROCESS_MAX:
             for(uint16_t s = 0; s < datatable_handle->columns[index].data.samples_count; s++) {
@@ -729,7 +741,7 @@ static inline esp_err_t datatable_process_float_data_buffer(datatable_handle_t d
                 }
             }
             *value = tmp_value;
-            *value_ts  = tmp_ts;
+            *value_ts = tmp_ts;
             break;
         case DATATABLE_COLUMN_PROCESS_MIN_TS:
             for(uint16_t s = 0; s < datatable_handle->columns[index].data.samples_count; s++) {
@@ -811,7 +823,7 @@ static inline esp_err_t datatable_process_int16_data_buffer(datatable_handle_t d
                 //ESP_LOGW(TAG, "datatable_process_int16_data_buffer(column-index: %u) data-sum: %u", column_index, tmp_data);
             }
             *value = tmp_value / datatable_handle->columns[index].data.samples_count;
-            *value_ts  = tmp_ts;
+            *value_ts = tmp_ts;
             ESP_LOGW(TAG, "datatable_process_int16_data_buffer(column-index: %u) data-count: %u data-avg: %u", index, datatable_handle->columns[index].data.samples_count, *value);
             break;
         case DATATABLE_COLUMN_PROCESS_MIN:
@@ -825,7 +837,7 @@ static inline esp_err_t datatable_process_int16_data_buffer(datatable_handle_t d
                 }
             }
             *value = tmp_value;
-            *value_ts  = tmp_ts;
+            *value_ts = tmp_ts;
             break;
         case DATATABLE_COLUMN_PROCESS_MAX:
             for(uint16_t s = 0; s < datatable_handle->columns[index].data.samples_count; s++) {
@@ -838,7 +850,7 @@ static inline esp_err_t datatable_process_int16_data_buffer(datatable_handle_t d
                 }
             }
             *value = tmp_value;
-            *value_ts  = tmp_ts;
+            *value_ts = tmp_ts;
             break;
         case DATATABLE_COLUMN_PROCESS_MIN_TS:
             for(uint16_t s = 0; s < datatable_handle->columns[index].data.samples_count; s++) {
@@ -973,9 +985,6 @@ esp_err_t datatable_new(char *name, uint8_t columns_size, uint16_t rows_size, da
     return ESP_OK;
 
     err:
-        free(out_handle->processing_tti_handle);
-        free(out_handle->columns);
-        free(out_handle->rows);
         free(out_handle);
         return ret;
 }
@@ -2307,7 +2316,7 @@ esp_err_t datatable_to_json(datatable_handle_t datatable_handle, char *json) {
 	cJSON_Delete(json_table);
 
     // free-up buffer
-    cJSON_free(out_json);
+    //cJSON_free(out_json); // causes a reboot
 
     return ESP_OK;
 }

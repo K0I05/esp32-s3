@@ -51,6 +51,7 @@ extern "C" {
 
 static const char *TAG_DL_COMMON = "datalogger_common";
 
+// https://lloydrochester.com/post/c/c-timestamp-epoch/
 
 /**
  * @brief Data-logger time interval types enumerator.
