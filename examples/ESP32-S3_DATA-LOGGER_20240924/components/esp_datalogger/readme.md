@@ -120,7 +120,7 @@ static void dt_sampling_task( void *pvParameters ) {
 }
 ```
 
-You can declare as many time-into-intervals handles as needed, or memory available, to sychronize real-time events with the system clock.  See time-into-interval component and review documentation on features implemented to date.
+You can declare as many time-into-interval handles as needed, or memory available, to sychronize real-time events with the system clock.  See time-into-interval component and review documentation on features implemented to date.
 
 
 
