@@ -59,14 +59,16 @@ typedef struct task_schedule_t task_schedule_t;
  */
 typedef struct task_schedule_t *task_schedule_handle_t;
 
+// TODO? - add multi-thread synch (i.e. mutex)
+
 /**
  * @brief Task schedule handle parameters structure.
  */
 typedef struct {
-    uint64_t                         epoch_time;         /*!< unix epoch time in milli-seconds of the scheduled task */
-    datalogger_time_interval_types_t interval_type;      /*!< task interval type setting */
-    uint16_t                         interval_period;    /*!< task interval period setting */
-    uint16_t                         interval_offset;    /*!< task interval period setting */
+    uint64_t                         epoch_time;         /*!< task schuedule, next event unix epoch time in milli-seconds */
+    datalogger_time_interval_types_t interval_type;      /*!< task schuedule, interval type setting */
+    uint16_t                         interval_period;    /*!< task schuedule, a non-zero interval period setting per interval type setting  */
+    uint16_t                         interval_offset;    /*!< task schuedule, interval offset setting, per interval type setting, that must be less than the interval period */
 } task_schedule_params_t;
 
 /**
@@ -93,9 +95,9 @@ struct task_schedule_t {
  * However, if the task execution time exceeds the configured interval, a skipped 
  * task will be triggerred.  
  * 
- * @param[in] interval_type Task schedule interval type setting.
- * @param[in] interval_period Task schedule interval period setting per configured interval type.
- * @param[in] interval_offset Task schedule interval offset setting per configured interval type.
+ * @param[in] interval_type Task schedule, interval type setting.
+ * @param[in] interval_period Task schedule, a non-zero interval period setting per interval type setting.
+ * @param[in] interval_offset Task schedule, interval offset setting, per interval type setting, that must be less than the interval period.
  * @param[out] task_schedule_handle Task schedule handle.
  * @return esp_err_t ESP_OK on success.
  */
@@ -104,7 +106,7 @@ esp_err_t task_schedule_new(const datalogger_time_interval_types_t interval_type
 /**
  * @brief Delays the task until the next scheduled task event.  This function should
  * be placed after the `for (;;) {` syntax to delay the task based on the configured
- * interval type and period.
+ * interval type, period, and offset parameters.
  * 
  * @param task_schedule_handle Task schedule handle.
  * @return esp_err_t ESP_OK on success.

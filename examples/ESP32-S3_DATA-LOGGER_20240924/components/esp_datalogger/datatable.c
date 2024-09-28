@@ -99,11 +99,11 @@ static inline esp_err_t datatable_get_column_data_buffer_size(datatable_handle_t
     ESP_ARG_CHECK( datatable_handle );
 
     /* normalize sampling and processing periods to seconds */
-    sampling_interval = datalogger_normalize_interval_to_sec(datatable_handle->sampling_task_schedule_handle->params->interval_type, datatable_handle->sampling_task_schedule_handle->params->interval_period);
+    sampling_interval = datalogger_normalize_interval_to_sec(datatable_handle->sampling_ts_handle->params->interval_type, datatable_handle->sampling_ts_handle->params->interval_period);
     processing_interval = datalogger_normalize_interval_to_sec(datatable_handle->processing_interval_type, datatable_handle->processing_interval_period);
 
     /* calculate data-table column data buffer sample size */
-    *size = processing_interval / sampling_interval;
+    *size = (uint16_t)(processing_interval / sampling_interval);
 
     return ESP_OK;
 }
@@ -533,11 +533,11 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
             */
             for(uint16_t s = 0; s < datatable_handle->columns[index].data.samples_count; s++) {
                 if(s == 0) {
-                    tmp_ew_vector = sin( datalogger_convert_degrees_to_radians(datatable_handle->columns[index].data.buffer.vector_samples[s].value_uc) ) * datatable_handle->columns[index].data.buffer.vector_samples[s].value_vc;
-                    tmp_ns_vector = cos( datalogger_convert_degrees_to_radians(datatable_handle->columns[index].data.buffer.vector_samples[s].value_uc) ) * datatable_handle->columns[index].data.buffer.vector_samples[s].value_vc;
+                    tmp_ew_vector = sin( datalogger_degrees_to_radians(datatable_handle->columns[index].data.buffer.vector_samples[s].value_uc) ) * datatable_handle->columns[index].data.buffer.vector_samples[s].value_vc;
+                    tmp_ns_vector = cos( datalogger_degrees_to_radians(datatable_handle->columns[index].data.buffer.vector_samples[s].value_uc) ) * datatable_handle->columns[index].data.buffer.vector_samples[s].value_vc;
                 } else {
-                    tmp_ew_vector += sin( datalogger_convert_degrees_to_radians(datatable_handle->columns[index].data.buffer.vector_samples[s].value_uc) ) * datatable_handle->columns[index].data.buffer.vector_samples[s].value_vc;
-                    tmp_ns_vector += cos( datalogger_convert_degrees_to_radians(datatable_handle->columns[index].data.buffer.vector_samples[s].value_uc) ) * datatable_handle->columns[index].data.buffer.vector_samples[s].value_vc;
+                    tmp_ew_vector += sin( datalogger_degrees_to_radians(datatable_handle->columns[index].data.buffer.vector_samples[s].value_uc) ) * datatable_handle->columns[index].data.buffer.vector_samples[s].value_vc;
+                    tmp_ns_vector += cos( datalogger_degrees_to_radians(datatable_handle->columns[index].data.buffer.vector_samples[s].value_uc) ) * datatable_handle->columns[index].data.buffer.vector_samples[s].value_vc;
                 }
                 //ESP_LOGW(TAG, "datatable_process_float_data_buffer(column-index: %u) data-sum: %.2f", column_index, tmp_data);
             }
@@ -548,7 +548,7 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
 
             // average u-component in degrees
             tmp_atan2_uc = atan2(tmp_ew_avg, tmp_ns_avg);
-            tmp_uc_avg = datalogger_convert_radians_to_degrees(tmp_atan2_uc);
+            tmp_uc_avg = datalogger_radians_to_degrees(tmp_atan2_uc);
 
             // apply correction as specified in webmet.com webpage http://www.webmet.com/met_monitoring/622.html
             if(tmp_uc_avg > 180.0) {
@@ -942,7 +942,7 @@ esp_err_t datatable_new(char *name, uint8_t columns_size, uint16_t rows_size, da
     out_handle->rows_count                  = 0;
     out_handle->rows_size                   = rows_size;
     out_handle->sampling_count              = 0;
-    out_handle->sampling_task_schedule_handle = sampling_task_schedule_handle;
+    out_handle->sampling_ts_handle          = sampling_task_schedule_handle;
     out_handle->processing_interval_type    = processing_interval_type;
     out_handle->processing_interval_period  = processing_interval_period;
     out_handle->processing_interval_offset  = processing_interval_offset;
@@ -1812,6 +1812,16 @@ esp_err_t datatable_push_int16_sample(datatable_handle_t datatable_handle, uint8
     return ESP_OK;
 }
 
+esp_err_t datatable_sampling_task_delay(datatable_handle_t datatable_handle) {
+    /* validate arguments */
+    ESP_ARG_CHECK( datatable_handle );
+
+    /* delay data-table sampling task per sampling task schedule handle */
+    ESP_RETURN_ON_ERROR( task_schedule_delay(datatable_handle->sampling_ts_handle), TAG, "unable to delay task schedule, data-table sampling task delay failed." );
+
+    return ESP_OK;
+}
+
 esp_err_t datatable_process_samples(datatable_handle_t datatable_handle) {
     uint16_t    dt_data_buffer_size;
     bool        dt_is_full;
@@ -1936,8 +1946,14 @@ esp_err_t datatable_process_samples(datatable_handle_t datatable_handle) {
     return ESP_OK;
 }
 
+esp_err_t datatable_del(datatable_handle_t datatable_handle) {
+    /* free resource */
+    if(datatable_handle) {
+        free(datatable_handle);
+    }
 
-
+    return ESP_OK;
+}
 
 
 

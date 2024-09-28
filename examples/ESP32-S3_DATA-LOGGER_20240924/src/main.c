@@ -59,10 +59,8 @@
 #define SNTP_TIME_SYNC_MAX_RETRY        (10)
 #define INET4_ADDRSTRLEN                (15) // (255.255.255.255)
 
-//#define CONFIG_WIFI_SSID                "NOKIA-8764"
-//#define CONFIG_WIFI_PASSWORD            "qpLQaC.pbk"
-#define CONFIG_WIFI_SSID                "APOLLO"
-#define CONFIG_WIFI_PASSWORD            "41F43DA524D6"
+//#define CONFIG_WIFI_SSID                "YOUR SSID"
+//#define CONFIG_WIFI_PASSWORD            "SSID KEY"
 
 #define CONFIG_I2C_0_PORT               I2C_NUM_0
 #define CONFIG_I2C_0_SDA_IO             (gpio_num_t)(45) // blue
@@ -106,8 +104,8 @@ static const int NTP_EVENT_GROUP_NTP_SYNCHRONIZED_BIT  = BIT0;
 static const int NTP_EVENT_GROUP_NTP_SYNCH_FAIL_BIT    = BIT1;
 
 // data-table variables
-static task_schedule_handle_t sampling_task_sch_hdl;
-static datatable_handle_t dt_sample_hdl;
+static task_schedule_handle_t dt_sampling_task_sch_hdl;
+static datatable_handle_t dt_example_hdl;
 static uint8_t dt_pa_avg_column_index;
 static uint8_t dt_ta_avg_column_index;
 static uint8_t dt_ta_max_column_index;
@@ -120,15 +118,15 @@ static uint8_t dt_wsd_avg_column_index;
 
 
 static inline void datatable_print_columns(void) {
-    if(dt_sample_hdl == NULL || dt_sample_hdl->columns_size == 0) {
+    if(dt_example_hdl == NULL || dt_example_hdl->columns_size == 0) {
         ESP_LOGW(APP_TAG, "data-table columns error: intialize data-table");
         return;
     } else {
-        ESP_LOGW(APP_TAG, "data-table (%s) columns:", dt_sample_hdl->name);
+        ESP_LOGW(APP_TAG, "data-table (%s) columns:", dt_example_hdl->name);
     }
     
-    for(uint8_t i = 0; i <= dt_sample_hdl->columns_index; i++) {
-        datatable_column_t col = dt_sample_hdl->columns[i];
+    for(uint8_t i = 0; i <= dt_example_hdl->columns_index; i++) {
+        datatable_column_t col = dt_example_hdl->columns[i];
         ESP_LOGW(APP_TAG, "->name (%d): %s", i, col.names[0].name);
     }
 
@@ -450,9 +448,9 @@ static void i2c_0_task( void *pvParameters ) {
         // abort
     }
     
-    // instantiate a new time into interval handle - task system clock synchronization
+    // create a new time into interval handle - task system clock synchronization
     time_into_interval_new(DATALOGGER_TIME_INTERVAL_MIN, 5, 0, &time_into_interval_hdl);
-    if (time_into_interval_hdl == NULL) ESP_LOGE(APP_TAG, "time_into_new_interval, new time into interval handle failed");
+    if (time_into_interval_hdl == NULL) ESP_LOGE(APP_TAG, "time_into_interval_new, new time into interval handle failed");
     
     // initialize master i2c 0 bus configuration
     i2c_master_bus_config_t     i2c0_master_cfg = CONFIG_I2C_0_MASTER_DEFAULT;
@@ -488,8 +486,8 @@ static void i2c_0_task( void *pvParameters ) {
         // set start timer
         start_time = esp_timer_get_time(); 
         //
-        // delay task until task schedule condition is valid
-        task_schedule_delay(sampling_task_sch_hdl);
+        // delay data-table sampling task until task schedule condition is valid
+        datatable_sampling_task_delay(dt_example_hdl);
         //
         //
         ESP_LOGI(APP_TAG, "######################## AHT20+BMP280 - START #########################");
@@ -516,24 +514,24 @@ static void i2c_0_task( void *pvParameters ) {
         }
         //
         // push samples onto the data buffer stack for processing
-        datatable_push_float_sample(dt_sample_hdl, dt_pa_avg_column_index, pa);
-        datatable_push_float_sample(dt_sample_hdl, dt_ta_avg_column_index, ta);
-        datatable_push_float_sample(dt_sample_hdl, dt_ta_min_column_index, ta);
-        datatable_push_float_sample(dt_sample_hdl, dt_ta_max_column_index, ta);
-        datatable_push_float_sample(dt_sample_hdl, dt_td_avg_column_index, td);
-        datatable_push_float_sample(dt_sample_hdl, dt_rh_avg_column_index, rh);
-        datatable_push_float_sample(dt_sample_hdl, dt_rh_min_ts_column_index, rh);
-        datatable_push_float_sample(dt_sample_hdl, dt_rh_max_ts_column_index, rh);
-        datatable_push_vector_sample(dt_sample_hdl, dt_wsd_avg_column_index, 210, 1.45);
+        datatable_push_float_sample(dt_example_hdl, dt_pa_avg_column_index, pa);
+        datatable_push_float_sample(dt_example_hdl, dt_ta_avg_column_index, ta);
+        datatable_push_float_sample(dt_example_hdl, dt_ta_min_column_index, ta);
+        datatable_push_float_sample(dt_example_hdl, dt_ta_max_column_index, ta);
+        datatable_push_float_sample(dt_example_hdl, dt_td_avg_column_index, td);
+        datatable_push_float_sample(dt_example_hdl, dt_rh_avg_column_index, rh);
+        datatable_push_float_sample(dt_example_hdl, dt_rh_min_ts_column_index, rh);
+        datatable_push_float_sample(dt_example_hdl, dt_rh_max_ts_column_index, rh);
+        datatable_push_vector_sample(dt_example_hdl, dt_wsd_avg_column_index, 210, 1.45);
         //
         // process data buffer stack samples (i.e. data-table's configured processing interval)
-        datatable_process_samples(dt_sample_hdl);
+        datatable_process_samples(dt_example_hdl);
         //
         // print data-table in json format at specified interval
         
         if(time_into_interval(time_into_interval_hdl)) {
             char *dt_json = "";
-            datatable_to_json(dt_sample_hdl, dt_json);
+            datatable_to_json(dt_example_hdl, dt_json);
 	        ESP_LOGI(APP_TAG, "JSON Data-Table:\n%s",dt_json);
         }
     
@@ -584,31 +582,32 @@ void app_main( void ) {
     // data-table testing
     //
     // create a new task schedule handle - task system clock synchronization
-    task_schedule_new(DATALOGGER_TIME_INTERVAL_SEC, 10, 0, &sampling_task_sch_hdl);
-    if (sampling_task_sch_hdl == NULL) ESP_LOGE(APP_TAG, "task_schedule_new, new task schedule handle failed");
+    task_schedule_new(DATALOGGER_TIME_INTERVAL_SEC, 10, 0, &dt_sampling_task_sch_hdl);
+    if (dt_sampling_task_sch_hdl == NULL) ESP_LOGE(APP_TAG, "task_schedule_new, new task schedule handle failed");
     //
     // create a new data-table handle
-    datatable_new("Tbl_1-Min", 9, 10, DATALOGGER_TIME_INTERVAL_MIN, 1, 0, sampling_task_sch_hdl, DATATABLE_DATA_STORAGE_MEMORY_RING, &dt_sample_hdl);
-    if (dt_sample_hdl == NULL) ESP_LOGE(APP_TAG, "datatable_new, new data-table handle failed");
+    datatable_new("Tbl_1-Min", 9, 10, DATALOGGER_TIME_INTERVAL_MIN, 1, 0, 
+                    dt_sampling_task_sch_hdl, DATATABLE_DATA_STORAGE_MEMORY_RING, &dt_example_hdl);
+    if (dt_example_hdl == NULL) ESP_LOGE(APP_TAG, "datatable_new, new data-table handle failed");
     //
     // add float average column to data-table
-    datatable_add_float_avg_column(dt_sample_hdl, "Pa_1-Min", &dt_pa_avg_column_index);                 // column index 2
+    datatable_add_float_avg_column(dt_example_hdl, "Pa_1-Min", &dt_pa_avg_column_index);                 // column index 2
     // add float average column to data-table
-    datatable_add_float_avg_column(dt_sample_hdl, "Ta_1-Min", &dt_ta_avg_column_index);                 // column index 3
+    datatable_add_float_avg_column(dt_example_hdl, "Ta_1-Min", &dt_ta_avg_column_index);                 // column index 3
     // add float minimum column to data-table
-    datatable_add_float_min_column(dt_sample_hdl, "Ta_1-Min", &dt_ta_min_column_index);                 // column index 4
+    datatable_add_float_min_column(dt_example_hdl, "Ta_1-Min", &dt_ta_min_column_index);                 // column index 4
     // add float maximum column to data-table
-    datatable_add_float_max_column(dt_sample_hdl, "Ta_1-Min", &dt_ta_max_column_index);                 // column index 5
+    datatable_add_float_max_column(dt_example_hdl, "Ta_1-Min", &dt_ta_max_column_index);                 // column index 5
     // add float average column to data-table
-    datatable_add_float_avg_column(dt_sample_hdl, "Td_1-Min", &dt_td_avg_column_index);                 // column index 6
+    datatable_add_float_avg_column(dt_example_hdl, "Td_1-Min", &dt_td_avg_column_index);                 // column index 6
     // add float average column to data-table
-    datatable_add_float_avg_column(dt_sample_hdl, "Rh_1-Min", &dt_rh_avg_column_index);                 // column index 7
+    datatable_add_float_avg_column(dt_example_hdl, "Rh_1-Min", &dt_rh_avg_column_index);                 // column index 7
     // add float minimum timestamp column to data-table
-    datatable_add_float_min_ts_column(dt_sample_hdl, "Rh_1-Min", &dt_rh_min_ts_column_index);           // column index 8
+    datatable_add_float_min_ts_column(dt_example_hdl, "Rh_1-Min", &dt_rh_min_ts_column_index);           // column index 8
     // add float maximum timestamp column to data-table
-    datatable_add_float_max_ts_column(dt_sample_hdl, "Rh_1-Min", &dt_rh_max_ts_column_index);           // column index 9
+    datatable_add_float_max_ts_column(dt_example_hdl, "Rh_1-Min", &dt_rh_max_ts_column_index);           // column index 9
     // add vector average column to data-table
-    datatable_add_vector_avg_column(dt_sample_hdl, "Wd_1-Min", "Ws_1-Min", &dt_wsd_avg_column_index);   // column index 10
+    datatable_add_vector_avg_column(dt_example_hdl, "Wd_1-Min", "Ws_1-Min", &dt_wsd_avg_column_index);   // column index 10
     //
     ESP_LOGW(APP_TAG, "data-table id column index:        %d", 0);
     ESP_LOGW(APP_TAG, "data-table ts column index:        %d", 1);
@@ -626,7 +625,7 @@ void app_main( void ) {
     //datatable_print_columns();
 
     char *dt_json = "";
-    datatable_to_json(dt_sample_hdl, dt_json);
+    datatable_to_json(dt_example_hdl, dt_json);
 	ESP_LOGI(APP_TAG, "JSON Data-Table:\n%s",dt_json);
 
     

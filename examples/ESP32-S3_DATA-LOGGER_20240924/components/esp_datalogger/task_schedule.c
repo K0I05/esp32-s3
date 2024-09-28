@@ -93,21 +93,21 @@ esp_err_t task_schedule_new(const datalogger_time_interval_types_t interval_type
 
 esp_err_t task_schedule_delay(task_schedule_handle_t task_schedule_handle) {
     TickType_t      delay;
-    struct timeval  tv_now;
-    uint64_t        now_msec;
+    struct timeval  tv_now_unix;
+    uint64_t        now_unix_msec;
     int64_t         delta_msec;
 
     /* validate arguments */
     ESP_ARG_CHECK( task_schedule_handle );
 
-    // get system time
-    gettimeofday(&tv_now, NULL);
+    // get system unix epoch time
+    gettimeofday(&tv_now_unix, NULL);
 
-    // convert system time to msec
-    now_msec = (uint64_t)tv_now.tv_sec * 1000U + (uint64_t)tv_now.tv_usec / 1000U;
+    // convert system unix epoch time to msec
+    now_unix_msec = (uint64_t)tv_now_unix.tv_sec * 1000U + (uint64_t)tv_now_unix.tv_usec / 1000U;
 
     // compute time delta until next scan event
-    delta_msec = task_schedule_handle->params->epoch_time - now_msec;
+    delta_msec = task_schedule_handle->params->epoch_time - now_unix_msec;
 
     // validate time is into the future, otherwise, reset next epoch time
     if(delta_msec < 0) {
@@ -118,7 +118,7 @@ esp_err_t task_schedule_delay(task_schedule_handle_t task_schedule_handle) {
         datalogger_set_epoch_time_event(task_schedule_handle->params->interval_type, task_schedule_handle->params->interval_period, task_schedule_handle->params->interval_offset, &task_schedule_handle->params->epoch_time);
 
         // compute time delta until next scan event
-        delta_msec = task_schedule_handle->params->epoch_time - now_msec;
+        delta_msec = task_schedule_handle->params->epoch_time - now_unix_msec;
     }
 
     // compute ticks delay from time delta
@@ -135,7 +135,9 @@ esp_err_t task_schedule_delay(task_schedule_handle_t task_schedule_handle) {
 
 esp_err_t task_schedule_del(task_schedule_handle_t task_schedule_handle) {
     /* free resource */
-    free(task_schedule_handle);
+    if(task_schedule_handle) {
+        free(task_schedule_handle);
+    }
 
     return ESP_OK;
 }

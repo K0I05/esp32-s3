@@ -150,21 +150,21 @@ static inline void datalogger_set_epoch_time_event(const datalogger_time_interva
     uint64_t        interval_period_msec;
     uint64_t        interval_offset_msec;
 
-    /* normalize interval period and offset to seconds */
+    /* normalize interval period and offset to milli-seconds */
     interval_period_msec = datalogger_normalize_interval_to_msec(interval_type, interval_period);
     interval_offset_msec = datalogger_normalize_interval_to_msec(interval_type, interval_offset);
 
-    // get system time
+    // get system unix epoch time (gmt)
     gettimeofday(&now_tv, NULL);
 
     // extract unix time
     now_unix_time = now_tv.tv_sec;
     now_unix_time_msec = (uint64_t)now_tv.tv_sec * 1000U + (uint64_t)now_tv.tv_usec / 1000U;
 
-    // convert now tm to time-parts
+    // convert now tm to time-parts localtime
     localtime_r(&now_unix_time, &now_tm);
 
-    // initialize next tm structure time-parts based on interval-type
+    // initialize next tm structure time-parts localtime based on interval-type
     switch(interval_type) {
         case DATALOGGER_TIME_INTERVAL_SEC:
             next_tm.tm_year = now_tm.tm_year;
@@ -278,7 +278,7 @@ static inline time_t datalogger_get_epoch_time(void) {
  * @param degree degrees to convert.
  * @return double converted degrees to radians.
  */
-static inline double datalogger_convert_degrees_to_radians(double degree) {
+static inline double datalogger_degrees_to_radians(double degree) {
     return degree * (M_PI / 180);
 }
 
@@ -288,7 +288,7 @@ static inline double datalogger_convert_degrees_to_radians(double degree) {
  * @param radian radian to convert.
  * @return double converted radians to degrees.
  */
-static inline double datalogger_convert_radians_to_degrees(double radian) {
+static inline double datalogger_radians_to_degrees(double radian) {
     return radian * (180 / M_PI);
 }
 
@@ -312,9 +312,9 @@ struct Tuple {
 /*<! axis tuple (x, y, z) */
 #define tuple(...) (struct Tuple){__VA_ARGS__}
 
-// struct Tuple axis = tuple(42.544, 34.433, 23.44);
+// struct Tuple axes = tuple(42.544, 34.433, 23.44);
 
-//esp_err_t get_axis(datatable_handle_t datatable_handle, struct Tuple *axis);
+//esp_err_t get_axes(datatable_handle_t datatable_handle, struct Tuple *axes);
 
 enum TupleItemType {
     LONG,

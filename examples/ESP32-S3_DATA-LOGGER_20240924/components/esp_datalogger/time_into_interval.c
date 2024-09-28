@@ -92,8 +92,8 @@ esp_err_t time_into_interval_new(const datalogger_time_interval_types_t interval
 
 bool time_into_interval(time_into_interval_handle_t time_into_interval_handle) {
     bool            status = false;
-    struct timeval  tv_now;
-    uint64_t        now_msec;
+    struct timeval  tv_now_unix;
+    uint64_t        now_unix_msec;
     int64_t         delta_msec;
 
     /* validate arguments */
@@ -101,14 +101,14 @@ bool time_into_interval(time_into_interval_handle_t time_into_interval_handle) {
         return status;
     }
 
-    // get system time
-    gettimeofday(&tv_now, NULL);
+    // get system unix epoch time
+    gettimeofday(&tv_now_unix, NULL);
 
-    // convert system time to msec
-    now_msec = (uint64_t)tv_now.tv_sec * 1000U + (uint64_t)tv_now.tv_usec / 1000U;
+    // convert system unix epoch time to msec
+    now_unix_msec = (uint64_t)tv_now_unix.tv_sec * 1000U + (uint64_t)tv_now_unix.tv_usec / 1000U;
 
     // compute time delta until next time into interval condition
-    delta_msec = time_into_interval_handle->params->epoch_time - now_msec;
+    delta_msec = time_into_interval_handle->params->epoch_time - now_unix_msec;
 
     if(delta_msec <= 0) {
 
@@ -122,7 +122,9 @@ bool time_into_interval(time_into_interval_handle_t time_into_interval_handle) {
 
 esp_err_t time_into_interval_del(time_into_interval_handle_t time_into_interval_handle) {
     /* free resource */
-    free(time_into_interval_handle);
+    if(time_into_interval_handle) {
+        free(time_into_interval_handle);
+    }
 
     return ESP_OK;
 }

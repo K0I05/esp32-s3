@@ -229,9 +229,9 @@ typedef struct datatable_t *datatable_handle_t;
 struct datatable_t {
     char                                name[DATATABLE_NAME_SIZE];  /*!< data-table name, maximum of 15 characters */
     datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, set when data-table is created */
-    uint64_t                            sampling_ticks;             /*!< ticks since the last scan to validate timeticks of samples */
+    //uint64_t                            sampling_ticks;             /*!< ticks since the last sampling to validate timeticks of samples */
     uint16_t                            sampling_count;             /*!< data-table data sampling count seed number */
-    task_schedule_handle_t              sampling_task_schedule_handle;  /*!< data-table sampling task schedule handle */
+    task_schedule_handle_t              sampling_ts_handle;         /*!< data-table sampling task schedule handle */
     //datalogger_time_interval_types_t    sampling_interval_type;     /*!< sampling time interval type of samples pushed onto the data-table data buffer stack */
     //uint16_t                            sampling_interval_period;   /*!< sampling time interval period of samples pushed onto the data-table data buffer stack */
     //uint16_t                            sampling_interval_offset;   /*!< sampling time interval offset of samples pushed onto the data-table data buffer stack */
@@ -258,17 +258,17 @@ struct datatable_t {
 /**
  * @brief Creates a data-table handle and must be the first function called.
  * 
- * Use the `datatable_add_[data-type]_column` functions to define data-table columns by data-type.  
- * The data-table columns are ordered as they are added and column index for the first user-defined 
- * column always starts at 2 given  the record identifier and timestamp columns are created by 
- * default and consume column indexes 0 and 1 respectively.
+ * Use the `datatable_add_[data-type]_[process-type]_column` functions to define data-table columns   
+ * by data-type.  The data-table columns are ordered as they are added and column index for the  
+ * first user-defined column always starts at 2 given  the record identifier and timestamp columns  
+ * are created by default and consume column indexes 0 and 1 respectively.
  * 
  * @param[in] name data-table textual name, 15-characters maximum.
  * @param[in] columns_size data-table column array size, this setting cannot be 0.
  * @param[in] rows_size data-table row array size,this setting cannot be 0.
- * @param[in] processing_interval_type processing time interval type of samples to process and store data-table records
- * @param[in] processing_interval_period processing time interval period of samples to process and store data-table records
- * @param[in] processing_interval_offset processing time interval offset of samples to process and store data-table records
+ * @param[in] processing_interval_type data-table processing time interval type setting.
+ * @param[in] processing_interval_period data-table processing time interval nonzero period, per interval type setting, of samples to process and store data-table records.
+ * @param[in] processing_interval_offset data-table processing time interval offset, per interval type setting, of samples to process and store data-table records.
  * @param[in] sampling_task_schedule_handle data-table sampling task schedule handle.
  * @param[in] data_storage_type data-table data storage type.
  * @param[out] datatable_handle data-table handle.
@@ -560,6 +560,16 @@ esp_err_t datatable_push_float_sample(datatable_handle_t datatable_handle, uint8
 esp_err_t datatable_push_int16_sample(datatable_handle_t datatable_handle, uint8_t index, int16_t value);
 
 /**
+ * @brief Delays the data-table's sampling task until the next scheduled task event.  
+ * This function should be placed after the `for (;;) {` syntax to delay the task based 
+ * on the configured task schedule handle interval type,  period, and offset parameters.
+ * 
+ * @param datatable_handle data-table handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t datatable_sampling_task_delay(datatable_handle_t datatable_handle);
+
+/**
  * @brief Processes data-table samples on the data buffer stack in each column based on the data-table's  
  * configured processing interval. When the samples are processed, the data buffer stack is cleared 
  * for each column.  This function must be called after data-table samples are pushed in the sampling task.
@@ -571,6 +581,15 @@ esp_err_t datatable_push_int16_sample(datatable_handle_t datatable_handle, uint8
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t datatable_process_samples(datatable_handle_t datatable_handle);
+
+/**
+ * @brief Deletes the data-table handle and frees up resources.
+ * 
+ * @param datatable_handle data-table handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t datatable_del(datatable_handle_t datatable_handle);
+
 
 /**
  * @brief Renders a data-table to a textual representation in JSON format.

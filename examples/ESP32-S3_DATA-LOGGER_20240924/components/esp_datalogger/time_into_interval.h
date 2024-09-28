@@ -57,14 +57,16 @@ typedef struct time_into_interval_t time_into_interval_t;
  */
 typedef struct time_into_interval_t *time_into_interval_handle_t;
 
+// TODO? - add multi-thread synch (i.e. mutex)
+
 /**
  * @brief Time into interval handle parameters structure.
  */
 typedef struct {
-    uint64_t                         epoch_time;         /*!< time into interval unix epoch time in milli-seconds */
+    uint64_t                         epoch_time;         /*!< time into interval, next event unix epoch time in milli-seconds */
     datalogger_time_interval_types_t interval_type;      /*!< time into interval, interval type setting */
-    uint16_t                         interval_period;    /*!< time into interval, a non-zero interval period setting */
-    uint16_t                         interval_offset;    /*!< time into interval, interval period setting */
+    uint16_t                         interval_period;    /*!< time into interval, a non-zero interval period setting per interval type setting */
+    uint16_t                         interval_offset;    /*!< time into interval, interval offset setting, per interval type setting, that must be less than the interval period */
 } time_into_interval_params_t;
 
 /**
@@ -88,8 +90,8 @@ struct time_into_interval_t {
  * system clock i.e. 12:01:00, 12:06:00, 12:11:00, etc. 
  * 
  * @param interval_type Time into interval, interval type setting.
- * @param interval_period Time into interval, interval period setting per configured interval type.
- * @param interval_offset Time into interval, interval offset setting per configured interval type.
+ * @param interval_period Time into interval, a non-zero interval period setting per interval type setting.
+ * @param interval_offset Time into interval, interval offset setting, per interval type setting, that must be less than the interval period.
  * @param time_into_interval_handle Time into interval handle.
  * @return esp_err_t ESP_OK on success.
  */
@@ -97,11 +99,11 @@ esp_err_t time_into_interval_new(const datalogger_time_interval_types_t interval
 
 /**
  * @brief Validates when time into interval condition based on the configured interval
- * type and interval period that is synchronized to the system clock.
+ * type, period, and offset parameters that is synchronized to the system clock.
  * 
  * @param[in] time_into_interval_handle Time into interval handle.
  * @return true when time into interval condition is valid.
- * @return false when time into interval condition is not valid.
+ * @return false when time into interval handle or condition is not valid.
  */
 bool time_into_interval(time_into_interval_handle_t time_into_interval_handle);
 
