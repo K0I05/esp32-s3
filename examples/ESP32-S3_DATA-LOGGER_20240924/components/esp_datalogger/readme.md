@@ -7,7 +7,7 @@ The ESP data-logger component includes the following common helper components:
 2. **Task Schedule**: synchronizes a FreeRTOS task with the system clock with user-defined time interval.
 3. **Time Into Interval**: synchronizes user-defined time interval with the system clock for temporal conditional scenarios.
 
-The working example included was developed in Visual Studio Code and requires an internet connection to synchronize the system clock with using Simple Network Time Protocol (SNTP).  Likewise, you can comment out the wifi connect and ntp start routines and enable the get and set time routines.  The set time routine provides user configurable date and time structure to initliaze the system clock to a base date-time.
+The working example included was developed in Visual Studio Code and requires an internet connection to synchronize the system clock using Simple Network Time Protocol (SNTP).  Likewise, you can comment out the wifi connect and ntp start routines and enable the get and set time routines.  The set time routine provides a user configurable date and time structure to initliaze the system clock to a base date-time.
 
 ## Data-Table Example
 Declare the sampling task-schedule handle for the example data-table, data-table handle and column indexes for columns that will be added.  A data-table must have one task-schedule handle declared and referenced to manage internal temporal based processing within the associated data-table.
@@ -23,7 +23,7 @@ static uint8_t dt_ta_min_column_index;                  /* data-table maximum ai
 
 The next step is to synchronize the FreeRTOS task with the system clock by delcaring a task schedule handle and creating a new task schedule handle for the sampling task.
 
-The next step is to create the data-table handle and add columns to the data-table.  A data-table can have a maximum number of 255 columns and a maximum number of 65535 rows.
+The next step is to create the data-table handle and add columns to the data-table.  A data-table can have a maximum of 255 columns and a maximum of 65535 rows.
 
 > In this case, the task will excute once every 10-seconds with 0-seconds into the interval (i.e. 12:00:00, 12:00:10, 12:00:20, etc.), and the data-table will process sample once every minute.
 
