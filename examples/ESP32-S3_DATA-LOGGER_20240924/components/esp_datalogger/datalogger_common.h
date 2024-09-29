@@ -22,7 +22,7 @@
  */
 
 /**
- * @file datalogger_common.h
+ * @file common.h
  * @defgroup datalogger
  * @{
  *
@@ -42,6 +42,7 @@
 #include <sys/time.h>
 #include <esp_log.h>
 #include <esp_err.h>
+#include <esp_check.h>
 
 
 #ifdef __cplusplus
@@ -74,9 +75,9 @@ typedef struct {
 /**
  * @brief Normalizes data-logger time interval period or offset to seconds.
  * 
- * @param[in] interval_type Data-logger time interval type.
+ * @param[in] interval_type Data-logger time interval type of interval period or offset.
  * @param[in] interval Data-logger time interval period or offset for interval type.
- * @return uint64_t Normalized time interval period in seconds.
+ * @return uint64_t Normalized time interval period or offset in seconds.
  */
 static inline uint64_t datalogger_normalize_interval_to_sec(const datalogger_time_interval_types_t interval_type, const uint16_t interval) {
     uint64_t interval_sec = 0;
@@ -100,9 +101,9 @@ static inline uint64_t datalogger_normalize_interval_to_sec(const datalogger_tim
 /**
  * @brief Normalizes data-logger time interval period or offset to milli-seconds.
  * 
- * @param[in] interval_type Data-logger time interval type.
+ * @param[in] interval_type Data-logger time interval type of interval period or offset.
  * @param[in] interval_offset Data-logger time interval period or offset for interval type.
- * @return uint64_t Normalized time interval offset in milli-seconds.
+ * @return uint64_t Normalized time interval period or offset in milli-seconds.
  */
 static inline uint64_t datalogger_normalize_interval_to_msec(const datalogger_time_interval_types_t interval_type, const uint16_t interval) {
     uint64_t interval_msec = 0;
@@ -124,7 +125,62 @@ static inline uint64_t datalogger_normalize_interval_to_msec(const datalogger_ti
 }
 
 /**
- * @brief Sets the next epoch event time from system clock based on the time interval type and period. 
+ * @brief Gets unix epoch timestamp (UTC) in seconds from system clock.
+ * 
+ * @return uint64_t Unix epoch timestamp (UTC) in seconds or it will return 0-seconds 
+ * when there is an issue accessing the system clock.
+ */
+static inline uint64_t datalogger_get_epoch_timestamp(void) {
+    // get current time as 'struct timeval'.
+    // see https://linux.die.net/man/2/gettimeofday
+    struct timeval tv_utc_timestamp;
+
+    // get unix utc timestamp and validate results
+    if(gettimeofday(&tv_utc_timestamp, NULL) == -1) return 0;
+ 
+    // extract unix epoch utc timestamp and convert to seconds
+    return (uint64_t)tv_utc_timestamp.tv_sec;
+}
+
+/**
+ * @brief Gets unix epoch timestamp (UTC) in milli-seconds from system clock.
+ * 
+ * @return uint64_t Unix epoch timestamp (UTC) in milli-seconds or it will return 0-milli-seconds 
+ * when there is an issue accessing the system clock.
+ */
+static inline uint64_t datalogger_get_epoch_timestamp_msec(void) {
+    // get current time as 'struct timeval'.
+    // see https://linux.die.net/man/2/gettimeofday
+    struct timeval tv_utc_timestamp;
+
+    // get unix utc timestamp and validate results
+    if(gettimeofday(&tv_utc_timestamp, NULL) == -1) return 0;
+
+    // extract unix epoch utc timestamp and convert to milli-seconds
+    return (uint64_t)tv_utc_timestamp.tv_sec * 1000U + (uint64_t)tv_utc_timestamp.tv_usec / 1000U;
+}
+
+/**
+ * @brief Gets unix epoch timestamp (UTC) in micro-seconds from system clock.
+ * 
+ * @return uint64_t Unix epoch timestamp (UTC) in micro-seconds or it will return 0-micro-seconds 
+ * when there is an issue accessing the system clock.
+ */
+static inline uint64_t datalogger_get_epoch_timestamp_usec(void) {
+    // get current time as 'struct timeval'.
+    // see https://linux.die.net/man/2/gettimeofday
+    struct timeval tv_utc_timestamp;
+
+    // get unix utc timestamp and validate results
+    if(gettimeofday(&tv_utc_timestamp, NULL) == -1) return 0;
+
+    // extract unix epoch utc timestamp and convert to micro-seconds
+    return (uint64_t)tv_utc_timestamp.tv_sec * 1000000U + (uint64_t)tv_utc_timestamp.tv_usec;
+}
+
+/**
+ * @brief Sets the next epoch event timestamp in milli-seconds from system clock based on 
+ * the time interval type, period, and offset. 
  * 
  * The interval should be divisible by 60 i.e. no remainder if the interval type and period
  * is every 10-seconds, the event will trigger on-time with the system clock i.e. 09:00:00, 
@@ -137,9 +193,9 @@ static inline uint64_t datalogger_normalize_interval_to_msec(const datalogger_ti
  * @param[in] interval_type Data-logger time interval type.
  * @param[in] interval_period Data-logger time interval period for interval type.
  * @param[in] interval_offset Data-logger time interval offset for interval type.
- * @param[out] epoch_time Unix epoch time of next event in milli-seconds.
+ * @param[out] epoch_timestamp Unix epoch timestamp (UTC) of next event in milli-seconds.
  */
-static inline void datalogger_set_epoch_time_event(const datalogger_time_interval_types_t interval_type, const uint16_t interval_period, const uint16_t interval_offset, uint64_t *epoch_time) {
+static inline esp_err_t datalogger_set_epoch_timestamp_event(const datalogger_time_interval_types_t interval_type, const uint16_t interval_period, const uint16_t interval_offset, uint64_t *epoch_timestamp) {
     struct timeval  now_tv;
     struct tm       now_tm;
     time_t          now_unix_time;
@@ -149,7 +205,16 @@ static inline void datalogger_set_epoch_time_event(const datalogger_time_interva
     uint64_t        next_unix_time_msec;
     uint64_t        interval_period_msec;
     uint64_t        interval_offset_msec;
+    int64_t         delta_time_msec;
 
+    /* validate interval period argument */
+    ESP_RETURN_ON_FALSE( (interval_period > 0), ESP_ERR_INVALID_ARG, TAG_DL_COMMON, "interval period cannot be 0, data-logger set epoch time event failed" );
+
+    /* validate period and offset intervals */
+    delta_time_msec = datalogger_normalize_interval_to_msec(interval_type, interval_period) - 
+                      datalogger_normalize_interval_to_msec(interval_type, interval_offset); 
+    ESP_RETURN_ON_FALSE( (delta_time_msec > 0), ESP_ERR_INVALID_ARG, TAG_DL_COMMON, "interval period must be larger than the interval offset, data-logger set epoch time event failed" );
+    
     /* normalize interval period and offset to milli-seconds */
     interval_period_msec = datalogger_normalize_interval_to_msec(interval_type, interval_period);
     interval_offset_msec = datalogger_normalize_interval_to_msec(interval_type, interval_offset);
@@ -157,11 +222,11 @@ static inline void datalogger_set_epoch_time_event(const datalogger_time_interva
     // get system unix epoch time (gmt)
     gettimeofday(&now_tv, NULL);
 
-    // extract unix time
-    now_unix_time = now_tv.tv_sec;
-    now_unix_time_msec = (uint64_t)now_tv.tv_sec * 1000U + (uint64_t)now_tv.tv_usec / 1000U;
+    // extract system unix time (seconds and milli-seconds)
+    now_unix_time       = now_tv.tv_sec;
+    now_unix_time_msec  = (uint64_t)now_tv.tv_sec * 1000U + (uint64_t)now_tv.tv_usec / 1000U;
 
-    // convert now tm to time-parts localtime
+    // convert now tm to time-parts localtime from unix time
     localtime_r(&now_unix_time, &now_tm);
 
     // initialize next tm structure time-parts localtime based on interval-type
@@ -193,12 +258,12 @@ static inline void datalogger_set_epoch_time_event(const datalogger_time_interva
     }
     
     // validate if the next task event was computed
-    if(*epoch_time != 0) {
+    if(*epoch_timestamp != 0) {
         // add task interval to next task event epoch to compute next task event epoch
-        *epoch_time = *epoch_time + interval_period_msec;
+        *epoch_timestamp = *epoch_timestamp + interval_period_msec;
 
         // convert epoch in msec to sec - debug
-        time_t epoch_time_sec = *epoch_time / 1000U;
+        time_t epoch_time_sec = *epoch_timestamp / 1000U;
 
         // convert next unix time to tm components - debug
         localtime_r(&epoch_time_sec, &next_tm);
@@ -213,9 +278,9 @@ static inline void datalogger_set_epoch_time_event(const datalogger_time_interva
         next_unix_time_msec = next_unix_time_msec + interval_period_msec + interval_offset_msec;
 
         // compute the delta between now and next unix times
-        int64_t delta_time_msec = next_unix_time_msec - now_unix_time_msec;
+        delta_time_msec = next_unix_time_msec - now_unix_time_msec;
 
-        ESP_LOGD(TAG_DL_COMMON, "Time-Into-Interval Delta Time (ms): %lli", delta_time_msec);
+        //ESP_LOGW(TAG_DL_COMMON, "Time-Into-Interval Delta Time (ms): %lli", delta_time_msec);
 
         // ensure next task event is ahead in time
         if(delta_time_msec <= 0) {
@@ -229,9 +294,6 @@ static inline void datalogger_set_epoch_time_event(const datalogger_time_interva
             } while(delta_time_msec <= 0);
         }
 
-        ESP_LOGD(TAG_DL_COMMON, "Time-Into-Interval Now Unix (ms):   %llu", now_unix_time_msec);
-        ESP_LOGD(TAG_DL_COMMON, "Time-Into-Interval Next Unix (ms):  %llu", next_unix_time_msec);
-
         // convert epoch in msec to sec - debug
         next_unix_time = next_unix_time_msec / 1000U;
 
@@ -239,7 +301,7 @@ static inline void datalogger_set_epoch_time_event(const datalogger_time_interva
         localtime_r(&next_unix_time, &next_tm);
 
         // set next task event epoch time
-        *epoch_time = next_unix_time_msec;
+        *epoch_timestamp = next_unix_time_msec;
     }
 
     //printf("Time Into Interval System Time:          %s", asctime(&now_tm));
@@ -254,22 +316,8 @@ static inline void datalogger_set_epoch_time_event(const datalogger_time_interva
     // log time next
     strftime(ctime_str, sizeof(ctime_str), "%A %c", &next_tm);
     ESP_LOGW(TAG_DL_COMMON, "Time-Into-Interval Next Event Time:      %s", ctime_str);
-}
 
-/**
- * @brief Gets unix epoch GMT time from system clock.
- * 
- * @return time_t Unix epoch timestamp (GMT) in seconds.
- */
-static inline time_t datalogger_get_epoch_time(void) {
-    // get current time as 'struct timeval'.
-    // see https://linux.die.net/man/2/gettimeofday
-    struct timeval ts_timeval;
-    gettimeofday(&ts_timeval, NULL); // TODO system clock error check
-    //int err = gettimeofday(&ts_timeval, NULL);
-    //assert(err == 0); // 
-    // extract unix utc time for timestamp value
-    return ts_timeval.tv_sec; // unix epoch timestamp
+    return ESP_OK;
 }
 
 /**

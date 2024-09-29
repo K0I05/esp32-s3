@@ -24,6 +24,12 @@
  * 
  * `pio system prune` to save disk space
  * 
+ * 
+ * There is a new version 6.1.16 of PlatformIO available.
+ * Please upgrade it via `platformio upgrade` or `python -m pip install -U platformio` command.
+ * Changes: https://docs.platformio.org/en/latest/history.html
+ * 
+ * 
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,8 +57,7 @@
 #include <esp_netif_sntp.h>
 
 #include <datalogger.h>
-#include <bmp280.h>
-#include <ahtxx.h>
+
 
 #define WIFI_CONNECT_MAX_RETRY          (10)
 #define SNTP_TIME_SYNC_TIMEOUT_MS       (2000)
@@ -66,11 +71,11 @@
 #define CONFIG_I2C_0_SDA_IO             (gpio_num_t)(45) // blue
 #define CONFIG_I2C_0_SCL_IO             (gpio_num_t)(48) // yellow
 
-#define CONFIG_I2C_0_TASK_NAME          "i2c_0_tsk"
+#define CONFIG_I2C_0_TASK_NAME          "dt_1min_smp_tsk"
 #define CONFIG_I2C_0_TASK_STACK_SIZE    (configMINIMAL_STACK_SIZE * 5)
 #define CONFIG_I2C_0_TASK_PRIORITY      (tskIDLE_PRIORITY + 2)
 
-#define APP_TAG                         "AHT20+BMP280 [APP]"
+#define APP_TAG                         "DATA-LOGGER [APP]"
 
 // macros
 #define CONFIG_I2C_0_MASTER_DEFAULT {                               \
@@ -103,71 +108,76 @@ static const int NET_EVENT_GROUP_WIFI_FAIL_BIT         = BIT1;
 static const int NTP_EVENT_GROUP_NTP_SYNCHRONIZED_BIT  = BIT0;
 static const int NTP_EVENT_GROUP_NTP_SYNCH_FAIL_BIT    = BIT1;
 
-// data-table variables
-static task_schedule_handle_t dt_sampling_task_sch_hdl;
-static datatable_handle_t dt_example_hdl;
-static uint8_t dt_pa_avg_column_index;
-static uint8_t dt_ta_avg_column_index;
-static uint8_t dt_ta_max_column_index;
-static uint8_t dt_ta_min_column_index;
-static uint8_t dt_td_avg_column_index;
-static uint8_t dt_rh_avg_column_index;
-static uint8_t dt_rh_max_ts_column_index;
-static uint8_t dt_rh_min_ts_column_index;
-static uint8_t dt_wsd_avg_column_index;
-
-
-static inline void datatable_print_columns(void) {
-    if(dt_example_hdl == NULL || dt_example_hdl->columns_size == 0) {
-        ESP_LOGW(APP_TAG, "data-table columns error: intialize data-table");
-        return;
-    } else {
-        ESP_LOGW(APP_TAG, "data-table (%s) columns:", dt_example_hdl->name);
+// data-table variables for the example - independent of data-logger
+static datatable_handle_t       dt_1min_hdl;          /* example data-table handle */
+static datatable_config_t       dt_1min_cfg = {       /* example data-table configuration */
+    .name                       = "1min_tbl",
+    .data_storage_type          = DATATABLE_DATA_STORAGE_MEMORY_RING,
+    .columns_size               = 5,
+    .rows_size                  = 10,
+    .sampling_config            = {
+        .interval_type          = DATALOGGER_TIME_INTERVAL_SEC,
+        .interval_period        = 10,
+        .interval_offset        = 0
+    },
+    .processing_config          = {
+        .interval_type          = DATALOGGER_TIME_INTERVAL_MIN,
+        .interval_period        = 1,
+        .interval_offset        = 0
     }
-    
-    for(uint8_t i = 0; i <= dt_example_hdl->columns_index; i++) {
-        datatable_column_t col = dt_example_hdl->columns[i];
-        ESP_LOGW(APP_TAG, "->name (%d): %s", i, col.names[0].name);
-    }
+};
+static uint8_t              dt_1min_pa_avg_col_index;     /* data-table average atmospheric pressure (pa-avg) column index reference */
+static uint8_t              dt_1min_ta_avg_col_index;     /* data-table average air temperature (ta-avg) column index reference */
+static uint8_t              dt_1min_ta_max_col_index;     /* data-table minimum air temperature (ta-min) column index reference */
+static uint8_t              dt_1min_ta_min_col_index;     /* data-table maximum air temperature (ta-max) column index reference */
+static uint8_t              dt_1min_td_avg_col_index;     /* data-table average dew-point temperature (td-avg) column index reference */
+//static uint8_t              dt_1min_wsd_avg_col_index;    /* data-table average (vector) wind speed and direction (wsd-avg) column index reference */
 
-    /*
-    // print recorded records
-    //
-    // data-table columns - header
-    
-    ESP_LOGI(CONFIG_APP_TAG, "ID   %s %s %s %s %s %s",
-            dt_sample_hdl->columns[dt_pa_column_index].name, 
-            dt_sample_hdl->columns[dt_ta_column_index].name,
-            dt_sample_hdl->columns[dt_ta_min_column_index].name,
-            dt_sample_hdl->columns[dt_ta_max_column_index].name,
-            dt_sample_hdl->columns[dt_td_column_index].name,
-            dt_sample_hdl->columns[dt_rh_column_index].name);
+/* 
 
-    for(uint16_t row_index = 0; row_index < dt_sample_hdl->rows_count; row_index++) {
-        float dt_pa     = dt_sample_hdl->rows[row_index].data_columns[dt_pa_column_index].data.float_data.value;
-        float dt_ta     = dt_sample_hdl->rows[row_index].data_columns[dt_ta_column_index].data.float_data.value;
-        float dt_ta_min = dt_sample_hdl->rows[row_index].data_columns[dt_ta_min_column_index].data.float_data.value;
-        float dt_ta_max = dt_sample_hdl->rows[row_index].data_columns[dt_ta_max_column_index].data.float_data.value;
-        float dt_td     = dt_sample_hdl->rows[row_index].data_columns[dt_td_column_index].data.float_data.value;
-        float dt_rh     = dt_sample_hdl->rows[row_index].data_columns[dt_rh_column_index].data.float_data.value;
-        //
-        ESP_LOGI(CONFIG_APP_TAG, "[%d]    %.2f      %.2f      %.2f      %.2f      %.2f      %.2f",
-            dt_sample_hdl->rows[row_index].data_columns[0].data.id_data.value,
-            dt_pa, dt_ta, dt_ta_min, dt_ta_max, dt_td, dt_rh);
-    }
-    */
-}
+ simulation samples for pressure and temperature
 
-/*
-    struct timeval tv_now;
-    gettimeofday(&tv_now, NULL);
+ 10-sec sampling = 6 samples per min = 10-min 
 
-    uint64_t time_ms = (uint64_t)tv_now.tv_sec * 1000U + (uint64_t)tv_now.tv_usec / 1000U;
-    uint64_t time_us = (uint64_t)tv_now.tv_sec * 1000000U + (uint64_t)tv_now.tv_usec;
-
-    ESP_LOGI(TAG, "UNIX time in mseconds: %lld", time_ms);
-    ESP_LOGI(TAG, "UNIX time in useconds: %lld", time_us);
 */
+static uint8_t samples_index = 0;
+
+static const uint8_t samples_size  = 6 * 10;
+
+static const float pa_samples[] = { 1001.34, 1001.35, 1001.35, 1001.34, 1001.35, 1001.36,
+                                    1001.35, 1001.34, 1001.36, 1001.36, 1001.35, 1001.35,
+                                    1001.36, 1001.36, 1001.35, 1001.36, 1001.37, 1001.36,
+                                    1001.35, 1001.35, 1001.34, 1001.35, 1001.34, 1001.34,
+                                    1001.33, 1001.34, 1001.33, 1001.33, 1001.32, 1001.33,
+                                    1001.32, 1001.32, 1001.31, 1001.32, 1001.31, 1001.30,
+                                    1001.31, 1001.30, 1001.29, 1001.30, 1001.29, 1001.28,
+                                    1001.29, 1001.28, 1001.28, 1001.27, 1001.28, 1001.27,
+                                    1001.26, 1001.27, 1001.26, 1001.26, 1001.25, 1001.26,
+                                    1001.25, 1001.25, 1001.24, 1001.24, 1001.25, 1001.24 };
+
+static const float ta_samples[] = { 22.34, 22.35, 22.35, 22.34, 22.35, 22.36,
+                                    22.35, 22.34, 22.36, 22.36, 22.35, 22.35,
+                                    22.36, 22.36, 22.35, 22.36, 22.37, 22.36,
+                                    22.35, 22.35, 22.34, 22.35, 22.34, 22.34,
+                                    22.33, 22.34, 22.33, 22.33, 22.32, 22.33,
+                                    22.32, 22.32, 22.31, 22.32, 22.31, 22.30,
+                                    22.31, 22.30, 22.29, 22.30, 22.29, 22.28,
+                                    22.29, 22.28, 22.28, 22.27, 22.28, 22.27,
+                                    22.26, 22.27, 22.26, 22.26, 22.25, 22.26,
+                                    22.25, 22.25, 22.24, 22.24, 22.25, 22.24 };
+
+static const float td_samples[] = { 20.34, 20.35, 20.35, 20.34, 20.35, 20.36,
+                                    20.35, 20.34, 20.36, 20.36, 20.35, 20.35,
+                                    20.36, 20.36, 20.35, 20.36, 20.37, 20.36,
+                                    20.35, 20.35, 20.34, 20.35, 20.34, 20.34,
+                                    20.33, 20.34, 20.33, 20.33, 20.32, 20.33,
+                                    20.32, 20.32, 20.31, 20.32, 20.31, 20.30,
+                                    20.31, 20.30, 20.29, 20.30, 20.29, 20.28,
+                                    20.29, 20.28, 20.28, 20.27, 20.28, 20.27,
+                                    20.26, 20.27, 20.26, 20.26, 20.25, 20.26,
+                                    20.25, 20.25, 20.24, 20.24, 20.25, 20.24 };
+
+
 
 static inline void set_time( void ) {
     // Prepare the broken-down time.
@@ -232,7 +242,6 @@ static inline void stnp_time_sync_notification(struct timeval *tv) {
 }
 
 static inline void wifi_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
-
     ESP_LOGI(APP_TAG, "wifi_event_handler: %s:%lu", event_base, event_id);
 
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
@@ -337,7 +346,7 @@ static inline esp_err_t wifi_stop(void) {
     return ESP_OK;
 }
 
-static inline void sntp_obtain_time(void) {
+static inline void sntp_synch_time(void) {
     ESP_LOGI(APP_TAG, "Initializing SNTP");
 
     ntp_event_group_hdl         = xEventGroupCreate();
@@ -390,7 +399,7 @@ static inline void sntp_time_sync_start(void) {
     if (timeinfo.tm_year < (2016 - 1900)) {
         ESP_LOGI(APP_TAG, "Time is not set yet. Connecting to WiFi and getting time over NTP.");
 
-        sntp_obtain_time();
+        sntp_synch_time();
 
         // update 'now' variable with current time
         time(&now);
@@ -421,16 +430,16 @@ static inline void sntp_time_sync_start(void) {
 
 }
 
-static void i2c_0_task( void *pvParameters ) {
-    time_into_interval_handle_t time_into_interval_hdl;
-    float                       ta; 
-    float                       td; 
-    float                       rh;
-    float                       pa;
-    char                        deg_char        = 176;
+static void dt_1min_smp_task( void *pvParameters ) {
     uint64_t                    start_time      = 0;
     uint64_t                    end_time        = 0;
     int64_t                     delta_time      = 0;
+    time_into_interval_handle_t dt_1min_tii_5min_hdl;
+    time_into_interval_config_t dt_1min_tii_5min_cfg = {
+        .interval_type      = DATALOGGER_TIME_INTERVAL_MIN,
+        .interval_period    = 5,
+        .interval_offset    = 0
+    };
 
     // wait for an event group bit to be set.
     EventBits_t bits = xEventGroupWaitBits(net_event_group_hdl,
@@ -444,115 +453,77 @@ static void i2c_0_task( void *pvParameters ) {
         ESP_LOGI(APP_TAG, "ntp event group - ntp synchronized");
     } else if (bits & NTP_EVENT_GROUP_NTP_SYNCH_FAIL_BIT) {
         ESP_LOGI(APP_TAG, "ntp event group - ntp synchronization failed");
-
         // abort
     }
     
-    // create a new time into interval handle - task system clock synchronization
-    time_into_interval_new(DATALOGGER_TIME_INTERVAL_MIN, 5, 0, &time_into_interval_hdl);
-    if (time_into_interval_hdl == NULL) ESP_LOGE(APP_TAG, "time_into_interval_new, new time into interval handle failed");
+    // create a new time-into-interval handle - task system clock synchronization
+    time_into_interval_new(&dt_1min_tii_5min_cfg, &dt_1min_tii_5min_hdl);
+    if (dt_1min_tii_5min_hdl == NULL) ESP_LOGE(APP_TAG, "time_into_interval_new, new time-into-interval handle failed"); 
     
-    // initialize master i2c 0 bus configuration
-    i2c_master_bus_config_t     i2c0_master_cfg = CONFIG_I2C_0_MASTER_DEFAULT;
-    i2c_master_bus_handle_t     i2c0_bus_hdl;
-    //
-    // initialize bmp280 i2c device configuration
-    i2c_bmp280_config_t         bmp280_dev_cfg = I2C_BMP280_CONFIG_DEFAULT;
-    i2c_bmp280_handle_t         bmp280_dev_hdl;
-    //
-    // initialize aht20 i2c device configuration
-    i2c_ahtxx_config_t          aht20_dev_cfg = I2C_AHT2X_CONFIG_DEFAULT;
-    i2c_ahtxx_handle_t          aht20_dev_hdl;
-    //
-    //
-    // instantiate i2c 0 master bus
-    i2c_new_master_bus(&i2c0_master_cfg, &i2c0_bus_hdl);
-    if (i2c0_bus_hdl == NULL) ESP_LOGE(APP_TAG, "i2c0 i2c_bus_create new master bus handle failed");
-    //
-    // init i2c devices
-    //
-    // bmp280 init device
-    i2c_bmp280_init(i2c0_bus_hdl, &bmp280_dev_cfg, &bmp280_dev_hdl);
-    if (bmp280_dev_hdl == NULL) ESP_LOGE(APP_TAG, "i2c0 i2c_bus_device_create bmp280 handle init failed");
-    //
-    // aht20 init device
-    i2c_ahtxx_init(i2c0_bus_hdl, &aht20_dev_cfg, &aht20_dev_hdl);
-    if (aht20_dev_hdl == NULL) ESP_LOGE(APP_TAG, "i2c0 i2c_bus_device_create aht2x handle init failed");
-    //
-    // 
-    //
     // task loop entry point
     for ( ;; ) {
         // set start timer
         start_time = esp_timer_get_time(); 
-        //
-        // delay data-table sampling task until task schedule condition is valid
-        datatable_sampling_task_delay(dt_example_hdl);
-        //
-        //
-        ESP_LOGI(APP_TAG, "######################## AHT20+BMP280 - START #########################");
-        //
-        ESP_LOGI(APP_TAG, "free memory:  %lu bytes", esp_get_free_heap_size());
-        //
-        // handle bmp280 sensor
-        if(i2c_bmp280_get_pressure(bmp280_dev_hdl, &pa) != 0) {
-            ESP_LOGE(APP_TAG, "i2c_bmp280_get_pressure failed");
-        } else {
-            // convert pressure to hPa
-            pa = pa / 100;
-            //
-            ESP_LOGI(APP_TAG, "pressure:     %.1f hPa", pa);
-        }
-        //
-        // handle aht2x sensor
-        if(i2c_ahtxx_get_measurements(aht20_dev_hdl, &ta, &rh, &td) != 0) {
-            ESP_LOGI(APP_TAG, "i2c_ahtxx_get_measurements failed");
-        } else {
-            ESP_LOGI(APP_TAG, "air:          %.2f%cC", ta, deg_char);
-            ESP_LOGI(APP_TAG, "dew-point:    %.2f%cC", td, deg_char);
-            ESP_LOGI(APP_TAG, "humidity:     %.2f %%", rh);
-        }
-        //
-        // push samples onto the data buffer stack for processing
-        datatable_push_float_sample(dt_example_hdl, dt_pa_avg_column_index, pa);
-        datatable_push_float_sample(dt_example_hdl, dt_ta_avg_column_index, ta);
-        datatable_push_float_sample(dt_example_hdl, dt_ta_min_column_index, ta);
-        datatable_push_float_sample(dt_example_hdl, dt_ta_max_column_index, ta);
-        datatable_push_float_sample(dt_example_hdl, dt_td_avg_column_index, td);
-        datatable_push_float_sample(dt_example_hdl, dt_rh_avg_column_index, rh);
-        datatable_push_float_sample(dt_example_hdl, dt_rh_min_ts_column_index, rh);
-        datatable_push_float_sample(dt_example_hdl, dt_rh_max_ts_column_index, rh);
-        datatable_push_vector_sample(dt_example_hdl, dt_wsd_avg_column_index, 210, 1.45);
-        //
-        // process data buffer stack samples (i.e. data-table's configured processing interval)
-        datatable_process_samples(dt_example_hdl);
-        //
-        // print data-table in json format at specified interval
         
-        if(time_into_interval(time_into_interval_hdl)) {
-            char *dt_json = "";
-            datatable_to_json(dt_example_hdl, dt_json);
-	        ESP_LOGI(APP_TAG, "JSON Data-Table:\n%s",dt_json);
+        /* delay data-table sampling task until sampling interval has lapsed */
+        datatable_sampling_task_delay(dt_1min_hdl);
+        
+        // print start of sampling process
+        ESP_LOGI(APP_TAG, "######################## DATA-LOGGER - START #########################");
+        
+        // print free memory available
+        ESP_LOGI(APP_TAG, "free memory:  %lu bytes", esp_get_free_heap_size());
+        
+        // push samples onto the data buffer stack for processing
+        datatable_push_float_sample(dt_1min_hdl, dt_1min_pa_avg_col_index, pa_samples[samples_index]);
+        datatable_push_float_sample(dt_1min_hdl, dt_1min_ta_avg_col_index, ta_samples[samples_index]);
+        datatable_push_float_sample(dt_1min_hdl, dt_1min_ta_min_col_index, ta_samples[samples_index]);
+        datatable_push_float_sample(dt_1min_hdl, dt_1min_ta_max_col_index, ta_samples[samples_index]);
+        datatable_push_float_sample(dt_1min_hdl, dt_1min_td_avg_col_index, td_samples[samples_index]);
+        //datatable_push_vector_sample(dt_1min_hdl, dt_1min_wsd_avg_col_index, 210, 1.45);  // static values for now (TODO: make them random)
+
+        // process data buffer stack samples (i.e. data-table's configured processing interval)
+        datatable_process_samples(dt_1min_hdl);
+
+        // increment samples index
+        samples_index += 1;
+
+        // check samples index against samples size for reset if applicable
+        if(samples_index >= samples_size) samples_index = 0; // reset index
+        
+        /* serialize data-table and output in json string format every 
+        5-minutes (i.e. 12:00:00, 12:05:00, 12:10:00, etc.) */
+        if(time_into_interval(dt_1min_tii_5min_hdl)) {
+            // create root object for data-table
+            cJSON *dt_1min_json = cJSON_CreateObject();
+
+            // convert the data-table to json object
+            datatable_to_json(dt_1min_hdl, &dt_1min_json);
+
+            // render json data-table object to text and print
+            char *dt_1min_json_str = cJSON_Print(dt_1min_json);
+            ESP_LOGI(APP_TAG, "JSON Data-Table:\n%s",dt_1min_json_str);
+
+            // free-up json resources
+            cJSON_free(dt_1min_json_str);
+            cJSON_Delete(dt_1min_json);
         }
     
-        //
-        //
-        ESP_LOGI(APP_TAG, "######################## AHT20+BMP280 - END ###########################");
-        //
+        // print end of sampling process
+        ESP_LOGI(APP_TAG, "######################## DATA-LOGGER - END ###########################");
+        
         // set end timer
         end_time = esp_timer_get_time();
-        //
-        // compute delta time 
+        
+        // compute task duration (delta time) in micro-seconds
         delta_time = end_time - start_time;
-        //
+        
+        // print task duration in micro-seconds and milli-seconds.
         ESP_LOGI(APP_TAG, "Task Duration: %llu us / %llu ms", delta_time, delta_time / 1000);
     }
     //
-    // free up task resources and remove task from stack
-    i2c_bmp280_rm( bmp280_dev_hdl );    // remove bmp280 device from master i2c bus
-    i2c_ahtxx_rm( aht20_dev_hdl );      // remove aht20 device from master i2c bus
-    i2c_del_master_bus( i2c0_bus_hdl ); // delete master i2c bus
-    time_into_interval_del( time_into_interval_hdl ); //delete time into interval
+    // free up task resources
+    time_into_interval_del( dt_1min_tii_5min_hdl ); //delete time-into-interval handle
     vTaskDelete( NULL );
 }
 
@@ -571,66 +542,70 @@ void app_main( void ) {
     }
     ESP_ERROR_CHECK( ret );
 
-    ESP_ERROR_CHECK( wifi_start() );
 
+    // attempt to start wifi and synchronize system clock via SNTP
+    ESP_ERROR_CHECK( wifi_start() );
     sntp_time_sync_start();
+
+
 
     // initialize system time - manually populated time structure
     //set_time();
     //get_time();
 
+
+
+
     // data-table testing
     //
-    // create a new task schedule handle - task system clock synchronization
-    task_schedule_new(DATALOGGER_TIME_INTERVAL_SEC, 10, 0, &dt_sampling_task_sch_hdl);
-    if (dt_sampling_task_sch_hdl == NULL) ESP_LOGE(APP_TAG, "task_schedule_new, new task schedule handle failed");
-    //
-    // create a new data-table handle
-    datatable_new("Tbl_1-Min", 9, 10, DATALOGGER_TIME_INTERVAL_MIN, 1, 0, 
-                    dt_sampling_task_sch_hdl, DATATABLE_DATA_STORAGE_MEMORY_RING, &dt_example_hdl);
-    if (dt_example_hdl == NULL) ESP_LOGE(APP_TAG, "datatable_new, new data-table handle failed");
+    // create a new data-table handle for the example
+    datatable_new(&dt_1min_cfg, &dt_1min_hdl);   
+    if (dt_1min_hdl == NULL) {
+        ESP_LOGE(APP_TAG, "datatable_new, new data-table handle failed");
+        abort();
+    }
+
+    // configure data-table columns
     //
     // add float average column to data-table
-    datatable_add_float_avg_column(dt_example_hdl, "Pa_1-Min", &dt_pa_avg_column_index);                 // column index 2
+    datatable_add_float_avg_column(dt_1min_hdl, "Pa_1-Min", &dt_1min_pa_avg_col_index);                 // column index 2
     // add float average column to data-table
-    datatable_add_float_avg_column(dt_example_hdl, "Ta_1-Min", &dt_ta_avg_column_index);                 // column index 3
+    datatable_add_float_avg_column(dt_1min_hdl, "Ta_1-Min", &dt_1min_ta_avg_col_index);                 // column index 3
     // add float minimum column to data-table
-    datatable_add_float_min_column(dt_example_hdl, "Ta_1-Min", &dt_ta_min_column_index);                 // column index 4
+    datatable_add_float_min_column(dt_1min_hdl, "Ta_1-Min", &dt_1min_ta_min_col_index);                 // column index 4
     // add float maximum column to data-table
-    datatable_add_float_max_column(dt_example_hdl, "Ta_1-Min", &dt_ta_max_column_index);                 // column index 5
+    datatable_add_float_max_column(dt_1min_hdl, "Ta_1-Min", &dt_1min_ta_max_col_index);                 // column index 5
     // add float average column to data-table
-    datatable_add_float_avg_column(dt_example_hdl, "Td_1-Min", &dt_td_avg_column_index);                 // column index 6
-    // add float average column to data-table
-    datatable_add_float_avg_column(dt_example_hdl, "Rh_1-Min", &dt_rh_avg_column_index);                 // column index 7
-    // add float minimum timestamp column to data-table
-    datatable_add_float_min_ts_column(dt_example_hdl, "Rh_1-Min", &dt_rh_min_ts_column_index);           // column index 8
-    // add float maximum timestamp column to data-table
-    datatable_add_float_max_ts_column(dt_example_hdl, "Rh_1-Min", &dt_rh_max_ts_column_index);           // column index 9
+    datatable_add_float_avg_column(dt_1min_hdl, "Td_1-Min", &dt_1min_td_avg_col_index);                 // column index 6
     // add vector average column to data-table
-    datatable_add_vector_avg_column(dt_example_hdl, "Wd_1-Min", "Ws_1-Min", &dt_wsd_avg_column_index);   // column index 10
-    //
+    //datatable_add_vector_avg_column(dt_1min_hdl, "Wd_1-Min", "Ws_1-Min", &dt_1min_wsd_avg_col_index);   // column index 7
+    
+    // print data-table column indexes
     ESP_LOGW(APP_TAG, "data-table id column index:        %d", 0);
     ESP_LOGW(APP_TAG, "data-table ts column index:        %d", 1);
-    ESP_LOGW(APP_TAG, "data-table pa column index:        %d", dt_pa_avg_column_index);
-    ESP_LOGW(APP_TAG, "data-table ta column index:        %d", dt_ta_avg_column_index);
-    ESP_LOGW(APP_TAG, "data-table ta-min column index:    %d", dt_ta_min_column_index);
-    ESP_LOGW(APP_TAG, "data-table ta-max column index:    %d", dt_ta_max_column_index);
-    ESP_LOGW(APP_TAG, "data-table td column index:        %d", dt_td_avg_column_index);
-    ESP_LOGW(APP_TAG, "data-table rh column index:        %d", dt_rh_avg_column_index);
-    ESP_LOGW(APP_TAG, "data-table rh-min-ts column index: %d", dt_rh_min_ts_column_index);
-    ESP_LOGW(APP_TAG, "data-table rh-max-ts column index: %d", dt_rh_max_ts_column_index);
-    ESP_LOGW(APP_TAG, "data-table ws-wd column index:     %d", dt_wsd_avg_column_index);
-    //
-    // print data-table columns
-    //datatable_print_columns();
-
-    char *dt_json = "";
-    datatable_to_json(dt_example_hdl, dt_json);
-	ESP_LOGI(APP_TAG, "JSON Data-Table:\n%s",dt_json);
-
+    ESP_LOGW(APP_TAG, "data-table pa column index:        %d", dt_1min_pa_avg_col_index);
+    ESP_LOGW(APP_TAG, "data-table ta column index:        %d", dt_1min_ta_avg_col_index);
+    ESP_LOGW(APP_TAG, "data-table ta-min column index:    %d", dt_1min_ta_min_col_index);
+    ESP_LOGW(APP_TAG, "data-table ta-max column index:    %d", dt_1min_ta_max_col_index);
+    ESP_LOGW(APP_TAG, "data-table td column index:        %d", dt_1min_td_avg_col_index);
+    //ESP_LOGW(APP_TAG, "data-table ws-wd column index:     %d", dt_1min_wsd_avg_col_index);
     
+    // print data-table as a string in json format
+    //
+    // create root object for data-table
+    cJSON *dt_1min_json = cJSON_CreateObject();
+    // convert the data-table to json object
+    datatable_to_json(dt_1min_hdl, &dt_1min_json);
+    // render json data-table object to text and print
+    char *dt_1min_json_str = cJSON_Print(dt_1min_json);
+    ESP_LOGI(APP_TAG, "JSON Data-Table:\n%s",dt_1min_json_str);
+    // free-up json resources
+    cJSON_free(dt_1min_json_str);
+    cJSON_Delete(dt_1min_json);
+
+    // create a task that is pinned to core 1 for data-table sampling and processing
     xTaskCreatePinnedToCore( 
-        i2c_0_task, 
+        dt_1min_smp_task, 
         CONFIG_I2C_0_TASK_NAME, 
         CONFIG_I2C_0_TASK_STACK_SIZE, 
         NULL, 

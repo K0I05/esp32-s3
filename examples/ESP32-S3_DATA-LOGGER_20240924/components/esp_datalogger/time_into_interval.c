@@ -56,68 +56,80 @@
 static const char *TAG = "time_into_interval";
 
 
-esp_err_t time_into_interval_new(const datalogger_time_interval_types_t interval_type, const uint16_t interval_period, const uint16_t interval_offset, time_into_interval_handle_t *time_into_interval_handle) {
+esp_err_t time_into_interval_new(const time_into_interval_config_t *time_into_interval_config, 
+                                 time_into_interval_handle_t *time_into_interval_handle) {
     esp_err_t                   ret = ESP_OK;
+    int64_t                     interval_delta = 0;
     time_into_interval_handle_t out_handle;
     
-    /* validate arguments */
-    ESP_ARG_CHECK( interval_period );
+    /* validate task-schedule arguments */
+    ESP_GOTO_ON_FALSE( (time_into_interval_config->interval_period > 0), ESP_ERR_INVALID_ARG, err, TAG, "time-into-interval interval period cannot be 0, new time-into-interval handle failed" );
 
+    /* validate period and offset intervals */
+    interval_delta = datalogger_normalize_interval_to_sec(time_into_interval_config->interval_type, time_into_interval_config->interval_period) - 
+                     datalogger_normalize_interval_to_sec(time_into_interval_config->interval_type, time_into_interval_config->interval_offset); 
+    ESP_GOTO_ON_FALSE( (interval_delta > 0), ESP_ERR_INVALID_ARG, err, TAG, "time-into-interval interval period must be larger than the interval offset, new time-into-interval handle failed" );
+    
     /* validate memory availability for time into interval handle */
     out_handle = (time_into_interval_handle_t)calloc(1, sizeof(time_into_interval_handle_t));
-    ESP_GOTO_ON_FALSE(out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for time into interval handle, new time into interval failed");
+    ESP_GOTO_ON_FALSE( out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for time-into-interval handle, new time-into-interval failed" );
 
     /* validate memory availability for time into interval handle parameters */
     out_handle->params = (time_into_interval_params_t*)calloc(1, sizeof(time_into_interval_params_t));
-    ESP_GOTO_ON_FALSE(out_handle->params, ESP_ERR_NO_MEM, err, TAG, "no memory for time into interval handle configuration parameters, new time into interval failed");
+    ESP_GOTO_ON_FALSE( out_handle->params, ESP_ERR_NO_MEM, err_out_handle, TAG, "no memory for time-into-interval handle configuration parameters, new time-into-interval handle failed" );
 
     /* initialize task schedule state object parameters */
-    out_handle->params->epoch_time      = 0;
-    out_handle->params->interval_type   = interval_type;
-    out_handle->params->interval_period = interval_period;
-    out_handle->params->interval_offset = interval_offset;
+    out_handle->params->epoch_timestamp = 0;
+    out_handle->params->interval_type   = time_into_interval_config->interval_type;
+    out_handle->params->interval_period = time_into_interval_config->interval_period;
+    out_handle->params->interval_offset = time_into_interval_config->interval_offset;
 
-    /* set epoch time of the next scheduled task */
-    datalogger_set_epoch_time_event(out_handle->params->interval_type, out_handle->params->interval_period, out_handle->params->interval_offset, &out_handle->params->epoch_time);
+    /* set epoch timestamp of the next scheduled time-into-interval event */
+    ESP_GOTO_ON_ERROR( datalogger_set_epoch_timestamp_event(out_handle->params->interval_type, 
+                                                            out_handle->params->interval_period, 
+                                                            out_handle->params->interval_offset, 
+                                                            &out_handle->params->epoch_timestamp), 
+                                                            err_out_handle, TAG, "unable to set epoch timestamp, new time-into-interval handle failed");
 
     /* set output handle */
     *time_into_interval_handle = out_handle;
 
     return ESP_OK;
 
-    err:
+    err_out_handle:
         free(out_handle);
+    err:
         return ret;
 }
 
 bool time_into_interval(time_into_interval_handle_t time_into_interval_handle) {
-    bool            status = false;
-    struct timeval  tv_now_unix;
+    bool            state = false;
     uint64_t        now_unix_msec;
     int64_t         delta_msec;
 
     /* validate arguments */
     if(!(time_into_interval_handle)) {
-        return status;
+        return state;
     }
 
-    // get system unix epoch time
-    gettimeofday(&tv_now_unix, NULL);
-
-    // convert system unix epoch time to msec
-    now_unix_msec = (uint64_t)tv_now_unix.tv_sec * 1000U + (uint64_t)tv_now_unix.tv_usec / 1000U;
+    // get system unix epoch timestamp (UTC)
+    now_unix_msec = datalogger_get_epoch_timestamp_msec();
 
     // compute time delta until next time into interval condition
-    delta_msec = time_into_interval_handle->params->epoch_time - now_unix_msec;
+    delta_msec = time_into_interval_handle->params->epoch_timestamp - now_unix_msec;
 
     if(delta_msec <= 0) {
+        // set time-into-interval state to true - intervale has lapsed
+        state = true;
 
-        status = true;
-
-        datalogger_set_epoch_time_event(time_into_interval_handle->params->interval_type, time_into_interval_handle->params->interval_period, time_into_interval_handle->params->interval_offset, &time_into_interval_handle->params->epoch_time);
+        /* set next event timestamp (UTC) */
+        datalogger_set_epoch_timestamp_event(time_into_interval_handle->params->interval_type, 
+                                            time_into_interval_handle->params->interval_period, 
+                                            time_into_interval_handle->params->interval_offset, 
+                                            &time_into_interval_handle->params->epoch_timestamp);
     }
     
-    return status;
+    return state;
 }
 
 esp_err_t time_into_interval_del(time_into_interval_handle_t time_into_interval_handle) {

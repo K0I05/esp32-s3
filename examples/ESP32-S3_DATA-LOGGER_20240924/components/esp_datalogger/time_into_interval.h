@@ -48,36 +48,42 @@ extern "C" {
 
 
 /**
- * @brief Time into interval definition.
+ * @brief Time-into-interval definition.
  */
 typedef struct time_into_interval_t time_into_interval_t;
 
 /**
- * @brief Time into interval handle definition.
+ * @brief Time-into-interval handle definition.
  */
 typedef struct time_into_interval_t *time_into_interval_handle_t;
 
 // TODO? - add multi-thread synch (i.e. mutex)
 
+typedef struct {
+    datalogger_time_interval_types_t interval_type;     /*!< time-into-interval, interval type setting */ 
+    uint16_t                         interval_period;   /*!< time-into-interval, a non-zero interval period setting per interval type setting */ 
+    uint16_t                         interval_offset;   /*!< time-into-interval, interval offset setting, per interval type setting, that must be less than the interval period */ 
+} time_into_interval_config_t;
+
 /**
- * @brief Time into interval handle parameters structure.
+ * @brief Time-into-interval handle parameters structure.
  */
 typedef struct {
-    uint64_t                         epoch_time;         /*!< time into interval, next event unix epoch time in milli-seconds */
-    datalogger_time_interval_types_t interval_type;      /*!< time into interval, interval type setting */
-    uint16_t                         interval_period;    /*!< time into interval, a non-zero interval period setting per interval type setting */
-    uint16_t                         interval_offset;    /*!< time into interval, interval offset setting, per interval type setting, that must be less than the interval period */
+    uint64_t                         epoch_timestamp;    /*!< time-into-interval, next event unix epoch timestamp (UTC) in milli-seconds */
+    datalogger_time_interval_types_t interval_type;      /*!< time-into-interval, interval type setting */
+    uint16_t                         interval_period;    /*!< time-into-interval, a non-zero interval period setting per interval type setting */
+    uint16_t                         interval_offset;    /*!< time-into-interval, interval offset setting, per interval type setting, that must be less than the interval period */
 } time_into_interval_params_t;
 
 /**
- * @brief Time into interval handle state object structure.
+ * @brief Time-into-interval handle state object structure.
  */
 struct time_into_interval_t {
     time_into_interval_params_t *params;            /*!< time into interval parameters */
 };
 
 /**
- * @brief Creates a new time into interval handle.  A time into interval is used 
+ * @brief Creates a new time-into-interval handle.  A time-into-interval is used 
  * within a FreeRTOS task subroutine and returns true based on the configured
  * interval type and interval period that is synchronized to the system clock.
  * 
@@ -89,28 +95,27 @@ struct time_into_interval_t {
  * will return true every 5-minutes at 1-minute into the interval based on the 
  * system clock i.e. 12:01:00, 12:06:00, 12:11:00, etc. 
  * 
- * @param interval_type Time into interval, interval type setting.
- * @param interval_period Time into interval, a non-zero interval period setting per interval type setting.
- * @param interval_offset Time into interval, interval offset setting, per interval type setting, that must be less than the interval period.
- * @param time_into_interval_handle Time into interval handle.
+ * @param[in] time_into_interval_config_t Time-into-interval configuration.
+ * @param[out] time_into_interval_handle Time-into-interval handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t time_into_interval_new(const datalogger_time_interval_types_t interval_type, const uint16_t interval_period, const uint16_t interval_offset, time_into_interval_handle_t *time_into_interval_handle);
+esp_err_t time_into_interval_new(const time_into_interval_config_t *time_into_interval_config, 
+                                 time_into_interval_handle_t *time_into_interval_handle);
 
 /**
- * @brief Validates when time into interval condition based on the configured interval
+ * @brief Validates time-into-interval condition based on the configured interval
  * type, period, and offset parameters that is synchronized to the system clock.
  * 
- * @param[in] time_into_interval_handle Time into interval handle.
- * @return true when time into interval condition is valid.
- * @return false when time into interval handle or condition is not valid.
+ * @param[in] time_into_interval_handle Time-into-interval handle.
+ * @return true when time-into-interval condition is valid.
+ * @return false when time-into-interval handle or condition is not valid.
  */
 bool time_into_interval(time_into_interval_handle_t time_into_interval_handle);
 
 /**
- * @brief Deletes the time into interval handle and frees up resources.
+ * @brief Deletes the time-into-interval handle and frees up resources.
  * 
- * @param time_into_interval_handle Time into interval handle.
+ * @param time_into_interval_handle Time-into-interval handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t time_into_interval_del(time_into_interval_handle_t time_into_interval_handle);

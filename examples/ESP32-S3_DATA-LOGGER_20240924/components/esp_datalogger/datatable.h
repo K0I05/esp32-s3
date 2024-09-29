@@ -211,30 +211,40 @@ typedef struct {
 
 /**
  * @brief Data-table structure.
- *
  */
 typedef struct datatable_t datatable_t;
 
  /**
   * @brief Data-table handle structure.
-  * 
   */
 typedef struct datatable_t *datatable_handle_t;
 
 /**
+ * @brief Data-table configuration structure definition.
+ */
+typedef struct {
+    char                                name[DATATABLE_NAME_SIZE];  /*!< data-table textual name, maximum of 15 characters */
+    uint8_t                             columns_size;               /*!< data-table column array size, this setting cannot be 0 */
+    uint16_t                            rows_size;                  /*!< data-table row array size, this setting cannot be 0 */
+    datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, defines handling of records when the data-table is full */
+    task_schedule_config_t              sampling_config;            /*!< data-table sampling task-schedule configuration, configures the sampling interval  */
+    time_into_interval_config_t         processing_config;          /*!< data-table processing time-into-interval configuration, configures the processing interval */
+} datatable_config_t;
+
+/**
  * @brief Data-table state object structure definition.  Do not modify these fields once the
  * data-table handle is created, these are read-only, and represent a state machine.
- * 
  */
 struct datatable_t {
-    char                                name[DATATABLE_NAME_SIZE];  /*!< data-table name, maximum of 15 characters */
-    datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, set when data-table is created */
+    char                                name[DATATABLE_NAME_SIZE];  /*!< data-table textual name, maximum of 15 characters */
+    datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, defines handling of records when the data-table is full, set when data-table is created */
     //uint64_t                            sampling_ticks;             /*!< ticks since the last sampling to validate timeticks of samples */
     uint16_t                            sampling_count;             /*!< data-table data sampling count seed number */
     task_schedule_handle_t              sampling_ts_handle;         /*!< data-table sampling task schedule handle */
-    //datalogger_time_interval_types_t    sampling_interval_type;     /*!< sampling time interval type of samples pushed onto the data-table data buffer stack */
-    //uint16_t                            sampling_interval_period;   /*!< sampling time interval period of samples pushed onto the data-table data buffer stack */
-    //uint16_t                            sampling_interval_offset;   /*!< sampling time interval offset of samples pushed onto the data-table data buffer stack */
+    datalogger_time_interval_types_t    sampling_interval_type;     /*!< sampling time interval type of samples pushed onto the data-table data buffer stack */
+    uint16_t                            sampling_interval_period;   /*!< sampling time interval period of samples pushed onto the data-table data buffer stack */
+    uint16_t                            sampling_interval_offset;   /*!< sampling time interval offset of samples pushed onto the data-table data buffer stack */
+    time_into_interval_handle_t         processing_tti_handle;      /*!< data-table processing time-into-interval handle */
     datalogger_time_interval_types_t    processing_interval_type;   /*!< processing time interval type of samples to process and store data-table records */
     uint16_t                            processing_interval_period; /*!< processing time interval period of samples to process and store data-table records */
     uint16_t                            processing_interval_offset; /*!< processing time interval offset of samples to process and store data-table records */
@@ -246,7 +256,6 @@ struct datatable_t {
     uint16_t                            rows_count;                 /*!< data-table row count seed number, this number should not exceed the column size*/
     uint16_t                            rows_size;                  /*!< data-table row array size, static, set when data-table is created */
     datatable_row_t*                    rows;                       /*!< array of data-table rows */
-    time_into_interval_handle_t         processing_tti_handle;      /*!< data-table processing time-into-interval handle */
 };
 
 
@@ -256,235 +265,228 @@ struct datatable_t {
 
 
 /**
- * @brief Creates a data-table handle and must be the first function called.
+ * @brief Creates a data-table handle.
  * 
  * Use the `datatable_add_[data-type]_[process-type]_column` functions to define data-table columns   
  * by data-type.  The data-table columns are ordered as they are added and column index for the  
  * first user-defined column always starts at 2 given  the record identifier and timestamp columns  
  * are created by default and consume column indexes 0 and 1 respectively.
  * 
- * @param[in] name data-table textual name, 15-characters maximum.
- * @param[in] columns_size data-table column array size, this setting cannot be 0.
- * @param[in] rows_size data-table row array size,this setting cannot be 0.
- * @param[in] processing_interval_type data-table processing time interval type setting.
- * @param[in] processing_interval_period data-table processing time interval nonzero period, per interval type setting, of samples to process and store data-table records.
- * @param[in] processing_interval_offset data-table processing time interval offset, per interval type setting, of samples to process and store data-table records.
- * @param[in] sampling_task_schedule_handle data-table sampling task schedule handle.
- * @param[in] data_storage_type data-table data storage type.
- * @param[out] datatable_handle data-table handle.
+ * @param[in] datatable_config Data-table configuration.
+ * @param[out] datatable_handle Data-table handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_new(char *name, uint8_t columns_size, uint16_t rows_size, datalogger_time_interval_types_t processing_interval_type, uint16_t processing_interval_period, uint16_t processing_interval_offset, task_schedule_handle_t sampling_task_schedule_handle, datatable_data_storage_types_t data_storage_type, datatable_handle_t *datatable_handle);
+esp_err_t datatable_new(const datatable_config_t *datatable_config, datatable_handle_t *datatable_handle);
 
 /**
  * @brief Appends a vector based data-type column as a sample to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name_uc textual name of the data-table column to be added for vector u-component.
- * @param[in] name_vc textual name of the data-table column to be added for vector v-component.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name_uc Textual name of the data-table column to be added for vector u-component.
+ * @param[in] name_vc Textual name of the data-table column to be added for vector v-component.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_vector_smp_column(datatable_handle_t datatable_handle, char *name_uc, char *name_vc, uint8_t *index);
+esp_err_t datatable_add_vector_smp_column(datatable_handle_t datatable_handle, const char *name_uc, const char *name_vc, uint8_t *index);
 
 /**
  * @brief Appends a vector based data-type column as an average to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name_uc textual name of the data-table column to be added for vector u-component.
- * @param[in] name_vc textual name of the data-table column to be added for vector v-component.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name_uc Textual name of the data-table column to be added for vector u-component.
+ * @param[in] name_vc Textual name of the data-table column to be added for vector v-component.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_vector_avg_column(datatable_handle_t datatable_handle, char *name_uc, char *name_vc, uint8_t *index);
+esp_err_t datatable_add_vector_avg_column(datatable_handle_t datatable_handle, const char *name_uc, const char *name_vc, uint8_t *index);
 
 /**
  * @brief Appends a vector based data-type column as a v-component minimum to the data-table.
  * 
  * The u-component at v-component minimum is sampled and stored.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name_uc textual name of the data-table column to be added for vector u-component.
- * @param[in] name_vc textual name of the data-table column to be added for vector v-component.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name_uc Textual name of the data-table column to be added for vector u-component.
+ * @param[in] name_vc Textual name of the data-table column to be added for vector v-component.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_vector_min_column(datatable_handle_t datatable_handle, char *name_uc, char *name_vc, uint8_t *index);
+esp_err_t datatable_add_vector_min_column(datatable_handle_t datatable_handle, const char *name_uc, const char *name_vc, uint8_t *index);
 
 /**
  * @brief Appends a vector based data-type column as a v-component maximum to the data-table.
  * 
  * The u-component at v-component maximum is sampled and stored.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name_uc textual name of the data-table column to be added for vector u-component.
- * @param[in] name_vc textual name of the data-table column to be added for vector v-component.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name_uc Textual name of the data-table column to be added for vector u-component.
+ * @param[in] name_vc Textual name of the data-table column to be added for vector v-component.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_vector_max_column(datatable_handle_t datatable_handle, char *name_uc, char *name_vc, uint8_t *index);
+esp_err_t datatable_add_vector_max_column(datatable_handle_t datatable_handle, const char *name_uc, const char *name_vc, uint8_t *index);
 
 /**
  * @brief Appends a vector based data-type column as a v-component minimum with timestamp to the data-table.
  * 
  * The u-component at v-component minimum is sampled and stored.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name_uc textual name of the data-table column to be added for vector u-component.
- * @param[in] name_vc textual name of the data-table column to be added for vector v-component.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name_uc Textual name of the data-table column to be added for vector u-component.
+ * @param[in] name_vc Textual name of the data-table column to be added for vector v-component.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_vector_min_ts_column(datatable_handle_t datatable_handle, char *name_uc, char *name_vc, uint8_t *index);
+esp_err_t datatable_add_vector_min_ts_column(datatable_handle_t datatable_handle, const char *name_uc, const char *name_vc, uint8_t *index);
 
 /**
  * @brief Appends a vector based data-type column as a v-component maximum with timestamp to the data-table.
  * 
  * The u-component at v-component maximum is sampled and stored.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name_uc textual name of the data-table column to be added for vector u-component.
- * @param[in] name_vc textual name of the data-table column to be added for vector v-component.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name_uc Textual name of the data-table column to be added for vector u-component.
+ * @param[in] name_vc Textual name of the data-table column to be added for vector v-component.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_vector_max_ts_column(datatable_handle_t datatable_handle, char *name_uc, char *name_vc, uint8_t *index);
+esp_err_t datatable_add_vector_max_ts_column(datatable_handle_t datatable_handle, const char *name_uc, const char *name_vc, uint8_t *index);
 
 /**
  * @brief Appends a bool based data-type column as a sample process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_bool_smp_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_bool_smp_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Appends a float based data-type column as a sample process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_float_smp_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_float_smp_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Appends a float based data-type column as an average process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_float_avg_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_float_avg_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Appends a float based data-type column as a minimum process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_float_min_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_float_min_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Appends a float based data-type column as a maximum process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_float_max_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_float_max_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Appends a float based data-type column as a minimum with timestamp process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_float_min_ts_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_float_min_ts_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Appends a float based data-type column as a maximum with timestamp process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_float_max_ts_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_float_max_ts_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Appends a int16 based data-type column as a sample process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_int16_smp_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_int16_smp_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Appends a int16 based data-type column as an average process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_int16_avg_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_int16_avg_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Appends a int16 based data-type column as a minimum process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_int16_min_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_int16_min_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Appends a int16 based data-type column as a maximum process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_int16_max_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_int16_max_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Appends a int16 based data-type column as a minimum with timestamp process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_int16_min_ts_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_int16_min_ts_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Appends a int16 based data-type column as a maximum with timestamp process-type to the data-table.
  * 
- * @param[in] datatable_handle data-table handle.
- * @param[in] name textual name of the data-table column to be added.
- * @param[out] index index of the column that was added to the data-table.
+ * @param[in] datatable_handle Data-table handle.
+ * @param[in] name Textual name of the data-table column to be added.
+ * @param[out] index Index of the column that was added to the data-table.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_add_int16_max_ts_column(datatable_handle_t datatable_handle, char *name, uint8_t *index);
+esp_err_t datatable_add_int16_max_ts_column(datatable_handle_t datatable_handle, const char *name, uint8_t *index);
 
 /**
  * @brief Gets the number of columns in the data-table.
  * 
- * @param datatable_handle data-table handle.
- * @param count number of columns in the data-table.
+ * @param datatable_handle Data-table handle.
+ * @param count Number of columns in the data-table.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t datatable_get_columns_count(datatable_handle_t datatable_handle, uint8_t *count);
@@ -492,8 +494,8 @@ esp_err_t datatable_get_columns_count(datatable_handle_t datatable_handle, uint8
 /**
  * @brief Gets the number of rows in the data-table.
  * 
- * @param datatable_handle data-table handle.
- * @param count number of rows in the data-table.
+ * @param datatable_handle Data-table handle.
+ * @param count Number of rows in the data-table.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t datatable_get_rows_count(datatable_handle_t datatable_handle, uint8_t *count);
@@ -501,70 +503,70 @@ esp_err_t datatable_get_rows_count(datatable_handle_t datatable_handle, uint8_t 
 /**
  * @brief Gets the column structure from the data-table based on the column index.
  * 
- * @param datatable_handle data-table handle.
- * @param index data-table column index to output.
- * @param column data-table column structure output.
+ * @param datatable_handle Data-table handle.
+ * @param index Data-table column index to output.
+ * @param column Data-table column structure output.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_get_column(datatable_handle_t datatable_handle, uint8_t index, datatable_column_t *column);
+esp_err_t datatable_get_column(datatable_handle_t datatable_handle, const uint8_t index, datatable_column_t *column);
 
 /**
  * @brief Gets the row structure from the data-table based on the row index.
  * 
- * @param datatable_handle data-table handle.
- * @param index data-table row index to output.
- * @param row data-table row structure output.
+ * @param datatable_handle Data-table handle.
+ * @param index Data-table row index to output.
+ * @param row Data-table row structure output.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_get_row(datatable_handle_t datatable_handle, uint8_t index, datatable_row_t *row);
+esp_err_t datatable_get_row(datatable_handle_t datatable_handle, const uint8_t index, datatable_row_t *row);
 
 /**
  * @brief Pushes a vector data-type sample onto the column sample data buffer stack for processing.
  * 
- * @param datatable_handle data-table handle.
- * @param index sample data-table column index.
- * @param uc_value vector data-type u-component sample to process.
- * @param vc_value vector data-type v-component sample to process.
+ * @param datatable_handle Data-table handle.
+ * @param index Sample data-table column index.
+ * @param uc_value Vector data-type u-component sample to process.
+ * @param vc_value Vector data-type v-component sample to process.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_push_vector_sample(datatable_handle_t datatable_handle, uint8_t index, float uc_value, float vc_value);
+esp_err_t datatable_push_vector_sample(datatable_handle_t datatable_handle, const uint8_t index, const float uc_value, const float vc_value);
 
 /**
  * @brief Pushes a boolean data-type sample onto the column sample data buffer stack for processing.
  * 
- * @param datatable_handle data-table handle.
- * @param index sample data-table column index.
- * @param value boolean data-type sample to process.
+ * @param datatable_handle Data-table handle.
+ * @param index Sample data-table column index.
+ * @param value Boolean data-type sample to process.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_push_bool_sample(datatable_handle_t datatable_handle, uint8_t index, bool value);
+esp_err_t datatable_push_bool_sample(datatable_handle_t datatable_handle, const uint8_t index, const bool value);
 
 /**
  * @brief Pushes a float data-type sample onto the column sample data buffer stack for processing.
  * 
- * @param datatable_handle data-table handle.
- * @param index sample data-table column index..
- * @param value float data-type sample to process.
+ * @param datatable_handle Data-table handle.
+ * @param index Sample data-table column index..
+ * @param value Float data-type sample to process.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_push_float_sample(datatable_handle_t datatable_handle, uint8_t index, float value);
+esp_err_t datatable_push_float_sample(datatable_handle_t datatable_handle, const uint8_t index, const float value);
 
 /**
  * @brief Pushes an int16 data-type sample onto the column sample data buffer stack for processing.
  * 
- * @param datatable_handle data-table handle.
- * @param index sample data-table column index.
- * @param value int16 data-type sample to process.
+ * @param datatable_handle Data-table handle.
+ * @param index Sample data-table column index.
+ * @param value Int16 data-type sample to process.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_push_int16_sample(datatable_handle_t datatable_handle, uint8_t index, int16_t value);
+esp_err_t datatable_push_int16_sample(datatable_handle_t datatable_handle, const uint8_t index, const int16_t value);
 
 /**
  * @brief Delays the data-table's sampling task until the next scheduled task event.  
  * This function should be placed after the `for (;;) {` syntax to delay the task based 
  * on the configured task schedule handle interval type,  period, and offset parameters.
  * 
- * @param datatable_handle data-table handle.
+ * @param datatable_handle Data-table handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t datatable_sampling_task_delay(datatable_handle_t datatable_handle);
@@ -577,7 +579,7 @@ esp_err_t datatable_sampling_task_delay(datatable_handle_t datatable_handle);
  * If the sampling period exceeds the data-table's configured sampling interval, a skipped task event is
  * recorded, and data-table may not process samples as expected.
  * 
- * @param datatable_handle data-table handle.
+ * @param datatable_handle Data-table handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t datatable_process_samples(datatable_handle_t datatable_handle);
@@ -585,19 +587,18 @@ esp_err_t datatable_process_samples(datatable_handle_t datatable_handle);
 /**
  * @brief Deletes the data-table handle and frees up resources.
  * 
- * @param datatable_handle data-table handle.
+ * @param datatable_handle Data-table handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t datatable_del(datatable_handle_t datatable_handle);
 
-
 /**
- * @brief Renders a data-table to a textual representation in JSON format.
+ * @brief Converts a data-table to a `cJSON` object.
  * 
- * JSON data-table output example;
+ * `cJSON` data-table object output example;
  * 
- * {
-        "name": "Tbl_1-Min",
+ {
+        "name": "1min_tbl",
         "process-interval":     "minute",
         "process-period":       1,
         "columns":      [{
@@ -635,11 +636,6 @@ esp_err_t datatable_del(datatable_handle_t datatable_handle);
                         "name": "Td_1-Min_Avg",
                         "data-type":    "float",
                         "process-type": "average"
-                }, {
-                        "index":        7,
-                        "name": "Rh_1-Min_Avg",
-                        "data-type":    "float",
-                        "process-type": "average"
                 }],
         "rows": [{
                         "index":        0,
@@ -650,41 +646,129 @@ esp_err_t datatable_del(datatable_handle_t datatable_handle);
                                 }, {
                                         "index":        1,
                                         "data-type":    "ts",
-                                        "value":        0
+                                        "value":        61684380120
                                 }, {
                                         "index":        2,
                                         "data-type":    "float",
-                                        "value":        1018.5899047851562
+                                        "value":        1001.3500366210938
                                 }, {
                                         "index":        3,
                                         "data-type":    "float",
-                                        "value":        23.547393798828125
+                                        "value":        22.350000381469727
                                 }, {
                                         "index":        4,
                                         "data-type":    "float",
-                                        "value":        23.552894592285156
+                                        "value":        22.340000152587891
                                 }, {
                                         "index":        5,
                                         "data-type":    "float",
-                                        "value":        23.552894592285156
+                                        "value":        22.360000610351562
                                 }, {
                                         "index":        6,
                                         "data-type":    "float",
-                                        "value":        10.899570465087891
+                                        "value":        20.350000381469727
+                                }]
+                }, {
+                        "index":        1,
+                        "columns":      [{
+                                        "index":        0,
+                                        "data-type":    "id",
+                                        "value":        2
                                 }, {
-                                        "index":        7,
+                                        "index":        1,
+                                        "data-type":    "ts",
+                                        "value":        61684380180
+                                }, {
+                                        "index":        2,
                                         "data-type":    "float",
-                                        "value":        44.939468383789062
+                                        "value":        1001.3533325195312
+                                }, {
+                                        "index":        3,
+                                        "data-type":    "float",
+                                        "value":        22.35333251953125
+                                }, {
+                                        "index":        4,
+                                        "data-type":    "float",
+                                        "value":        22.340000152587891
+                                }, {
+                                        "index":        5,
+                                        "data-type":    "float",
+                                        "value":        22.360000610351562
+                                }, {
+                                        "index":        6,
+                                        "data-type":    "float",
+                                        "value":        20.353334426879883
+                                }]
+                }, {
+                        "index":        2,
+                        "columns":      [{
+                                        "index":        0,
+                                        "data-type":    "id",
+                                        "value":        3
+                                }, {
+                                        "index":        1,
+                                        "data-type":    "ts",
+                                        "value":        61684380240
+                                }, {
+                                        "index":        2,
+                                        "data-type":    "float",
+                                        "value":        1001.3583374023438
+                                }, {
+                                        "index":        3,
+                                        "data-type":    "float",
+                                        "value":        22.358335494995117
+                                }, {
+                                        "index":        4,
+                                        "data-type":    "float",
+                                        "value":        22.350000381469727
+                                }, {
+                                        "index":        5,
+                                        "data-type":    "float",
+                                        "value":        22.3700008392334
+                                }, {
+                                        "index":        6,
+                                        "data-type":    "float",
+                                        "value":        20.358333587646484
+                                }]
+                }, {
+                        "index":        3,
+                        "columns":      [{
+                                        "index":        0,
+                                        "data-type":    "id",
+                                        "value":        4
+                                }, {
+                                        "index":        1,
+                                        "data-type":    "ts",
+                                        "value":        61684380300
+                                }, {
+                                        "index":        2,
+                                        "data-type":    "float",
+                                        "value":        1001.3417358398438
+                                }, {
+                                        "index":        3,
+                                        "data-type":    "float",
+                                        "value":        22.341667175292969
+                                }, {
+                                        "index":        4,
+                                        "data-type":    "float",
+                                        "value":        22.329999923706055
+                                }, {
+                                        "index":        5,
+                                        "data-type":    "float",
+                                        "value":        22.350000381469727
+                                }, {
+                                        "index":        6,
+                                        "data-type":    "float",
+                                        "value":        20.341667175292969
                                 }]
                 }]
-}
- * 
- * @param[in] datatable_handle data-table handle.
- * @param[out] datatable data-table in JSON format.
+} 
+ *
+ * @param[in] datatable_handle Data-table handle.
+ * @param[out] datatable Data-table as a `cJSON` object.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_to_json(datatable_handle_t datatable_handle, char *datatable);
-
+esp_err_t datatable_to_json(datatable_handle_t datatable_handle, cJSON **datatable);
 
 
 #ifdef __cplusplus

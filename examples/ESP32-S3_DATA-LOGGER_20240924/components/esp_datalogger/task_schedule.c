@@ -57,68 +57,79 @@ static const char *TAG = "task_schedule";
 
 
 
-esp_err_t task_schedule_new(const datalogger_time_interval_types_t interval_type, const uint16_t interval_period, const uint16_t interval_offset, task_schedule_handle_t *task_schedule_handle) {
+esp_err_t task_schedule_new(const task_schedule_config_t *task_schedule_config, task_schedule_handle_t *task_schedule_handle) {
     esp_err_t               ret = ESP_OK;
+    int64_t                 interval_delta = 0;
     task_schedule_handle_t  out_handle;
     
-    /* validate arguments */
-    ESP_ARG_CHECK( interval_period );
+    /* validate task-schedule arguments */
+    ESP_GOTO_ON_FALSE( (task_schedule_config->interval_period > 0), ESP_ERR_INVALID_ARG, err, TAG, "task-schedule interval period cannot be 0, new task-schedule handle failed" );
 
-    /* validate memory availability for task schedule handle */
+    /* validate period and offset intervals */
+    interval_delta = datalogger_normalize_interval_to_sec(task_schedule_config->interval_type, task_schedule_config->interval_period) - 
+                     datalogger_normalize_interval_to_sec(task_schedule_config->interval_type, task_schedule_config->interval_offset); 
+    ESP_GOTO_ON_FALSE((interval_delta > 0), ESP_ERR_INVALID_ARG, err, TAG, "task-schedule interval period must be larger than the interval offset, new task-schedule handle failed" );
+    
+    /* validate memory availability for task-schedule handle */
     out_handle = (task_schedule_handle_t)calloc(1, sizeof(task_schedule_handle_t));
-    ESP_GOTO_ON_FALSE(out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for task schedule handle, new task schedule failed");
+    ESP_GOTO_ON_FALSE(out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for task-schedule handle, new task-schedule handle failed");
 
     /* validate memory availability for task schedule handle parameters */
     out_handle->params = (task_schedule_params_t*)calloc(1, sizeof(task_schedule_params_t));
-    ESP_GOTO_ON_FALSE(out_handle->params, ESP_ERR_NO_MEM, err, TAG, "no memory for task schedule handle configuration parameters, new task schedule failed");
+    ESP_GOTO_ON_FALSE(out_handle->params, ESP_ERR_NO_MEM, err_out_handle, TAG, "no memory for task-schedule handle configuration parameters, new task-schedule handle failed");
 
-    /* initialize task schedule state object parameters */
-    out_handle->params->epoch_time      = 0;
-    out_handle->params->interval_type   = interval_type;
-    out_handle->params->interval_period = interval_period;
-    out_handle->params->interval_offset = interval_offset;
+    /* initialize task-schedule state object parameters */
+    out_handle->params->epoch_timestamp = 0;
+    out_handle->params->interval_type   = task_schedule_config->interval_type;
+    out_handle->params->interval_period = task_schedule_config->interval_period;
+    out_handle->params->interval_offset = task_schedule_config->interval_offset;
 
-    /* set epoch time of the next scheduled task */
-    datalogger_set_epoch_time_event(out_handle->params->interval_type, out_handle->params->interval_period, out_handle->params->interval_offset, &out_handle->params->epoch_time);
+    /* set epoch time of the next scheduled task-schedule event */
+    ESP_GOTO_ON_ERROR( datalogger_set_epoch_timestamp_event(out_handle->params->interval_type, 
+                                                            out_handle->params->interval_period, 
+                                                            out_handle->params->interval_offset, 
+                                                            &out_handle->params->epoch_timestamp), 
+                                                            err_out_handle, TAG, "unable to set epoch timestamp, new task-schedule handle failed");
 
     /* set output handle */
     *task_schedule_handle = out_handle;
 
     return ESP_OK;
 
-    err:
+    err_out_handle:
         free(out_handle);
+    err:
         return ret;
 }
 
+
 esp_err_t task_schedule_delay(task_schedule_handle_t task_schedule_handle) {
     TickType_t      delay;
-    struct timeval  tv_now_unix;
     uint64_t        now_unix_msec;
     int64_t         delta_msec;
 
-    /* validate arguments */
+    // validate arguments
     ESP_ARG_CHECK( task_schedule_handle );
 
-    // get system unix epoch time
-    gettimeofday(&tv_now_unix, NULL);
-
-    // convert system unix epoch time to msec
-    now_unix_msec = (uint64_t)tv_now_unix.tv_sec * 1000U + (uint64_t)tv_now_unix.tv_usec / 1000U;
+    // get system unix epoch timestamp (UTC)
+    now_unix_msec = datalogger_get_epoch_timestamp_msec();
 
     // compute time delta until next scan event
-    delta_msec = task_schedule_handle->params->epoch_time - now_unix_msec;
+    delta_msec = task_schedule_handle->params->epoch_timestamp - now_unix_msec;
 
     // validate time is into the future, otherwise, reset next epoch time
     if(delta_msec < 0) {
         // reset epoch time of the next schedule task
-        task_schedule_handle->params->epoch_time = 0;
+        task_schedule_handle->params->epoch_timestamp = 0;
 
-        // set epoch time of the next scheduled task
-        datalogger_set_epoch_time_event(task_schedule_handle->params->interval_type, task_schedule_handle->params->interval_period, task_schedule_handle->params->interval_offset, &task_schedule_handle->params->epoch_time);
+        // set epoch timestamp of the next scheduled task
+        datalogger_set_epoch_timestamp_event(task_schedule_handle->params->interval_type, 
+                                            task_schedule_handle->params->interval_period, 
+                                            task_schedule_handle->params->interval_offset, 
+                                            &task_schedule_handle->params->epoch_timestamp);
 
         // compute time delta until next scan event
-        delta_msec = task_schedule_handle->params->epoch_time - now_unix_msec;
+        delta_msec = task_schedule_handle->params->epoch_timestamp - now_unix_msec;
     }
 
     // compute ticks delay from time delta
@@ -127,11 +138,15 @@ esp_err_t task_schedule_delay(task_schedule_handle_t task_schedule_handle) {
     // delay the task per ticks delay
     vTaskDelay( delay );
 
-    /* set epoch time of the next scheduled task */
-    datalogger_set_epoch_time_event(task_schedule_handle->params->interval_type, task_schedule_handle->params->interval_period, task_schedule_handle->params->interval_offset, &task_schedule_handle->params->epoch_time);
+    // set epoch timestamp of the next scheduled task
+    datalogger_set_epoch_timestamp_event(task_schedule_handle->params->interval_type, 
+                                        task_schedule_handle->params->interval_period, 
+                                        task_schedule_handle->params->interval_offset, 
+                                        &task_schedule_handle->params->epoch_timestamp);
 
     return ESP_OK;
 }
+
 
 esp_err_t task_schedule_del(task_schedule_handle_t task_schedule_handle) {
     /* free resource */

@@ -48,40 +48,50 @@ extern "C" {
 
 
 /**
- * @brief Task schedule definition.
+ * @brief Task-schedule definition.
  */
 typedef struct task_schedule_t task_schedule_t;
 
 /**
- * @brief Task schedule handle definition.  A task schedule is used within
+ * @brief Task-schedule handle definition.  A task-schedule is used within
  * a FreeRTOS task function and delays the task based on the configured 
- * interval type and interval period that is synchronized to the system clock.
+ * interval type, period, and offset that is synchronized to the system clock.
  */
 typedef struct task_schedule_t *task_schedule_handle_t;
 
 // TODO? - add multi-thread synch (i.e. mutex)
 
 /**
- * @brief Task schedule handle parameters structure.
+ * @brief Task-schedule configuration structure.
+ * 
  */
 typedef struct {
-    uint64_t                         epoch_time;         /*!< task schuedule, next event unix epoch time in milli-seconds */
-    datalogger_time_interval_types_t interval_type;      /*!< task schuedule, interval type setting */
-    uint16_t                         interval_period;    /*!< task schuedule, a non-zero interval period setting per interval type setting  */
-    uint16_t                         interval_offset;    /*!< task schuedule, interval offset setting, per interval type setting, that must be less than the interval period */
+    datalogger_time_interval_types_t interval_type;     /*!< task-schedule, interval type setting for interval period and offset */ 
+    uint16_t                         interval_period;   /*!< task-schedule, a non-zero interval period setting per interval type setting */ 
+    uint16_t                         interval_offset;   /*!< task-schedule, interval offset setting, per interval type setting, that must be less than the interval period */ 
+} task_schedule_config_t;
+
+/**
+ * @brief Task-schedule handle parameters structure.
+ */
+typedef struct {
+    uint64_t                         epoch_timestamp;    /*!< task-schedule, next event unix epoch timestamp (UTC) in milli-seconds */
+    datalogger_time_interval_types_t interval_type;      /*!< task-schedule, interval type setting */
+    uint16_t                         interval_period;    /*!< task-schedule, a non-zero interval period setting per interval type setting  */
+    uint16_t                         interval_offset;    /*!< task-schedule, interval offset setting, per interval type setting, that must be less than the interval period */
 } task_schedule_params_t;
 
 /**
- * @brief Task schedule handle state object structure.
+ * @brief Task-schedule handle state object structure.
  */
 struct task_schedule_t {
-    task_schedule_params_t      *params;            /*!< task schedule parameters */
+    task_schedule_params_t      *params;            /*!< task-schedule parameters */
 };
 
 /**
- * @brief Creates a new task schedule handle.  A task schedule is used within
+ * @brief Creates a new task-schedule handle.  A task-schedule is used within
  * a FreeRTOS task subroutine and delays the task based on the configured interval
- * type and interval period that is synchronized to the system clock.
+ * type, period, and offset that is synchronized to the system clock.
  * 
  * As an example, if a 5-second interval is configured, the task will execute every
  * 5-seconds based on the system clock i.e. 12:00:00, 12:00:05, 12:00:10, etc.
@@ -95,28 +105,26 @@ struct task_schedule_t {
  * However, if the task execution time exceeds the configured interval, a skipped 
  * task will be triggerred.  
  * 
- * @param[in] interval_type Task schedule, interval type setting.
- * @param[in] interval_period Task schedule, a non-zero interval period setting per interval type setting.
- * @param[in] interval_offset Task schedule, interval offset setting, per interval type setting, that must be less than the interval period.
- * @param[out] task_schedule_handle Task schedule handle.
+ * @param[in] task_schedule_config Task-schedule configuration.
+ * @param[out] task_schedule_handle Task-schedule handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t task_schedule_new(const datalogger_time_interval_types_t interval_type, const uint16_t interval_period, const uint16_t interval_offset, task_schedule_handle_t *task_schedule_handle);
+esp_err_t task_schedule_new(const task_schedule_config_t *task_schedule_config, task_schedule_handle_t *task_schedule_handle);
 
 /**
  * @brief Delays the task until the next scheduled task event.  This function should
  * be placed after the `for (;;) {` syntax to delay the task based on the configured
  * interval type, period, and offset parameters.
  * 
- * @param task_schedule_handle Task schedule handle.
+ * @param task_schedule_handle Task-schedule handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t task_schedule_delay(task_schedule_handle_t task_schedule_handle);
 
 /**
- * @brief Deletes the task schedule handle and frees up resources.
+ * @brief Deletes the task-schedule handle and frees up resources.
  * 
- * @param task_schedule_handle Task schedule handle.
+ * @param task_schedule_handle Task-schedule handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t task_schedule_del(task_schedule_handle_t task_schedule_handle);
