@@ -47,6 +47,35 @@ extern "C" {
 #endif
 
 
+#define TIME_INTO_INTERVAL_NAME_MAX_SIZE         (25)        //!< 25-characters for user-defined time-into-interval name
+
+// TODO? - add multi-thread synch (i.e. mutex)??
+
+
+/**
+ * @brief Time-into-interval configuration structure.
+ * 
+ */
+typedef struct {
+    char                             name[TIME_INTO_INTERVAL_NAME_MAX_SIZE]; /*!< time-into-interval, name, maximum of 25-characters */
+    datalogger_time_interval_types_t interval_type;     /*!< time-into-interval, interval type setting */ 
+    uint16_t                         interval_period;   /*!< time-into-interval, a non-zero interval period setting per interval type setting */ 
+    uint16_t                         interval_offset;   /*!< time-into-interval, interval offset setting, per interval type setting, that must be less than the interval period */ 
+} time_into_interval_config_t;
+
+
+/**
+ * @brief Time-into-interval structure.
+ */
+struct time_into_interval_t {
+    char                             name[TIME_INTO_INTERVAL_NAME_MAX_SIZE]; /*!< time-into-interval, name, maximum of 25-characters */
+    uint64_t                         epoch_timestamp;    /*!< time-into-interval, next event unix epoch timestamp (UTC) in milli-seconds */
+    datalogger_time_interval_types_t interval_type;      /*!< time-into-interval, interval type setting */
+    uint16_t                         interval_period;    /*!< time-into-interval, a non-zero interval period setting per interval type setting */
+    uint16_t                         interval_offset;    /*!< time-into-interval, interval offset setting, per interval type setting, that must be less than the interval period */
+    uint16_t                         hash_code;          /*!< hash-code of the time-into-interval handle */
+};
+
 /**
  * @brief Time-into-interval definition.
  */
@@ -57,60 +86,49 @@ typedef struct time_into_interval_t time_into_interval_t;
  */
 typedef struct time_into_interval_t *time_into_interval_handle_t;
 
-// TODO? - add multi-thread synch (i.e. mutex)
-
-typedef struct {
-    datalogger_time_interval_types_t interval_type;     /*!< time-into-interval, interval type setting */ 
-    uint16_t                         interval_period;   /*!< time-into-interval, a non-zero interval period setting per interval type setting */ 
-    uint16_t                         interval_offset;   /*!< time-into-interval, interval offset setting, per interval type setting, that must be less than the interval period */ 
-} time_into_interval_config_t;
 
 /**
- * @brief Time-into-interval handle parameters structure.
- */
-typedef struct {
-    uint64_t                         epoch_timestamp;    /*!< time-into-interval, next event unix epoch timestamp (UTC) in milli-seconds */
-    datalogger_time_interval_types_t interval_type;      /*!< time-into-interval, interval type setting */
-    uint16_t                         interval_period;    /*!< time-into-interval, a non-zero interval period setting per interval type setting */
-    uint16_t                         interval_offset;    /*!< time-into-interval, interval offset setting, per interval type setting, that must be less than the interval period */
-} time_into_interval_params_t;
-
-/**
- * @brief Time-into-interval handle state object structure.
- */
-struct time_into_interval_t {
-    time_into_interval_params_t *params;            /*!< time into interval parameters */
-};
-
-/**
- * @brief Creates a new time-into-interval handle.  A time-into-interval is used 
- * within a FreeRTOS task subroutine and returns true based on the configured
- * interval type and interval period that is synchronized to the system clock.
+ * @brief Initializes a time-into-interval handle.  A time-into-interval is used 
+ * within a FreeRTOS task subroutine for conditional or task delay based on the configured
+ * interval type, period, and offset that is synchronized to the system clock.
  * 
- * As an example, if a 5-second interval is configured, the will return true
- * every 5-seconds based on the system clock i.e. 12:00:00, 12:00:05, 12:00:10, etc.
+ * As an example, if a 5-second interval is configured, the `time_into_interval` function 
+ * will return true every 5-seconds based on the system clock i.e. 12:00:00, 12:00:05, 12:00:10, etc.
+ * The `time_into_interval_delay` would delay a task for 5-seconds and behaves like a task
+ * scheduler that is synchronized to the system clock.
  * 
- * The interval offset is used to offset the start of the interval period. As an
- * example, if a 5-minute interval with 1-minute offset is configured, the function
- * will return true every 5-minutes at 1-minute into the interval based on the 
- * system clock i.e. 12:01:00, 12:06:00, 12:11:00, etc. 
+ * The interval offset is used to offset the start of the interval period. As an example,
+ * if a 5-minute interval with 1-minute offset is configured, the `time_into_interval`
+ * function will return true every 5-minutes at 1-minute into the interval based on the 
+ * system clock i.e. 12:01:00, 12:06:00, 12:11:00, etc.
  * 
  * @param[in] time_into_interval_config_t Time-into-interval configuration.
  * @param[out] time_into_interval_handle Time-into-interval handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t time_into_interval_new(const time_into_interval_config_t *time_into_interval_config, 
+esp_err_t time_into_interval_init(const time_into_interval_config_t *time_into_interval_config, 
                                  time_into_interval_handle_t *time_into_interval_handle);
 
 /**
  * @brief Validates time-into-interval condition based on the configured interval
- * type, period, and offset parameters that is synchronized to the system clock.
+ * type, period, and offset parameters that is synchronized to the system clock and
+ * returns true when the interval has elapsed.
  * 
  * @param[in] time_into_interval_handle Time-into-interval handle.
  * @return true when time-into-interval condition is valid.
  * @return false when time-into-interval handle or condition is not valid.
  */
 bool time_into_interval(time_into_interval_handle_t time_into_interval_handle);
+
+/**
+ * @brief Delays the task until the next scheduled task event.  This function should
+ * be placed after the `for (;;) {` syntax to delay the task based on the configured
+ * interval type, period, and offset parameters.
+ * 
+ * @param time_into_interval_handle Time-into-interval handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t time_into_interval_delay(time_into_interval_handle_t time_into_interval_handle);
 
 /**
  * @brief Deletes the time-into-interval handle and frees up resources.

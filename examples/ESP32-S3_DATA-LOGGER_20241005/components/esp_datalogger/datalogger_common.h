@@ -49,8 +49,63 @@
 extern "C" {
 #endif
 
+/*
+ * ESP DATA-LOGGER COMMON macro definitions
+ */
 
+#define SEC_TO_USEC(sec) { return (1000000U * sec); }
+#define SEC_TO_MSEC(sec) { return (1000U * sec); }
+#define SEC_TO_TICKS(sec) { return (SEC_TO_MS(sec) / portTICK_PERIOD_MS); }
+#define MSEC_TO_TICKS(ms) { return (ms / portTICK_PERIOD_MS); }
+
+/*
+* static constant declerations
+*/
 static const char *TAG_DL_COMMON = "datalogger_common";
+
+
+/**
+ * @brief Data-logger event types enumerator.
+ */
+typedef enum {
+    DATALOGGER_EVENT_DL_INIT,
+    DATALOGGER_EVENT_DT_INIT,
+    DATALOGGER_EVENT_DT_RESET,
+    DATALOGGER_EVENT_DT_FIFO,
+    DATALOGGER_EVENT_DT_FULL,
+    DATALOGGER_EVENT_DT_ROW,
+    DATALOGGER_EVENT_DT_COLUMN,
+    DATALOGGER_EVENT_TII_INIT,
+    DATALOGGER_EVENT_TII_RESET,
+    DATALOGGER_EVENT_TII_ELAPSED,
+    DATALOGGER_EVENT_TII_SKIPPED,
+} datalogger_event_types_t;
+
+/**
+ * @brief Data-logger event sources enumerator.
+ */
+typedef enum {
+    DATALOGGER_EVENT_DL,
+    DATALOGGER_EVENT_DT,
+    DATALOGGER_EVENT_TII
+} datalogger_event_sources_t;
+
+
+typedef struct {
+    datalogger_event_sources_t  source;
+    datalogger_event_types_t    type;
+    char*                       message;
+} datalogger_event_t;
+
+
+/**
+ * @brief Data-logger event.
+ * 
+ */
+typedef void (*datalogger_event)(void *handle, datalogger_event_t event);
+
+
+
 
 // https://lloydrochester.com/post/c/c-timestamp-epoch/
 
@@ -198,33 +253,24 @@ static inline uint64_t datalogger_get_epoch_timestamp_usec(void) {
 static inline esp_err_t datalogger_set_epoch_timestamp_event(const datalogger_time_interval_types_t interval_type, const uint16_t interval_period, const uint16_t interval_offset, uint64_t *epoch_timestamp) {
     struct timeval  now_tv;
     struct tm       now_tm;
-    time_t          now_unix_time;
-    uint64_t        now_unix_time_msec;
     struct tm       next_tm;
-    time_t          next_unix_time;
-    uint64_t        next_unix_time_msec;
-    uint64_t        interval_period_msec;
-    uint64_t        interval_offset_msec;
-    int64_t         delta_time_msec;
 
     /* validate interval period argument */
     ESP_RETURN_ON_FALSE( (interval_period > 0), ESP_ERR_INVALID_ARG, TAG_DL_COMMON, "interval period cannot be 0, data-logger set epoch time event failed" );
 
-    /* validate period and offset intervals */
-    delta_time_msec = datalogger_normalize_interval_to_msec(interval_type, interval_period) - 
-                      datalogger_normalize_interval_to_msec(interval_type, interval_offset); 
-    ESP_RETURN_ON_FALSE( (delta_time_msec > 0), ESP_ERR_INVALID_ARG, TAG_DL_COMMON, "interval period must be larger than the interval offset, data-logger set epoch time event failed" );
-    
     /* normalize interval period and offset to milli-seconds */
-    interval_period_msec = datalogger_normalize_interval_to_msec(interval_type, interval_period);
-    interval_offset_msec = datalogger_normalize_interval_to_msec(interval_type, interval_offset);
+    uint64_t interval_period_msec = datalogger_normalize_interval_to_msec(interval_type, interval_period);
+    uint64_t interval_offset_msec = datalogger_normalize_interval_to_msec(interval_type, interval_offset);
+
+    /* validate period and offset intervals */
+    ESP_RETURN_ON_FALSE( ((interval_period_msec - interval_offset_msec) > 0), ESP_ERR_INVALID_ARG, TAG_DL_COMMON, "interval period must be larger than the interval offset, data-logger set epoch time event failed" );
 
     // get system unix epoch time (gmt)
     gettimeofday(&now_tv, NULL);
 
     // extract system unix time (seconds and milli-seconds)
-    now_unix_time       = now_tv.tv_sec;
-    now_unix_time_msec  = (uint64_t)now_tv.tv_sec * 1000U + (uint64_t)now_tv.tv_usec / 1000U;
+    time_t now_unix_time        = now_tv.tv_sec;
+    uint64_t now_unix_time_msec = (uint64_t)now_tv.tv_sec * 1000U + (uint64_t)now_tv.tv_usec / 1000U;
 
     // convert now tm to time-parts localtime from unix time
     localtime_r(&now_unix_time, &now_tm);
@@ -261,26 +307,18 @@ static inline esp_err_t datalogger_set_epoch_timestamp_event(const datalogger_ti
     if(*epoch_timestamp != 0) {
         // add task interval to next task event epoch to compute next task event epoch
         *epoch_timestamp = *epoch_timestamp + interval_period_msec;
-
-        // convert epoch in msec to sec - debug
-        time_t epoch_time_sec = *epoch_timestamp / 1000U;
-
-        // convert next unix time to tm components - debug
-        localtime_r(&epoch_time_sec, &next_tm);
     } else {
         // convert to unix time (seconds)
-        next_unix_time = mktime(&next_tm);
+        time_t next_unix_time = mktime(&next_tm);
 
         // convert unix time to milli-seconds
-        next_unix_time_msec = next_unix_time * 1000U;
+        uint64_t next_unix_time_msec = next_unix_time * 1000U;
 
         // initialize next unix time by adding the task event interval period and offset
         next_unix_time_msec = next_unix_time_msec + interval_period_msec + interval_offset_msec;
 
         // compute the delta between now and next unix times
-        delta_time_msec = next_unix_time_msec - now_unix_time_msec;
-
-        //ESP_LOGW(TAG_DL_COMMON, "Time-Into-Interval Delta Time (ms): %lli", delta_time_msec);
+        int64_t delta_time_msec = next_unix_time_msec - now_unix_time_msec;
 
         // ensure next task event is ahead in time
         if(delta_time_msec <= 0) {
@@ -294,28 +332,9 @@ static inline esp_err_t datalogger_set_epoch_timestamp_event(const datalogger_ti
             } while(delta_time_msec <= 0);
         }
 
-        // convert epoch in msec to sec - debug
-        next_unix_time = next_unix_time_msec / 1000U;
-
-        // convert next unix time to tm components - debug
-        localtime_r(&next_unix_time, &next_tm);
-
         // set next task event epoch time
         *epoch_timestamp = next_unix_time_msec;
     }
-
-    //printf("Time Into Interval System Time:          %s", asctime(&now_tm));
-    //printf("Time Into Interval Next Scan Event Time: %s", asctime(&next_tm)); 
-
-    char ctime_str[70];
-
-    // log time now
-    strftime(ctime_str, sizeof(ctime_str), "%A %c", &now_tm);
-    ESP_LOGW(TAG_DL_COMMON, "Time-Into-Interval System Time:          %s", ctime_str);
-
-    // log time next
-    strftime(ctime_str, sizeof(ctime_str), "%A %c", &next_tm);
-    ESP_LOGW(TAG_DL_COMMON, "Time-Into-Interval Next Event Time:      %s", ctime_str);
 
     return ESP_OK;
 }
@@ -338,6 +357,16 @@ static inline double datalogger_degrees_to_radians(double degree) {
  */
 static inline double datalogger_radians_to_degrees(double radian) {
     return radian * (180 / M_PI);
+}
+
+/**
+ * @brief Gets a 16-bit hash-code utilizing epoch timestamp as the seed.
+ * 
+ * @return uint16_t 16-bit hash-code.
+ */
+static inline uint16_t datalogger_get_hash_code(void) {
+    uint16_t seed_hash = (uint16_t)datalogger_get_epoch_timestamp();
+    return ((seed_hash>>16) ^ (seed_hash)) & 0xFFFF;
 }
 
 

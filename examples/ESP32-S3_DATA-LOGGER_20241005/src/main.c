@@ -45,7 +45,6 @@
 #include <esp_timer.h>
 #include <esp_event.h>
 #include <esp_log.h>
-#include <driver/i2c_master.h>
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <freertos/FreeRTOS.h>
@@ -66,6 +65,7 @@
 
 //#define CONFIG_WIFI_SSID                "YOUR SSID"
 //#define CONFIG_WIFI_PASSWORD            "SSID KEY"
+
 
 #define CONFIG_I2C_0_PORT               I2C_NUM_0
 #define CONFIG_I2C_0_SDA_IO             (gpio_num_t)(45) // blue
@@ -108,31 +108,36 @@ static const int NET_EVENT_GROUP_WIFI_FAIL_BIT         = BIT1;
 static const int NTP_EVENT_GROUP_NTP_SYNCHRONIZED_BIT  = BIT0;
 static const int NTP_EVENT_GROUP_NTP_SYNCH_FAIL_BIT    = BIT1;
 
+// data-logger global variable
+static datalogger_handle_t      dl_hdl;          /* example data-logger handle */
+
 // data-table variables for the example - independent of data-logger
 static datatable_handle_t       dt_1min_hdl;          /* example data-table handle */
 static datatable_config_t       dt_1min_cfg = {       /* example data-table configuration */
     .name                       = "1min_tbl",
     .data_storage_type          = DATATABLE_DATA_STORAGE_MEMORY_RING,
-    .columns_size               = 5,
-    .rows_size                  = 10,
-    .sampling_config            = {
+    .columns_size               = 7,
+    .rows_size                  = 5,
+    .sampling_config            = { /* 10-sec sampling */
         .interval_type          = DATALOGGER_TIME_INTERVAL_SEC,
         .interval_period        = 10,
         .interval_offset        = 0
     },
-    .processing_config          = {
+    .processing_config          = { /* 1-min processing */
         .interval_type          = DATALOGGER_TIME_INTERVAL_MIN,
         .interval_period        = 1,
         .interval_offset        = 0
     }
 };
-static uint8_t              dt_1min_pa_avg_col_index;     /* data-table average atmospheric pressure (pa-avg) column index reference */
-static uint8_t              dt_1min_ta_avg_col_index;     /* data-table average air temperature (ta-avg) column index reference */
-static uint8_t              dt_1min_ta_max_col_index;     /* data-table minimum air temperature (ta-min) column index reference */
-static uint8_t              dt_1min_ta_min_col_index;     /* data-table maximum air temperature (ta-max) column index reference */
-static uint8_t              dt_1min_td_avg_col_index;     /* data-table average dew-point temperature (td-avg) column index reference */
-//static uint8_t              dt_1min_wsd_avg_col_index;    /* data-table average (vector) wind speed and direction (wsd-avg) column index reference */
+static uint8_t                  dt_1min_pa_avg_col_index;     /* data-table average atmospheric pressure (pa-avg) column index reference */
+static uint8_t                  dt_1min_ta_avg_col_index;     /* data-table average air temperature (ta-avg) column index reference */
+static uint8_t                  dt_1min_ta_max_col_index;     /* data-table minimum air temperature (ta-min) column index reference */
+static uint8_t                  dt_1min_ta_min_col_index;     /* data-table maximum air temperature (ta-max) column index reference */
+static uint8_t                  dt_1min_hr_avg_col_index;     /* data-table average relative humidity (hr-avg) column index reference */
+static uint8_t                  dt_1min_td_avg_col_index;     /* data-table average dew-point temperature (td-avg) column index reference */
+static uint8_t                  dt_1min_wsd_avg_col_index;    /* data-table average (vector) wind speed and direction (wsd-avg) column index reference */
 
+int32_t restart_counter = 0;
 /* 
 
  simulation samples for pressure and temperature
@@ -177,6 +182,16 @@ static const float td_samples[] = { 20.34, 20.35, 20.35, 20.34, 20.35, 20.36,
                                     20.26, 20.27, 20.26, 20.26, 20.25, 20.26,
                                     20.25, 20.25, 20.24, 20.24, 20.25, 20.24 };
 
+static const int16_t hr_samples[]={ 50, 50, 51, 51, 51, 51,
+                                    52, 52, 53, 53, 53, 53,
+                                    54, 54, 55, 55, 55, 56,
+                                    56, 56, 57, 57, 57, 58,
+                                    58, 58, 58, 57, 57, 57,
+                                    56, 56, 56, 56, 55, 55,
+                                    55, 55, 54, 54, 54, 53,
+                                    53, 53, 53, 53, 52, 52,
+                                    52, 51, 51, 51, 50, 50,
+                                    50, 49, 49, 49, 48, 48 };
 
 
 static inline void set_time( void ) {
@@ -202,7 +217,9 @@ static inline void set_time( void ) {
     // See https://linux.die.net/man/2/settimeofday
     int err = settimeofday(&initial_timeval, NULL);
     assert(err == 0);
-    printf("Time set to:          %s", asctime(&initial_time));
+    char strftime_buf[64];
+    strftime(strftime_buf, sizeof(strftime_buf), "%c", &initial_time);
+    printf("Time set to:          %s", strftime_buf);
 }
 
 static inline void get_time( void ) {
@@ -217,8 +234,10 @@ static inline void get_time( void ) {
     // See https://en.cppreference.com/w/c/chrono/localtime
     struct tm new_time;
     localtime_r(&new_unix_time, &new_time);
+    char strftime_buf[64];
     // 'new_time' now contains the current time components
-    printf("Current time:         %s", asctime(&new_time)); 
+    strftime(strftime_buf, sizeof(strftime_buf), "%c", &new_time);
+    printf("Current time:         %s", strftime_buf); 
 }
 
 static inline void stnp_print_servers(void) {
@@ -305,16 +324,17 @@ static inline esp_err_t wifi_start( void ) {
 
     ESP_LOGI(APP_TAG, "wifi_start finished.");
 
-    /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
-     * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
+    /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or 
+        connection failed for the maximum number of re-tries (WIFI_FAIL_BIT). The 
+        bits are set by event_handler() (see above) */
     EventBits_t bits = xEventGroupWaitBits(net_event_group_hdl,
             NET_EVENT_GROUP_WIFI_CONNECTED_BIT | NET_EVENT_GROUP_WIFI_FAIL_BIT,
             pdFALSE,
             pdFALSE,
             portMAX_DELAY);
 
-    /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
-     * happened. */
+    /* xEventGroupWaitBits() returns the bits before the call returned, hence we can 
+        test which event actually happened. */
     if (bits & NET_EVENT_GROUP_WIFI_CONNECTED_BIT) {
         ESP_LOGI(APP_TAG, "Connected to wifi access point SSID:%s password:%s", CONFIG_WIFI_SSID, CONFIG_WIFI_PASSWORD);
 
@@ -388,6 +408,23 @@ static inline void sntp_synch_time(void) {
     esp_netif_sntp_deinit();
 }
 
+static inline void print_time_into_interval_event(time_into_interval_handle_t time_into_interval_handle) {
+    time_t now;
+    struct tm timeinfo;
+    char strftime_buf[64];
+
+    time(&now);
+
+    localtime_r(&now, &timeinfo);
+    strftime(strftime_buf, sizeof(strftime_buf), "%A %c", &timeinfo);
+    ESP_LOGW(APP_TAG, "%s System Time:          %s", time_into_interval_handle->name, strftime_buf);
+
+    time_t next_unix_time = time_into_interval_handle->epoch_timestamp / 1000U;
+    localtime_r(&next_unix_time, &timeinfo);
+    strftime(strftime_buf, sizeof(strftime_buf), "%A %c", &timeinfo);
+    ESP_LOGW(APP_TAG, "%s Next Event Time:      %s", time_into_interval_handle->name, strftime_buf);
+}
+
 static inline void sntp_time_sync_start(void) {
     time_t now;
     struct tm timeinfo;
@@ -431,16 +468,15 @@ static inline void sntp_time_sync_start(void) {
 }
 
 static void dt_1min_smp_task( void *pvParameters ) {
-    uint64_t                    start_time      = 0;
-    uint64_t                    end_time        = 0;
-    int64_t                     delta_time      = 0;
     time_into_interval_handle_t dt_1min_tii_5min_hdl;
     time_into_interval_config_t dt_1min_tii_5min_cfg = {
+        .name               = "tii_5min",
         .interval_type      = DATALOGGER_TIME_INTERVAL_MIN,
         .interval_period    = 5,
         .interval_offset    = 0
     };
 
+    /*
     // wait for an event group bit to be set.
     EventBits_t bits = xEventGroupWaitBits(net_event_group_hdl,
             NTP_EVENT_GROUP_NTP_SYNCHRONIZED_BIT | NTP_EVENT_GROUP_NTP_SYNCH_FAIL_BIT,
@@ -453,37 +489,49 @@ static void dt_1min_smp_task( void *pvParameters ) {
         ESP_LOGI(APP_TAG, "ntp event group - ntp synchronized");
     } else if (bits & NTP_EVENT_GROUP_NTP_SYNCH_FAIL_BIT) {
         ESP_LOGI(APP_TAG, "ntp event group - ntp synchronization failed");
-        // abort
+        abort();
     }
+    */
     
     // create a new time-into-interval handle - task system clock synchronization
-    time_into_interval_new(&dt_1min_tii_5min_cfg, &dt_1min_tii_5min_hdl);
+    time_into_interval_init(&dt_1min_tii_5min_cfg, &dt_1min_tii_5min_hdl);
     if (dt_1min_tii_5min_hdl == NULL) ESP_LOGE(APP_TAG, "time_into_interval_new, new time-into-interval handle failed"); 
     
     // task loop entry point
     for ( ;; ) {
         // set start timer
-        start_time = esp_timer_get_time(); 
+        uint64_t start_time = esp_timer_get_time(); 
         
-        /* delay data-table sampling task until sampling interval has lapsed */
+        /* delay data-table sampling task until sampling interval has elapsed */
         datatable_sampling_task_delay(dt_1min_hdl);
         
         // print start of sampling process
         ESP_LOGI(APP_TAG, "######################## DATA-LOGGER - START #########################");
         
-        // print free memory available
-        ESP_LOGI(APP_TAG, "free memory:  %lu bytes", esp_get_free_heap_size());
-        
+        // print free memory available and boot count
+        ESP_LOGI(APP_TAG, "Free Memory:   %lu bytes", esp_get_free_heap_size());
+        ESP_LOGI(APP_TAG, "Reboot Count:  %li", restart_counter);
+        ESP_LOGI(APP_TAG, "Records Count: %u", dt_1min_hdl->rows_count);
+
+        // print next data-table sampling time-into-interval event
+        ESP_LOGI(APP_TAG, "Data-Table Sampling....");
+        print_time_into_interval_event(dt_1min_hdl->sampling_tii_handle);
+
         // push samples onto the data buffer stack for processing
         datatable_push_float_sample(dt_1min_hdl, dt_1min_pa_avg_col_index, pa_samples[samples_index]);
         datatable_push_float_sample(dt_1min_hdl, dt_1min_ta_avg_col_index, ta_samples[samples_index]);
         datatable_push_float_sample(dt_1min_hdl, dt_1min_ta_min_col_index, ta_samples[samples_index]);
         datatable_push_float_sample(dt_1min_hdl, dt_1min_ta_max_col_index, ta_samples[samples_index]);
+        datatable_push_int16_sample(dt_1min_hdl, dt_1min_hr_avg_col_index, hr_samples[samples_index]);
         datatable_push_float_sample(dt_1min_hdl, dt_1min_td_avg_col_index, td_samples[samples_index]);
-        //datatable_push_vector_sample(dt_1min_hdl, dt_1min_wsd_avg_col_index, 210, 1.45);  // static values for now (TODO: make them random)
+        datatable_push_vector_sample(dt_1min_hdl, dt_1min_wsd_avg_col_index, 210, 1.45);  // static values for now (TODO: make them random)
 
         // process data buffer stack samples (i.e. data-table's configured processing interval)
         datatable_process_samples(dt_1min_hdl);
+
+        // print next data-table processing time-into-interval event
+        ESP_LOGI(APP_TAG, "Data-Table Processing....");
+        print_time_into_interval_event(dt_1min_hdl->processing_tii_handle);
 
         // increment samples index
         samples_index += 1;
@@ -508,15 +556,19 @@ static void dt_1min_smp_task( void *pvParameters ) {
             cJSON_free(dt_1min_json_str);
             cJSON_Delete(dt_1min_json);
         }
+
+        // print next data-table output time-into-interval event
+        ESP_LOGI(APP_TAG, "Data-Table Output....");
+        print_time_into_interval_event(dt_1min_tii_5min_hdl);
     
         // print end of sampling process
         ESP_LOGI(APP_TAG, "######################## DATA-LOGGER - END ###########################");
         
         // set end timer
-        end_time = esp_timer_get_time();
+        uint64_t end_time = esp_timer_get_time();
         
         // compute task duration (delta time) in micro-seconds
-        delta_time = end_time - start_time;
+        int64_t delta_time = end_time - start_time;
         
         // print task duration in micro-seconds and milli-seconds.
         ESP_LOGI(APP_TAG, "Task Duration: %llu us / %llu ms", delta_time, delta_time / 1000);
@@ -525,6 +577,55 @@ static void dt_1min_smp_task( void *pvParameters ) {
     // free up task resources
     time_into_interval_del( dt_1min_tii_5min_hdl ); //delete time-into-interval handle
     vTaskDelete( NULL );
+}
+
+void nvs( void ) {
+    nvs_handle_t nvs_handle;
+    esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handle);
+    if (err != ESP_OK) {
+        ESP_LOGI(APP_TAG, "NVS error (%s) opening NVS handle!", esp_err_to_name(err));
+    } else {
+        /* read */
+        ESP_LOGI(APP_TAG, "NVS reading restart counter...");
+        //int32_t restart_counter = 0; // value will default to 0, if not set yet in NVS
+        restart_counter = 0;
+        err = nvs_get_i32(nvs_handle, "restart_counter", &restart_counter);
+        switch (err) {
+            case ESP_OK:
+                ESP_LOGI(APP_TAG, "NVS restart counter = %" PRIu32, restart_counter);
+                break;
+            case ESP_ERR_NVS_NOT_FOUND:
+                ESP_LOGI(APP_TAG, "NVS value is not initialized!");
+                break;
+            default :
+                ESP_LOGI(APP_TAG, "NVS error (%s) reading!", esp_err_to_name(err));
+        }
+
+        /* write */
+        ESP_LOGI(APP_TAG, "NVS updating restart counter..");
+        restart_counter++;
+        err = nvs_set_i32(nvs_handle, "restart_counter", restart_counter);
+        if(err != ESP_OK) {
+            ESP_LOGI(APP_TAG, "Failed!!");
+        } else {
+            ESP_LOGI(APP_TAG, "Done");
+        }
+
+        // Commit written value.
+        // After setting any values, nvs_commit() must be called to ensure changes are written
+        // to flash storage. Implementations may write to storage at other times,
+        // but this is not guaranteed.
+        ESP_LOGI(APP_TAG, "NVS committing updates..");
+        err = nvs_commit(nvs_handle);
+        if(err != ESP_OK) {
+            ESP_LOGI(APP_TAG, "Failed!!");
+        } else {
+            ESP_LOGI(APP_TAG, "Done");
+        }
+
+        // Close
+        nvs_close(nvs_handle);
+    }
 }
 
 void app_main( void ) {
@@ -542,29 +643,52 @@ void app_main( void ) {
     }
     ESP_ERROR_CHECK( ret );
 
+    nvs();
 
     // attempt to start wifi and synchronize system clock via SNTP
-    ESP_ERROR_CHECK( wifi_start() );
-    sntp_time_sync_start();
+    //ESP_ERROR_CHECK( wifi_start() );
+    //sntp_time_sync_start();
 
 
 
     // initialize system time - manually populated time structure
-    //set_time();
-    //get_time();
+    set_time();
+    get_time();
 
 
+    // data-logger testing
+    //
+    // initialize a data-logger handle for the example
+    //datalogger_init("Zeus-01", &dl_hdl);
+    //if (dl_hdl == NULL) {
+    //    ESP_LOGE(APP_TAG, "datalogger_init, data-logger handle initialization failed");
+        //abort();
+    //}
 
+    // print system-table as a string in json format
+    //
+    // create root object for system-table
+    //cJSON *st_1min_json = cJSON_CreateObject();
+    // convert the system-table to json object
+    //systemtable_to_json(dl_hdl->systemtable_handle, &st_1min_json);
+    // render json system-table object to text and print
+    //char *st_1min_json_str = cJSON_Print(st_1min_json);
+    //ESP_LOGI(APP_TAG, "JSON System-Table:\n%s",st_1min_json_str);
+    // free-up json resources
+    //cJSON_free(st_1min_json_str);
+    //cJSON_Delete(st_1min_json);
 
     // data-table testing
     //
-    // create a new data-table handle for the example
-    datatable_new(&dt_1min_cfg, &dt_1min_hdl);   
+    // initialize a data-table handle for the example
+    datatable_init(&dt_1min_cfg, &dt_1min_hdl); 
+    //datalogger_new_datatable(dl_hdl, &dt_1min_cfg, &dt_1min_hdl);   
     if (dt_1min_hdl == NULL) {
-        ESP_LOGE(APP_TAG, "datatable_new, new data-table handle failed");
-        abort();
+        ESP_LOGE(APP_TAG, "datatable_init, data-table handle initialization failed");
+        //abort();
     }
 
+    
     // configure data-table columns
     //
     // add float average column to data-table
@@ -575,10 +699,12 @@ void app_main( void ) {
     datatable_add_float_min_column(dt_1min_hdl, "Ta_1-Min", &dt_1min_ta_min_col_index);                 // column index 4
     // add float maximum column to data-table
     datatable_add_float_max_column(dt_1min_hdl, "Ta_1-Min", &dt_1min_ta_max_col_index);                 // column index 5
+    // add int16 average column to data-table
+    datatable_add_int16_avg_column(dt_1min_hdl, "Hr_1-Min", &dt_1min_hr_avg_col_index);                 // column index 6
     // add float average column to data-table
-    datatable_add_float_avg_column(dt_1min_hdl, "Td_1-Min", &dt_1min_td_avg_col_index);                 // column index 6
+    datatable_add_float_avg_column(dt_1min_hdl, "Td_1-Min", &dt_1min_td_avg_col_index);                 // column index 7
     // add vector average column to data-table
-    //datatable_add_vector_avg_column(dt_1min_hdl, "Wd_1-Min", "Ws_1-Min", &dt_1min_wsd_avg_col_index);   // column index 7
+    datatable_add_vector_avg_column(dt_1min_hdl, "Wd_1-Min", "Ws_1-Min", &dt_1min_wsd_avg_col_index);   // column index 8
     
     // print data-table column indexes
     ESP_LOGW(APP_TAG, "data-table id column index:        %d", 0);
@@ -587,8 +713,10 @@ void app_main( void ) {
     ESP_LOGW(APP_TAG, "data-table ta column index:        %d", dt_1min_ta_avg_col_index);
     ESP_LOGW(APP_TAG, "data-table ta-min column index:    %d", dt_1min_ta_min_col_index);
     ESP_LOGW(APP_TAG, "data-table ta-max column index:    %d", dt_1min_ta_max_col_index);
+    ESP_LOGW(APP_TAG, "data-table hr column index:        %d", dt_1min_hr_avg_col_index);
     ESP_LOGW(APP_TAG, "data-table td column index:        %d", dt_1min_td_avg_col_index);
-    //ESP_LOGW(APP_TAG, "data-table ws-wd column index:     %d", dt_1min_wsd_avg_col_index);
+    ESP_LOGW(APP_TAG, "data-table ws-wd column index:     %d", dt_1min_wsd_avg_col_index);
+    
     
     // print data-table as a string in json format
     //
@@ -602,6 +730,8 @@ void app_main( void ) {
     // free-up json resources
     cJSON_free(dt_1min_json_str);
     cJSON_Delete(dt_1min_json);
+    
+
 
     // create a task that is pinned to core 1 for data-table sampling and processing
     xTaskCreatePinnedToCore( 
@@ -612,5 +742,6 @@ void app_main( void ) {
         CONFIG_I2C_0_TASK_PRIORITY, 
         NULL, 
         APP_CPU_NUM );
+    
     
 }

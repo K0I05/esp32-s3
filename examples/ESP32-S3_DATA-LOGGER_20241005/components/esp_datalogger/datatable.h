@@ -38,10 +38,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <esp_err.h>
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
+
 #include <cJSON.h>
 #include <datalogger_common.h>
 #include <time_into_interval.h>
-#include <task_schedule.h>
 
 
 
@@ -53,11 +57,11 @@ extern "C"
 /*
  * ESP DATA-TABLE definitions
  */
-#define DATATABLE_NAME_SIZE             (15)        //!< 15-characters for user-defined table name
+#define DATATABLE_NAME_MAX_SIZE         (15)        //!< 15-characters for user-defined table name
 #define DATATABLE_COLUMN_NAME_SIZE      (15)        //!< 15-characters for user-defined column name 
 #define DATATABLE_COLUMN_NAME_MAX_SIZE  (25)        //!< 25-characters for column name
-#define DATATABLE_COLUMNS_MAXIMUM       (255)       //!< 
-#define DATATABLE_ROWS_MAXIMUM          (65535)     //!< 
+#define DATATABLE_COLUMNS_MAX           (255)       //!< 
+#define DATATABLE_ROWS_MAX              (65535)     //!< 
 
 
 /*
@@ -158,16 +162,18 @@ typedef struct {
     uint16_t                            samples_count;      // data-table number of samples in the data buffer, automatically populated when data-table is processed
     datatable_column_data_types_t       data_type;          // data-table column data buffer data-type, automatically populated when column is created
     union {
-        datatable_vector_column_data_type_t*   vector_samples;     // data-table vector samples data buffer, automatic array sizing when column is created based configured column data-type
-        datatable_bool_column_data_type_t*     bool_samples;       // data-table boolean samples data buffer, automatic array sizing when column is created based configured column data-type
-        datatable_float_column_data_type_t*    float_samples;      // data-table float samples data buffer, automatic array sizing when column is created based configured column data-type
-        datatable_int16_column_data_type_t*    int16_samples;      // data-table int16 samples data buffer, automatic array sizing when column is created based configured column data-type
+        datatable_vector_column_data_type_t** vector_samples;     // data-table vector samples data buffer, automatic array sizing when column is created based configured column data-type
+        datatable_bool_column_data_type_t**   bool_samples;       // data-table boolean samples data buffer, automatic array sizing when column is created based configured column data-type
+        datatable_float_column_data_type_t**  float_samples;      // data-table float samples data buffer, automatic array sizing when column is created based configured column data-type
+        datatable_int16_column_data_type_t**  int16_samples;      // data-table int16 samples data buffer, automatic array sizing when column is created based configured column data-type
     } buffer;                                               // data-table column data buffer union based on the configured column data-type, automatically populated when column is created.
 } datatable_column_data_buffer_t;
+
 
 typedef struct {
     char                                name[DATATABLE_COLUMN_NAME_MAX_SIZE];  // data-table column name, maximum 15 characters.
 } datatable_column_name_t;
+
 /**
  * @brief Data-table column structure.  The data-table record identifier and timestamp columns
  * are created by default when the data-table is created.
@@ -205,9 +211,45 @@ typedef struct {
 typedef struct {
     uint16_t                        index;                  // data-table row index, automatically populated when row is created.
     uint16_t                        data_columns_size;      // data-table size of row data columns, automatically populated when row is created.
-    datatable_row_data_column_t*    data_columns;           // data-table data columns of the record contained in the row, automatically populated when row is created.
+    datatable_row_data_column_t**   data_columns;           // data-table data columns of the record contained in the row, automatically populated when row is created.
 } datatable_row_t;
 
+
+/**
+ * @brief Data-table configuration structure definition.
+ */
+typedef struct {
+    char                                name[DATATABLE_NAME_MAX_SIZE];  /*!< data-table textual name, maximum of 15 characters */
+    uint8_t                             columns_size;               /*!< data-table column array size, this setting cannot be 0 */
+    uint16_t                            rows_size;                  /*!< data-table row array size, this setting cannot be 0 */
+    datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, defines handling of records when the data-table is full */
+    time_into_interval_config_t         sampling_config;            /*!< data-table sampling time-into-interval configuration, configures the sampling interval  */
+    time_into_interval_config_t         processing_config;          /*!< data-table processing time-into-interval configuration, configures the processing interval */
+} datatable_config_t;
+
+/**
+ * @brief Data-table state object structure definition.  Do not modify these fields once the
+ * data-table handle is created, these are read-only, and represent a state machine.
+ */
+struct datatable_t {
+    char                                name[DATATABLE_NAME_MAX_SIZE];  /*!< data-table textual name, maximum of 15 characters */
+    datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, defines handling of records when the data-table is full, set when data-table is created */
+    //uint64_t                            sampling_ticks;             /*!< ticks since the last sampling to validate timeticks of samples */
+    uint16_t                            sampling_count;             /*!< data-table data sampling count seed number */
+    time_into_interval_handle_t         sampling_tii_handle;        /*!< data-table sampling time-into-interval handle */
+    time_into_interval_handle_t         processing_tii_handle;      /*!< data-table processing time-into-interval handle */
+    uint16_t                            record_id;                  /*!< data-table record identifer seed number */
+    uint8_t                             columns_index;              /*!< data-table column index seed number, this number is always smaller than the column size */
+    uint8_t                             columns_size;               /*!< data-table column array size, static, set when data-table is created */
+    datatable_column_t**                columns;                    /*!< array of data-table columns */
+    uint16_t                            rows_index;                 /*!< data-table row index seed number, this number is always smaller than the column size */
+    uint16_t                            rows_count;                 /*!< data-table row count seed number, this number should not exceed the column size*/
+    uint16_t                            rows_size;                  /*!< data-table row array size, static, set when data-table is created */
+    datatable_row_t**                   rows;                       /*!< array of data-table rows */
+    uint16_t                            data_buffer_size;           /*!< data-table column data buffer size */
+    uint16_t                            hash_code;                  /*!< hash-code of the data-table handle */
+    SemaphoreHandle_t                   mutex_handle;
+};
 
 /**
  * @brief Data-table structure.
@@ -219,44 +261,6 @@ typedef struct datatable_t datatable_t;
   */
 typedef struct datatable_t *datatable_handle_t;
 
-/**
- * @brief Data-table configuration structure definition.
- */
-typedef struct {
-    char                                name[DATATABLE_NAME_SIZE];  /*!< data-table textual name, maximum of 15 characters */
-    uint8_t                             columns_size;               /*!< data-table column array size, this setting cannot be 0 */
-    uint16_t                            rows_size;                  /*!< data-table row array size, this setting cannot be 0 */
-    datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, defines handling of records when the data-table is full */
-    task_schedule_config_t              sampling_config;            /*!< data-table sampling task-schedule configuration, configures the sampling interval  */
-    time_into_interval_config_t         processing_config;          /*!< data-table processing time-into-interval configuration, configures the processing interval */
-} datatable_config_t;
-
-/**
- * @brief Data-table state object structure definition.  Do not modify these fields once the
- * data-table handle is created, these are read-only, and represent a state machine.
- */
-struct datatable_t {
-    char                                name[DATATABLE_NAME_SIZE];  /*!< data-table textual name, maximum of 15 characters */
-    datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, defines handling of records when the data-table is full, set when data-table is created */
-    //uint64_t                            sampling_ticks;             /*!< ticks since the last sampling to validate timeticks of samples */
-    uint16_t                            sampling_count;             /*!< data-table data sampling count seed number */
-    task_schedule_handle_t              sampling_ts_handle;         /*!< data-table sampling task schedule handle */
-    datalogger_time_interval_types_t    sampling_interval_type;     /*!< sampling time interval type of samples pushed onto the data-table data buffer stack */
-    uint16_t                            sampling_interval_period;   /*!< sampling time interval period of samples pushed onto the data-table data buffer stack */
-    uint16_t                            sampling_interval_offset;   /*!< sampling time interval offset of samples pushed onto the data-table data buffer stack */
-    time_into_interval_handle_t         processing_tti_handle;      /*!< data-table processing time-into-interval handle */
-    datalogger_time_interval_types_t    processing_interval_type;   /*!< processing time interval type of samples to process and store data-table records */
-    uint16_t                            processing_interval_period; /*!< processing time interval period of samples to process and store data-table records */
-    uint16_t                            processing_interval_offset; /*!< processing time interval offset of samples to process and store data-table records */
-    uint16_t                            record_id;                  /*!< data-table record identifer seed number */
-    uint8_t                             columns_index;              /*!< data-table column index seed number, this number is always smaller than the column size */
-    uint8_t                             columns_size;               /*!< data-table column array size, static, set when data-table is created */
-    datatable_column_t*                 columns;                    /*!< array of data-table columns */
-    uint16_t                            rows_index;                 /*!< data-table row index seed number, this number is always smaller than the column size */
-    uint16_t                            rows_count;                 /*!< data-table row count seed number, this number should not exceed the column size*/
-    uint16_t                            rows_size;                  /*!< data-table row array size, static, set when data-table is created */
-    datatable_row_t*                    rows;                       /*!< array of data-table rows */
-};
 
 
 /*
@@ -264,8 +268,10 @@ struct datatable_t {
  */
 
 
+
 /**
- * @brief Creates a data-table handle.
+ * @brief Initializes a data-table handle.  A data-table handle instance is required before any other
+ * data-table functions can be called.
  * 
  * Use the `datatable_add_[data-type]_[process-type]_column` functions to define data-table columns   
  * by data-type.  The data-table columns are ordered as they are added and column index for the  
@@ -276,7 +282,7 @@ struct datatable_t {
  * @param[out] datatable_handle Data-table handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_new(const datatable_config_t *datatable_config, datatable_handle_t *datatable_handle);
+esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_handle_t *datatable_handle);
 
 /**
  * @brief Appends a vector based data-type column as a sample to the data-table.
@@ -508,7 +514,7 @@ esp_err_t datatable_get_rows_count(datatable_handle_t datatable_handle, uint8_t 
  * @param column Data-table column structure output.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_get_column(datatable_handle_t datatable_handle, const uint8_t index, datatable_column_t *column);
+esp_err_t datatable_get_column(datatable_handle_t datatable_handle, const uint8_t index, datatable_column_t** column);
 
 /**
  * @brief Gets the row structure from the data-table based on the row index.
@@ -518,7 +524,7 @@ esp_err_t datatable_get_column(datatable_handle_t datatable_handle, const uint8_
  * @param row Data-table row structure output.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t datatable_get_row(datatable_handle_t datatable_handle, const uint8_t index, datatable_row_t *row);
+esp_err_t datatable_get_row(datatable_handle_t datatable_handle, const uint8_t index, datatable_row_t** row);
 
 /**
  * @brief Pushes a vector data-type sample onto the column sample data buffer stack for processing.
@@ -564,7 +570,7 @@ esp_err_t datatable_push_int16_sample(datatable_handle_t datatable_handle, const
 /**
  * @brief Delays the data-table's sampling task until the next scheduled task event.  
  * This function should be placed after the `for (;;) {` syntax to delay the task based 
- * on the configured task schedule handle interval type,  period, and offset parameters.
+ * on the configured time-into-interval handle interval type,  period, and offset parameters.
  * 
  * @param datatable_handle Data-table handle.
  * @return esp_err_t ESP_OK on success.
@@ -585,7 +591,7 @@ esp_err_t datatable_sampling_task_delay(datatable_handle_t datatable_handle);
 esp_err_t datatable_process_samples(datatable_handle_t datatable_handle);
 
 /**
- * @brief Deletes the data-table handle and frees up resources.
+ * @brief Deletes the data-table handle to frees up resources.
  * 
  * @param datatable_handle Data-table handle.
  * @return esp_err_t ESP_OK on success.
