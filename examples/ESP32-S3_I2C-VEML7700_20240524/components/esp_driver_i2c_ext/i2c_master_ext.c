@@ -66,7 +66,7 @@ static const char *TAG = "i2c_master_ext";
 * functions and subrountines
 */
 
-char *uint8_to_binary(uint8_t n) {
+const char *uint8_to_binary(uint8_t n) {
     uint8_to_binary_buffer[8] = '\0';
 
     for (int i = 7; i >= 0; --i) {
@@ -77,7 +77,7 @@ char *uint8_to_binary(uint8_t n) {
     return uint8_to_binary_buffer;
 }
 
-char *uint16_to_binary(uint16_t n) {
+const char *uint16_to_binary(uint16_t n) {
     uint16_to_binary_buffer[16] = '\0';
 
     for (int i = 15; i >= 0; --i) {
@@ -88,7 +88,7 @@ char *uint16_to_binary(uint16_t n) {
     return uint16_to_binary_buffer;
 }
 
-char *uint32_to_binary(uint32_t n) {
+const char *uint32_to_binary(uint32_t n) {
     uint32_to_binary_buffer[32] = '\0';
 
     for (int i = 31; i >= 0; --i) {
@@ -129,7 +129,7 @@ esp_err_t i2c_master_bus_detect_devices(i2c_master_bus_handle_t handle) {
     return ESP_OK; 
 }
 
-esp_err_t i2c_master_bus_read_uint8(i2c_master_dev_handle_t handle, const uint8_t reg_addr, uint8_t *data) {
+esp_err_t i2c_master_bus_read_uint8(i2c_master_dev_handle_t handle, const uint8_t reg_addr, uint8_t *const data) {
     i2c_uint8_t tx = { reg_addr };
     i2c_uint8_t rx = { 0 };
 
@@ -144,7 +144,7 @@ esp_err_t i2c_master_bus_read_uint8(i2c_master_dev_handle_t handle, const uint8_
     return ESP_OK;
 }
 
-esp_err_t i2c_master_bus_read_uint16(i2c_master_dev_handle_t handle, const uint8_t reg_addr, uint16_t *data) {
+esp_err_t i2c_master_bus_read_uint16(i2c_master_dev_handle_t handle, const uint8_t reg_addr, uint16_t *const data) {
     i2c_uint8_t tx  = { reg_addr };
     i2c_uint16_t rx = { 0, 0 };
 
@@ -159,7 +159,7 @@ esp_err_t i2c_master_bus_read_uint16(i2c_master_dev_handle_t handle, const uint8
     return ESP_OK;
 }
 
-esp_err_t i2c_master_bus_read_byte16(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint16_t *data) {
+esp_err_t i2c_master_bus_read_byte16(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint16_t *const data) {
     i2c_uint8_t tx = { reg_addr };
 
     ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
@@ -171,7 +171,7 @@ esp_err_t i2c_master_bus_read_byte16(i2c_master_dev_handle_t handle, const uint8
     return ESP_OK;   
 }
 
-esp_err_t i2c_master_bus_read_byte24(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint24_t *data) {
+esp_err_t i2c_master_bus_read_byte24(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint24_t *const data) {
     i2c_uint8_t tx = { reg_addr };
 
     ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
@@ -183,7 +183,7 @@ esp_err_t i2c_master_bus_read_byte24(i2c_master_dev_handle_t handle, const uint8
     return ESP_OK;
 }
 
-esp_err_t i2c_master_bus_read16_byte24(i2c_master_dev_handle_t handle, const uint16_t reg_addr, i2c_uint24_t *data) {
+esp_err_t i2c_master_bus_read16_byte24(i2c_master_dev_handle_t handle, const uint16_t reg_addr, i2c_uint24_t *const data) {
     i2c_bytes_to_uint16_t tx = { .value = reg_addr };
 
     ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
@@ -195,7 +195,7 @@ esp_err_t i2c_master_bus_read16_byte24(i2c_master_dev_handle_t handle, const uin
     return ESP_OK;
 }
 
-esp_err_t i2c_master_bus_read_uint32(i2c_master_dev_handle_t handle, const uint8_t reg_addr, uint32_t *data) {
+esp_err_t i2c_master_bus_read_uint32(i2c_master_dev_handle_t handle, const uint8_t reg_addr, uint32_t *const data) {
     i2c_uint8_t tx  = { reg_addr };
     i2c_uint32_t rx = { 0, 0, 0, 0 };
 
@@ -210,7 +210,7 @@ esp_err_t i2c_master_bus_read_uint32(i2c_master_dev_handle_t handle, const uint8
     return ESP_OK;
 }
 
-esp_err_t i2c_master_bus_read_byte32(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint32_t *data) {
+esp_err_t i2c_master_bus_read_byte32(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint32_t *const data) {
     i2c_uint8_t tx = { reg_addr };
 
     ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
@@ -222,7 +222,7 @@ esp_err_t i2c_master_bus_read_byte32(i2c_master_dev_handle_t handle, const uint8
     return ESP_OK;
 }
 
-esp_err_t i2c_master_bus_read_byte48(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint48_t *data) {
+esp_err_t i2c_master_bus_read_byte48(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint48_t *const data) {
     i2c_uint8_t tx = { reg_addr };
 
     ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
@@ -234,7 +234,7 @@ esp_err_t i2c_master_bus_read_byte48(i2c_master_dev_handle_t handle, const uint8
     return ESP_OK;
 }
 
-esp_err_t i2c_master_bus_read16_byte48(i2c_master_dev_handle_t handle, const uint16_t reg_addr, i2c_uint48_t *data) {
+esp_err_t i2c_master_bus_read16_byte48(i2c_master_dev_handle_t handle, const uint16_t reg_addr, i2c_uint48_t *const data) {
     i2c_bytes_to_uint16_t tx = { .value = reg_addr };
 
     ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
@@ -246,7 +246,7 @@ esp_err_t i2c_master_bus_read16_byte48(i2c_master_dev_handle_t handle, const uin
     return ESP_OK;
 }
 
-esp_err_t i2c_master_bus_read_byte64(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint64_t *data) {
+esp_err_t i2c_master_bus_read_byte64(i2c_master_dev_handle_t handle, const uint8_t reg_addr, i2c_uint64_t *const data) {
     i2c_uint8_t tx = { reg_addr };
 
     ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
@@ -258,7 +258,7 @@ esp_err_t i2c_master_bus_read_byte64(i2c_master_dev_handle_t handle, const uint8
     return ESP_OK;
 }
 
-esp_err_t i2c_master_bus_read16_byte64(i2c_master_dev_handle_t handle, const uint16_t reg_addr, i2c_uint64_t *data) {
+esp_err_t i2c_master_bus_read16_byte64(i2c_master_dev_handle_t handle, const uint16_t reg_addr, i2c_uint64_t *const data) {
     i2c_bytes_to_uint16_t tx = { .value = reg_addr };
 
     ESP_ARG_CHECK( handle && data ); // ignore `reg_addr` given a range of 0x00 to 0xff is acceptable
