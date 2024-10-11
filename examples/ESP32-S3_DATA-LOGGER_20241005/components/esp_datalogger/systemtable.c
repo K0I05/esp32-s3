@@ -128,28 +128,12 @@ static inline esp_err_t systemtable_is_full(systemtable_handle_t systemtable_han
  * @return esp_err_t ESP_OK on success.
  */
 static inline esp_err_t systemtable_fifo_rows(systemtable_handle_t systemtable_handle) {
-    systemtable_row_t* tmp_rows;
-
     /* validate arguments */
     ESP_ARG_CHECK( systemtable_handle );
 
-    /* validate memory availability for default system-table tmp rows */
-    tmp_rows = (systemtable_row_t*)calloc(systemtable_handle->rows_size, sizeof(systemtable_row_t));
-    ESP_RETURN_ON_FALSE(tmp_rows, ESP_ERR_NO_MEM, TAG, "no memory for data-table temporary rows, data-table fifo rows failed");
-
     /* copy working rows to tmp rows, skip the first row */
     for(int r = 1; r < systemtable_handle->rows_count; r++) {
-        tmp_rows[r - 1] = systemtable_handle->rows[r];
-    }
-
-    /* copy tmp rows to working rows */
-    for(int r = 0; r < systemtable_handle->rows_count - 1; r++) {
-        systemtable_handle->rows[r] = tmp_rows[r];
-    }
-
-    /* free up memory used by the tmp rows */
-    if(tmp_rows) {
-        free(tmp_rows);
+        systemtable_handle->rows[r - 1] = systemtable_handle->rows[r];
     }
 
     return ESP_OK;
@@ -165,18 +149,14 @@ static inline esp_err_t systemtable_reset_rows(systemtable_handle_t systemtable_
     /* validate arguments */
     ESP_ARG_CHECK( systemtable_handle );
 
-    /* reset rows by freeing up memory */
-    if(systemtable_handle->rows) {
-        free(systemtable_handle->rows);
-    }
-
     /* reset row attributes */
     systemtable_handle->rows_index = 0;
     systemtable_handle->rows_count = 0;
 
-    /* validate memory availability for default system-table rows */
-    systemtable_handle->rows = (systemtable_row_t*)calloc(systemtable_handle->rows_size, sizeof(systemtable_row_t));
-    ESP_RETURN_ON_FALSE(systemtable_handle->rows, ESP_ERR_NO_MEM, TAG, "no memory for data-table rows, data-table reset rows failed");
+    /* set all rows to null */
+    for(uint16_t r = 0; r < systemtable_handle->rows_size; r++) {
+        systemtable_handle->rows[r] = NULL;
+    }
 
     return ESP_OK;
 }
@@ -194,7 +174,7 @@ esp_err_t systemtable_init(systemtable_handle_t *systemtable_handle) {
     ESP_GOTO_ON_FALSE( out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for system-table handle, system-table handle initialization failed" );
 
     /* initialize system-table state object */
-    strcpy(out_handle->name, "System-Tbl");
+    strcpy(out_handle->name, "system_tbl");
     out_handle->columns_index   = 0;
     out_handle->columns_size    = SYSTEMTABLE_COLUMNS_MAX;
     out_handle->rows_index      = 0;
@@ -203,38 +183,38 @@ esp_err_t systemtable_init(systemtable_handle_t *systemtable_handle) {
     out_handle->event_id        = 0;
 
     /* define default event identifier system-table column */
-    systemtable_column_t st_id_column = {
-        .index                  = out_handle->columns_index,
-        .data_type              = SYSTEMTABLE_COLUMN_DATA_ID
-    };
-    strcpy(st_id_column.name, "Event ID");
+    systemtable_column_t* st_id_column = (systemtable_column_t*)calloc(1, sizeof(systemtable_column_t));
+    ESP_GOTO_ON_FALSE( st_id_column, ESP_ERR_NO_MEM, err_out_handle, TAG, "no memory for system-table id column, system-table handle initialization failed" );
+    st_id_column->index                  = out_handle->columns_index;
+    st_id_column->data_type              = SYSTEMTABLE_COLUMN_DATA_ID;
+    strcpy(st_id_column->name, "Event ID");
 
     /* increment column index */
     out_handle->columns_index   += 1;
 
     /* define default event timestamp system-table column */
-    systemtable_column_t st_ts_column = {
-        .index                  = out_handle->columns_index,
-        .data_type              = SYSTEMTABLE_COLUMN_DATA_TS
-    };
-    strcpy(st_ts_column.name, "Event TS");
+    systemtable_column_t* st_ts_column = (systemtable_column_t*)calloc(1, sizeof(systemtable_column_t));
+    ESP_GOTO_ON_FALSE( st_ts_column, ESP_ERR_NO_MEM, err_out_handle, TAG, "no memory for system-table timestamp column, system-table handle initialization failed" );
+    st_ts_column->index                  = out_handle->columns_index;
+    st_ts_column->data_type              = SYSTEMTABLE_COLUMN_DATA_TS;
+    strcpy(st_ts_column->name, "Event TS");
 
     /* increment column index */
     out_handle->columns_index   += 1;
 
     /* define default event message system-table column */
-    systemtable_column_t st_msg_column = {
-        .index                  = out_handle->columns_index,
-        .data_type              = SYSTEMTABLE_COLUMN_DATA_MSG
-    };
-    strcpy(st_msg_column.name, "Event MSG");
+    systemtable_column_t* st_msg_column = (systemtable_column_t*)calloc(1, sizeof(systemtable_column_t));
+    ESP_GOTO_ON_FALSE( st_msg_column, ESP_ERR_NO_MEM, err_out_handle, TAG, "no memory for system-table message column, system-table handle initialization failed" );
+    st_msg_column->index                  = out_handle->columns_index;
+    st_msg_column->data_type              = SYSTEMTABLE_COLUMN_DATA_MSG;
+    strcpy(st_msg_column->name, "Event MSG");
 
     /* validate memory availability for default system-table columns */
-    out_handle->columns = (systemtable_column_t*)calloc(out_handle->columns_size, sizeof(systemtable_column_t));
+    out_handle->columns = (systemtable_column_t**)calloc(out_handle->columns_size, sizeof(systemtable_column_t*));
     ESP_GOTO_ON_FALSE( out_handle->columns, ESP_ERR_NO_MEM, err_out_handle, TAG, "no memory for system-table columns, system-table handle initialization failed" );
 
     /* validate memory availability for default system-table rows */
-    out_handle->rows = (systemtable_row_t*)calloc(out_handle->rows_size, sizeof(systemtable_row_t));
+    out_handle->rows = (systemtable_row_t**)calloc(out_handle->rows_size, sizeof(systemtable_row_t*));
     ESP_GOTO_ON_FALSE( out_handle->rows, ESP_ERR_NO_MEM, err_out_handle, TAG, "no memory for system-table rows, system-table handle initialization failed" );
 
     /* set default system-table columns (event id, timestamp, and message) to state object */
@@ -310,30 +290,48 @@ esp_err_t systemtable_push_event_msg(systemtable_handle_t systemtable_handle, co
     }
 
     /* validate memory availability for default system-table rows */
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns = (systemtable_row_data_column_t*)calloc(systemtable_handle->columns_size, sizeof(systemtable_row_data_column_t));
-    ESP_RETURN_ON_FALSE( systemtable_handle->rows[systemtable_handle->rows_index].data_columns, ESP_ERR_NO_MEM, TAG, "no memory for system-table rows, system-table handle push event message failed" );
+    systemtable_handle->rows[systemtable_handle->rows_index]->data_columns = (systemtable_row_data_column_t**)calloc(systemtable_handle->columns_size, sizeof(systemtable_row_data_column_t*));
+    ESP_RETURN_ON_FALSE( systemtable_handle->rows[systemtable_handle->rows_index]->data_columns, ESP_ERR_NO_MEM, TAG, "no memory for system-table row data columns, system-table handle push event message failed" );
+
+    /* validate memory availability for default system-table row data column */
+    systemtable_row_data_column_t* dt_id_data_column = (systemtable_row_data_column_t*)calloc(1, sizeof(systemtable_row_data_column_t));
+    ESP_RETURN_ON_FALSE( dt_id_data_column, ESP_ERR_NO_MEM, TAG, "no memory for system-table row id data column, system-table handle push event message failed" );
+
+    /* validate memory availability for default system-table row data column */
+    systemtable_row_data_column_t* dt_ts_data_column = (systemtable_row_data_column_t*)calloc(1, sizeof(systemtable_row_data_column_t));
+    ESP_RETURN_ON_FALSE( dt_ts_data_column, ESP_ERR_NO_MEM, TAG, "no memory for system-table row timestamp data column, system-table handle push event message failed" );
+
+    /* validate memory availability for default system-table row data column */
+    systemtable_row_data_column_t* dt_msg_data_column = (systemtable_row_data_column_t*)calloc(1, sizeof(systemtable_row_data_column_t));
+    ESP_RETURN_ON_FALSE( dt_msg_data_column, ESP_ERR_NO_MEM, TAG, "no memory for system-table row message data column, system-table handle push event message failed" );
+
 
     /* set system-table row data-column size and row index */
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns_size              = SYSTEMTABLE_COLUMNS_MAX;
-    systemtable_handle->rows[systemtable_handle->rows_index].index                          = systemtable_handle->rows_index;
+    systemtable_handle->rows[systemtable_handle->rows_index]->data_columns_size = SYSTEMTABLE_COLUMNS_MAX;
+    systemtable_handle->rows[systemtable_handle->rows_index]->index             = systemtable_handle->rows_index;
 
     /* set system-table row data-column event identifier */
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns[0].column_index   = 0;
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns[0].row_index      = systemtable_handle->rows_index;
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns[0].data_type      = SYSTEMTABLE_COLUMN_DATA_ID;
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns[0].data.id.value  = systemtable_handle->event_id++;
+    dt_id_data_column->column_index   = 0;
+    dt_id_data_column->row_index      = systemtable_handle->rows_index;
+    dt_id_data_column->data_type      = SYSTEMTABLE_COLUMN_DATA_ID;
+    dt_id_data_column->data.id.value  = systemtable_handle->event_id++;
 
     /* set system-table row data-column event timestamp (utc) */
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns[1].column_index   = 1;
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns[1].row_index      = systemtable_handle->rows_index;
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns[1].data_type      = SYSTEMTABLE_COLUMN_DATA_TS;
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns[1].data.ts.value  = datalogger_get_epoch_timestamp();
+    dt_ts_data_column->column_index   = 1;
+    dt_ts_data_column->row_index      = systemtable_handle->rows_index;
+    dt_ts_data_column->data_type      = SYSTEMTABLE_COLUMN_DATA_TS;
+    dt_ts_data_column->data.ts.value  = datalogger_get_epoch_timestamp();
 
     /* set system-table row data-column event message */
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns[2].column_index   = 2;
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns[2].row_index      = systemtable_handle->rows_index;
-    systemtable_handle->rows[systemtable_handle->rows_index].data_columns[2].data_type      = SYSTEMTABLE_COLUMN_DATA_MSG;
-    strcpy(systemtable_handle->rows[systemtable_handle->rows_index].data_columns[2].data.msg.value, message);
+    dt_msg_data_column->column_index   = 2;
+    dt_msg_data_column->row_index      = systemtable_handle->rows_index;
+    dt_msg_data_column->data_type      = SYSTEMTABLE_COLUMN_DATA_MSG;
+    strcpy(dt_msg_data_column->data.msg.value, message);
+
+    /* set system-table row data columns */
+    systemtable_handle->rows[systemtable_handle->rows_index]->data_columns[0] = dt_id_data_column;
+    systemtable_handle->rows[systemtable_handle->rows_index]->data_columns[1] = dt_ts_data_column;
+    systemtable_handle->rows[systemtable_handle->rows_index]->data_columns[2] = dt_msg_data_column;
 
     return ESP_OK;
 }
@@ -364,17 +362,17 @@ esp_err_t systemtable_to_json(systemtable_handle_t systemtable_handle, cJSON **s
     // render each system-table column to json column object
     uint8_t col_index = 0;
     for(uint8_t ci = 0; ci <= systemtable_handle->columns_index; ci++) {
-        systemtable_column_t dt_column = systemtable_handle->columns[ci];
+        systemtable_column_t* dt_column = systemtable_handle->columns[ci];
         
         /* handle basic and complex data-types */
-        if(dt_column.data_type == SYSTEMTABLE_COLUMN_DATA_ID || dt_column.data_type == SYSTEMTABLE_COLUMN_DATA_TS ||
-           dt_column.data_type == SYSTEMTABLE_COLUMN_DATA_MSG) {
+        if(dt_column->data_type == SYSTEMTABLE_COLUMN_DATA_ID || dt_column->data_type == SYSTEMTABLE_COLUMN_DATA_TS ||
+           dt_column->data_type == SYSTEMTABLE_COLUMN_DATA_MSG) {
             cJSON *json_column = cJSON_CreateObject();
 
             // set column attributes and append column to array
             cJSON_AddNumberToObject(json_column, "index", col_index++);
-            cJSON_AddStringToObject(json_column, "name", dt_column.name);
-            cJSON_AddStringToObject(json_column, "data-type", systemtable_json_serialize_column_data_type(dt_column.data_type));
+            cJSON_AddStringToObject(json_column, "name", dt_column->name);
+            cJSON_AddStringToObject(json_column, "data-type", systemtable_json_serialize_column_data_type(dt_column->data_type));
             cJSON_AddItemToArray(json_columns, json_column);
         } 
     } /* for each system-table column */
@@ -389,7 +387,7 @@ esp_err_t systemtable_to_json(systemtable_handle_t systemtable_handle, cJSON **s
 
         // render each system-table row to json row object
         for(uint16_t ri = 0; ri <= systemtable_handle->rows_index; ri++) {
-            systemtable_row_t dt_row = systemtable_handle->rows[ri];
+            systemtable_row_t* dt_row = systemtable_handle->rows[ri];
             cJSON *json_row = cJSON_CreateObject();
 
             // set row attributes
@@ -401,25 +399,25 @@ esp_err_t systemtable_to_json(systemtable_handle_t systemtable_handle, cJSON **s
             // render each system-table row data column
             col_index = 0;
             for(uint8_t ci = 0; ci <= systemtable_handle->columns_index; ci++) {
-                systemtable_column_t dt_column = systemtable_handle->columns[ci];
-                systemtable_row_data_column_t dt_row_data_column = dt_row.data_columns[ci];
+                systemtable_column_t* dt_column = systemtable_handle->columns[ci];
+                systemtable_row_data_column_t* dt_row_data_column = dt_row->data_columns[ci];
 
                 /* handle basic and complex data-types */
-                if(dt_column.data_type == SYSTEMTABLE_COLUMN_DATA_ID || dt_column.data_type == SYSTEMTABLE_COLUMN_DATA_TS ||
-                dt_column.data_type == SYSTEMTABLE_COLUMN_DATA_MSG) {
+                if(dt_column->data_type == SYSTEMTABLE_COLUMN_DATA_ID || dt_column->data_type == SYSTEMTABLE_COLUMN_DATA_TS ||
+                dt_column->data_type == SYSTEMTABLE_COLUMN_DATA_MSG) {
                     cJSON *json_row_data_column = cJSON_CreateObject();
 
                     // set row data column attributes
                     cJSON_AddNumberToObject(json_row_data_column, "index", col_index++);
-                    cJSON_AddStringToObject(json_row_data_column, "data-type", systemtable_json_serialize_column_data_type(dt_row_data_column.data_type));
+                    cJSON_AddStringToObject(json_row_data_column, "data-type", systemtable_json_serialize_column_data_type(dt_row_data_column->data_type));
 
                     /* handle data-type */
-                    if(dt_column.data_type == SYSTEMTABLE_COLUMN_DATA_ID) {
-                        cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column.data.id.value);
-                    } else if(dt_column.data_type == SYSTEMTABLE_COLUMN_DATA_TS) {
-                        cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column.data.ts.value);
-                    } else if(dt_column.data_type == SYSTEMTABLE_COLUMN_DATA_MSG) {
-                        cJSON_AddStringToObject(json_row_data_column, "value", dt_row_data_column.data.msg.value);
+                    if(dt_column->data_type == SYSTEMTABLE_COLUMN_DATA_ID) {
+                        cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column->data.id.value);
+                    } else if(dt_column->data_type == SYSTEMTABLE_COLUMN_DATA_TS) {
+                        cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column->data.ts.value);
+                    } else if(dt_column->data_type == SYSTEMTABLE_COLUMN_DATA_MSG) {
+                        cJSON_AddStringToObject(json_row_data_column, "value", dt_row_data_column->data.msg.value);
                     }
 
                     // append rendered row data column to row data columns array

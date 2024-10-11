@@ -57,13 +57,13 @@ static const char *TAG = "data-table";
 
 
 /**
- * @brief Converts a data-table column process-type to a short abbreviated textual string.  The shortened and abbreviated
- * textual string of the process-type uses a julian convention e.g. `DATATABLE_COLUMN_PROCESS_SMP` represents a 
+ * @brief Converts a data-table column process-type enumerator to a short abbreviated textual string.  The shortened and 
+ * abbreviated textual string of the process-type uses a julian convention e.g. `DATATABLE_COLUMN_PROCESS_SMP` represents a 
  * data-table column process-type as a sample and will output `Smp` for the short abbreviated textual string.
  * 
  * For full textual representation of the data-table column process-type, see `datatable_process_type_to_string` function.
  * 
- * @param process_type Data-table column process-type to convert to a short abbreviated textual string.
+ * @param process_type Data-table column process-type enumerator to convert to a short abbreviated textual string.
  * @return char* Data-table column process-type as a short abbreviated textual string.
  */
 static inline const char* datatable_process_type_to_short_string(const datatable_column_process_types_t process_type) {
@@ -95,14 +95,14 @@ static inline const char* datatable_process_type_to_short_string(const datatable
 }
 
 /**
- * @brief Converts a data-table column process-type to a textual string.  The textual string of the process-type 
+ * @brief Converts a data-table column process-type enumerator to a textual string.  The textual string of the process-type 
  * uses a julian convention e.g. `DATATABLE_COLUMN_PROCESS_SMP` represents a data-table column process-type 
  * as a sample and will output `Sample` for the textual string.
  * 
  * For a short abbreviated textual representation of the data-table column process-type, see `datatable_process_type_to_short_string` 
  * function.
  * 
- * @param process_type Data-table column process-type to convert to a textual string.
+ * @param process_type Data-table column process-type enumerator to convert to a textual string.
  * @return char* Data-table column process-type as a textual string.
  */
 static inline const char* datatable_process_type_to_string(const datatable_column_process_types_t process_type) {
@@ -134,9 +134,9 @@ static inline const char* datatable_process_type_to_string(const datatable_colum
 }
 
 /**
- * @brief Serializes data-logger time interval type to a textual string for json formating.
+ * @brief Serializes data-logger time interval type enumerator to a textual string for json formating.
  * 
- * @param interval_type Data-logger time interval type to serialize.
+ * @param interval_type Data-logger time interval type enumerator to serialize.
  * @return char* Serialized data-logger time interval type as a textual string.
  */
 static inline const char* datatable_json_serialize_interval_type(const datalogger_time_interval_types_t interval_type) {
@@ -159,9 +159,9 @@ static inline const char* datatable_json_serialize_interval_type(const datalogge
 }
 
 /**
- * @brief Serializes data-table column data-type to a textual string for json formating.
+ * @brief Serializes data-table column data-type enumerator to a textual string for json formating.
  * 
- * @param data_type Data-table column data-type to serialize.
+ * @param data_type Data-table column data-type enumerator to serialize.
  * @return char* Serialized data-table column data-type as a textual string.
  */
 static inline const char* datatable_json_serialize_column_data_type(const datatable_column_data_types_t data_type) {
@@ -193,9 +193,9 @@ static inline const char* datatable_json_serialize_column_data_type(const datata
 }
 
 /**
- * @brief Serializes data-table column process-type to a textual string for json formating.
+ * @brief Serializes data-table column process-type enumerator to a textual string for json formating.
  * 
- * @param process_type Data-table column process-type to serialize.
+ * @param process_type Data-table column process-type enumerator to serialize.
  * @return char* Serialized data-table column process-type as a textual string.
  */
 static inline const char* datatable_json_serialize_process_type(const datatable_column_process_types_t process_type) {
@@ -227,6 +227,34 @@ static inline const char* datatable_json_serialize_process_type(const datatable_
 }
 
 /**
+ * @brief Invokes data-table event when the data-table event handler is configured.
+ * 
+ * @param datatable_handle Data-table handle.
+ * @param event_type Data-table event type.
+ * @param message Data-table event message.
+ * @return esp_err_t ESP_OK on success.
+ */
+static inline esp_err_t datatable_invoke_event(datatable_handle_t datatable_handle, datalogger_event_types_t event_type, const char* message) {
+    /* validate arguments */
+    ESP_ARG_CHECK( datatable_handle );
+
+    /* validate event handler */
+    if(!datatable_handle->event_handler) return ESP_ERR_INVALID_STATE;
+
+    /* initialize event structure */
+    datalogger_event_t dt_event = {
+        .source  = DATALOGGER_EVENT_DT,
+        .type    = event_type,
+        .message = message
+    };
+
+    /* invoke event */
+    datatable_handle->event_handler(datatable_handle, dt_event);
+
+    return ESP_OK;
+}
+
+/**
  * @brief Gets the data-table column data buffer size.  The data-table column buffer size is a whole number that
  * represents the total number of samples that can be pushed onto the stack for analytical processing which is 
  * defined by the process-type setting for each column configured in the data-table.
@@ -244,6 +272,9 @@ static inline const char* datatable_json_serialize_process_type(const datatable_
 static inline esp_err_t datatable_get_column_data_buffer_size(datatable_handle_t datatable_handle, uint16_t *size) {
     /* validate arguments */
     ESP_ARG_CHECK( datatable_handle );
+
+    /* lock the mutex - ERROR Handling */
+    //xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY); 
 
     /* normalize sampling and processing periods to seconds, and set delta interval */
     uint64_t sampling_interval   = datalogger_normalize_interval_to_sec(datatable_handle->sampling_tii_handle->interval_type, datatable_handle->sampling_tii_handle->interval_period);
@@ -266,6 +297,9 @@ static inline esp_err_t datatable_get_column_data_buffer_size(datatable_handle_t
     /* calculate data-table column data buffer sample size */
     *size = (uint16_t)(processing_interval / sampling_interval);
 
+    /* unlock the mutex */
+    //xSemaphoreGive(datatable_handle->mutex_handle);
+
     return ESP_OK;
 }
 
@@ -280,8 +314,14 @@ static inline esp_err_t datatable_column_exist(datatable_handle_t datatable_hand
     /* validate arguments */
     ESP_ARG_CHECK( datatable_handle );
 
+    /* lock the mutex */
+    xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
+
     /* validate index */
     ESP_RETURN_ON_FALSE((index < datatable_handle->columns_size), ESP_ERR_INVALID_ARG, TAG, "index is out of range, get column failed");
+
+    /* unlock the mutex */
+    xSemaphoreGive(datatable_handle->mutex_handle);
 
     return ESP_OK;
 }
@@ -297,12 +337,18 @@ static inline esp_err_t datatable_is_full(datatable_handle_t datatable_handle, b
     /* validate arguments */
     ESP_ARG_CHECK( datatable_handle );
 
+    /* lock the mutex */
+    xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
+
     /* validate if the data-table is full and set output parameter */
     if(datatable_handle->rows_count >= datatable_handle->rows_size) {
         *full = true;
     } else {
         *full = false;
     }
+
+    /* unlock the mutex */
+    xSemaphoreGive(datatable_handle->mutex_handle);
 
     return ESP_OK;
 }
@@ -320,10 +366,17 @@ static inline esp_err_t datatable_fifo_rows(datatable_handle_t datatable_handle)
     /* lock the mutex */
     xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
 
-    /* skip the first row and shift rows by one */
+    /* shift rows down by one index */
     for(int r = 1; r < datatable_handle->rows_count; r++) {
+        /* shift to the previous row and set the row to NULL */
+        datatable_handle->rows[r - 1] = NULL;
+
+        /* shift to the previous row index and set row  */
         datatable_handle->rows[r - 1] = datatable_handle->rows[r];
     }
+
+    /* set the last row to null */
+    datatable_handle->rows[datatable_handle->rows_count - 1] = NULL;
 
     /* unlock the mutex */
     xSemaphoreGive(datatable_handle->mutex_handle);
@@ -374,6 +427,9 @@ static inline esp_err_t datatable_reset_data_buffer(datatable_handle_t datatable
     /* check if the column exist by column index */
     ESP_RETURN_ON_ERROR( datatable_column_exist(datatable_handle, index), TAG, "column does not exist or index is out of range, data-table reset column data buffer failed" );
 
+    /* lock the mutex */
+    xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
+
     /* data-table column data buffer size of samples to process */
     uint16_t dt_data_buffer_size = datatable_handle->data_buffer_size;
 
@@ -400,6 +456,7 @@ static inline esp_err_t datatable_reset_data_buffer(datatable_handle_t datatable
             for(uint8_t i = 0; i < dt_data_buffer_size; i++) {
                 datatable_handle->columns[index]->data.buffer.vector_samples[i] = NULL;
             }
+
             break;
         case DATATABLE_COLUMN_DATA_BOOL:
             /* adjust data buffer sample size and count attribute */
@@ -410,6 +467,7 @@ static inline esp_err_t datatable_reset_data_buffer(datatable_handle_t datatable
             for(uint8_t i = 0; i < dt_data_buffer_size; i++) {
                 datatable_handle->columns[index]->data.buffer.bool_samples[i] = NULL;
             }
+
             break;
         case DATATABLE_COLUMN_DATA_FLOAT:
             /* adjust data buffer sample size and count attribute */
@@ -420,6 +478,7 @@ static inline esp_err_t datatable_reset_data_buffer(datatable_handle_t datatable
             for(uint8_t i = 0; i < dt_data_buffer_size; i++) {
                 datatable_handle->columns[index]->data.buffer.float_samples[i] = NULL;
             }
+
             break;
         case DATATABLE_COLUMN_DATA_INT16:
             /* adjust data buffer sample size and count attribute */
@@ -430,8 +489,12 @@ static inline esp_err_t datatable_reset_data_buffer(datatable_handle_t datatable
             for(uint8_t i = 0; i < dt_data_buffer_size; i++) {
                 datatable_handle->columns[index]->data.buffer.int16_samples[i] = NULL;
             }
+
             break;
     }
+
+    /* unlock the mutex */
+    xSemaphoreGive(datatable_handle->mutex_handle);
 
     return ESP_OK;
 }
@@ -452,8 +515,14 @@ static inline esp_err_t datatable_reset_data_buffers(datatable_handle_t datatabl
         ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, ci),TAG, "reset column data buffer for data-table reset column data buffers failed" );
     }
 
+    /* lock the mutex */
+    xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
+
     /* reset sampling count */
     datatable_handle->sampling_count = 0;
+
+    /* unlock the mutex */
+    xSemaphoreGive(datatable_handle->mutex_handle);
 
     return ESP_OK;
 }
@@ -472,6 +541,9 @@ static inline esp_err_t datatable_fifo_data_buffer(datatable_handle_t datatable_
 
     /* check if the column exist by column index */
     ESP_RETURN_ON_ERROR( datatable_column_exist(datatable_handle, index), TAG, "column does not exist or index is out of range, data-table fifo column data buffer failed" );
+
+    /* lock the mutex */
+    xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
     
     /* handle each column by data-type */
     switch(datatable_handle->columns[index]->data_type) {
@@ -482,42 +554,77 @@ static inline esp_err_t datatable_fifo_data_buffer(datatable_handle_t datatable_
             /* no data buffer */
             break;
         case DATATABLE_COLUMN_DATA_VECTOR:
+            /* shift column data buffer down by one index */
             for(int dbs = 1; dbs < datatable_handle->columns[index]->data.samples_count; dbs++) {
+                /* shift to the previous column data buffer and set the column data buffer to null */
+                datatable_handle->columns[index]->data.buffer.vector_samples[dbs - 1] = NULL;
+
+                /* shift to the previous column data buffer index and set column data buffer  */
                 datatable_handle->columns[index]->data.buffer.vector_samples[dbs - 1] = datatable_handle->columns[index]->data.buffer.vector_samples[dbs];
             }
+
+            /* set the last column data buffer to null */
+            datatable_handle->columns[index]->data.buffer.vector_samples[datatable_handle->columns[index]->data.samples_count - 1] = NULL;
 
             /* adjust data buffer samples count attribute */
             datatable_handle->columns[index]->data.samples_count -= 1;
 
             break;
         case DATATABLE_COLUMN_DATA_BOOL:
+            /* shift column data buffer down by one index */
             for(int dbs = 1; dbs < datatable_handle->columns[index]->data.samples_count; dbs++) {
+                /* shift to the previous column data buffer and set the column data buffer to null */
+                datatable_handle->columns[index]->data.buffer.bool_samples[dbs - 1] = NULL;
+
+                /* shift to the previous column data buffer index and set column data buffer  */
                 datatable_handle->columns[index]->data.buffer.bool_samples[dbs - 1] = datatable_handle->columns[index]->data.buffer.bool_samples[dbs];
             }
+
+            /* set the last column data buffer to null */
+            datatable_handle->columns[index]->data.buffer.bool_samples[datatable_handle->columns[index]->data.samples_count - 1] = NULL;
 
             /* adjust data buffer samples count attribute */
             datatable_handle->columns[index]->data.samples_count -= 1;
 
             break;
         case DATATABLE_COLUMN_DATA_FLOAT:
+            /* shift column data buffer down by one index */
             for(int dbs = 1; dbs < datatable_handle->columns[index]->data.samples_count; dbs++) {
+                /* shift to the previous column data buffer and set the column data buffer to null */
+                datatable_handle->columns[index]->data.buffer.float_samples[dbs - 1] = NULL;
+
+                /* shift to the previous column data buffer index and set column data buffer  */
                 datatable_handle->columns[index]->data.buffer.float_samples[dbs - 1] = datatable_handle->columns[index]->data.buffer.float_samples[dbs];
             }
+
+            /* set the last column data buffer to null */
+            datatable_handle->columns[index]->data.buffer.float_samples[datatable_handle->columns[index]->data.samples_count - 1] = NULL;
 
             /* adjust data buffer samples count attribute */
             datatable_handle->columns[index]->data.samples_count -= 1;
 
             break;
         case DATATABLE_COLUMN_DATA_INT16:
+            /* shift column data buffer down by one index */
             for(int dbs = 1; dbs < datatable_handle->columns[index]->data.samples_count; dbs++) {
+                /* shift to the previous column data buffer and set the column data buffer to null */
+                datatable_handle->columns[index]->data.buffer.int16_samples[dbs - 1] = NULL;
+
+                /* shift to the previous column data buffer index and set column data buffer  */
                 datatable_handle->columns[index]->data.buffer.int16_samples[dbs - 1] = datatable_handle->columns[index]->data.buffer.int16_samples[dbs];
             }
+
+            /* set the last column data buffer to null */
+            datatable_handle->columns[index]->data.buffer.int16_samples[datatable_handle->columns[index]->data.samples_count - 1] = NULL;
 
             /* adjust data buffer samples count attribute */
             datatable_handle->columns[index]->data.samples_count -= 1;
 
             break;
     }
+
+    /* unlock the mutex */
+    xSemaphoreGive(datatable_handle->mutex_handle);
     
     return ESP_OK;
 }
@@ -568,7 +675,7 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
 
     /* check if the column exist by column index */
     ESP_RETURN_ON_ERROR( datatable_column_exist(datatable_handle, index), TAG, "column does not exist or index is out of range for process vector data buffer failed" );
-    
+
     /* validate column data-type */
     ESP_RETURN_ON_FALSE( datatable_handle->columns[index]->data_type == DATATABLE_COLUMN_DATA_VECTOR, ESP_ERR_INVALID_ARG, TAG, "column data-type is incorrect for process vector data buffer failed" );
 
@@ -577,6 +684,7 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
         /* set default data */
         *value_uc = tmp_uc_value;
         *value_vc = tmp_vc_value;
+        *value_ts = tmp_ts_value;
 
         return ESP_ERR_INVALID_SIZE;
     }
@@ -586,6 +694,7 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
         case DATATABLE_COLUMN_PROCESS_SMP:
             *value_uc = datatable_handle->columns[index]->data.buffer.vector_samples[0]->value_uc;
             *value_vc = datatable_handle->columns[index]->data.buffer.vector_samples[0]->value_vc;
+            *value_ts = tmp_ts_value;
             break;
         case DATATABLE_COLUMN_PROCESS_AVG:
             /*
@@ -600,7 +709,6 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
                     tmp_ew_vector += sin( datalogger_degrees_to_radians(datatable_handle->columns[index]->data.buffer.vector_samples[s]->value_uc) ) * datatable_handle->columns[index]->data.buffer.vector_samples[s]->value_vc;
                     tmp_ns_vector += cos( datalogger_degrees_to_radians(datatable_handle->columns[index]->data.buffer.vector_samples[s]->value_uc) ) * datatable_handle->columns[index]->data.buffer.vector_samples[s]->value_vc;
                 }
-                //ESP_LOGW(TAG, "datatable_process_float_data_buffer(column-index: %u) data-sum: %.2f", column_index, tmp_data);
             }
 
             // average in radians
@@ -622,7 +730,7 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
             // average v-component
             *value_vc = sqrt((tmp_ew_avg * tmp_ew_avg) + (tmp_ns_avg * tmp_ns_avg));
 
-            //ESP_LOGW(TAG, "datatable_process_float_data_buffer(column-index: %u) data-count: %u data-avg: %.2f", index, datatable_handle->columns[index].data.samples_count, *value);
+            *value_ts = tmp_ts_value;
             break;
         case DATATABLE_COLUMN_PROCESS_MIN:
             for(uint16_t s = 0; s < datatable_handle->columns[index]->data.samples_count; s++) {
@@ -638,6 +746,7 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
             }
             *value_uc = tmp_uc_value;
             *value_vc = tmp_vc_value;
+            *value_ts = tmp_ts_value;
             break;
         case DATATABLE_COLUMN_PROCESS_MAX:
             for(uint16_t s = 0; s < datatable_handle->columns[index]->data.samples_count; s++) {
@@ -653,6 +762,7 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
             }
             *value_uc = tmp_uc_value;
             *value_vc = tmp_vc_value;
+            *value_ts = tmp_ts_value;
             break;
         case DATATABLE_COLUMN_PROCESS_MIN_TS:
             for(uint16_t s = 0; s < datatable_handle->columns[index]->data.samples_count; s++) {
@@ -691,7 +801,7 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
             *value_ts = tmp_ts_value;
             break;
     }
- 
+
     return ESP_OK;
 }
 
@@ -710,7 +820,7 @@ static inline esp_err_t datatable_process_bool_data_buffer(datatable_handle_t da
 
     /* check if the column exist by column index */
     ESP_RETURN_ON_ERROR( datatable_column_exist(datatable_handle, index), TAG, "column does not exist or index is out of range for process bool data buffer failed" );
-    
+
     /* validate column data-type */
     ESP_RETURN_ON_FALSE( datatable_handle->columns[index]->data_type == DATATABLE_COLUMN_DATA_BOOL, ESP_ERR_INVALID_ARG, TAG, "column data-type is incorrect for process bool data buffer failed" );
 
@@ -727,7 +837,7 @@ static inline esp_err_t datatable_process_bool_data_buffer(datatable_handle_t da
 
     /* set value from sample */
     *value = datatable_handle->columns[index]->data.buffer.bool_samples[0]->value;
- 
+
     return ESP_OK;
 }
 
@@ -766,6 +876,7 @@ static inline esp_err_t datatable_process_float_data_buffer(datatable_handle_t d
     switch(datatable_handle->columns[index]->process_type) {
         case DATATABLE_COLUMN_PROCESS_SMP:
             *value = datatable_handle->columns[index]->data.buffer.float_samples[0]->value;
+            *value_ts = tmp_ts;
             break;
         case DATATABLE_COLUMN_PROCESS_AVG:
             for(uint16_t s = 0; s < datatable_handle->columns[index]->data.samples_count; s++) {
@@ -774,7 +885,6 @@ static inline esp_err_t datatable_process_float_data_buffer(datatable_handle_t d
                 } else {
                     tmp_value += datatable_handle->columns[index]->data.buffer.float_samples[s]->value;
                 }
-                //ESP_LOGW(TAG, "datatable_process_float_data_buffer(column-index: %u) data-sum: %.2f", column_index, tmp_data);
             }
             *value = tmp_value / datatable_handle->columns[index]->data.samples_count;
             *value_ts = tmp_ts;
@@ -876,6 +986,7 @@ static inline esp_err_t datatable_process_int16_data_buffer(datatable_handle_t d
     switch(datatable_handle->columns[index]->process_type) {
         case DATATABLE_COLUMN_PROCESS_SMP:
             *value = datatable_handle->columns[index]->data.buffer.int16_samples[0]->value;
+            *value_ts = tmp_ts;
             break;
         case DATATABLE_COLUMN_PROCESS_AVG:
             for(uint16_t s = 0; s < datatable_handle->columns[index]->data.samples_count; s++) {
@@ -884,7 +995,6 @@ static inline esp_err_t datatable_process_int16_data_buffer(datatable_handle_t d
                 } else {
                     tmp_value += datatable_handle->columns[index]->data.buffer.int16_samples[s]->value;
                 }
-                //ESP_LOGW(TAG, "datatable_process_int16_data_buffer(column-index: %u) data-sum: %u", column_index, tmp_data);
             }
             *value = tmp_value / datatable_handle->columns[index]->data.samples_count;
             *value_ts = tmp_ts;
@@ -952,7 +1062,7 @@ static inline esp_err_t datatable_process_int16_data_buffer(datatable_handle_t d
 
 
 esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_handle_t *datatable_handle) {
-    esp_err_t          ret = ESP_OK;
+    esp_err_t          ret        = ESP_OK;
     datatable_handle_t out_handle = NULL;
 
     /**
@@ -1002,6 +1112,7 @@ esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_h
     out_handle->sampling_count       = 0;
     out_handle->data_storage_type    = datatable_config->data_storage_type;
     out_handle->record_id            = 0;
+    out_handle->event_handler        = datatable_config->event_handler;
     out_handle->hash_code            = datalogger_get_hash_code();
     out_handle->mutex_handle         = xSemaphoreCreateMutex();
 
@@ -1016,7 +1127,7 @@ esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_h
     dt_id_column->process_type       = DATATABLE_COLUMN_PROCESS_SMP;
     dt_id_column->data.samples_size  = 0;
     dt_id_column->data.samples_count = 0;
-    strcpy(dt_id_column->names[0].name, "Record ID");
+    strcpy(dt_id_column->names[0].name, DATATABLE_COLUMN_ID_NAME);
 
     /* increment column index */
     out_handle->columns_index += 1;
@@ -1029,7 +1140,7 @@ esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_h
     dt_ts_column->process_type       = DATATABLE_COLUMN_PROCESS_SMP;
     dt_ts_column->data.samples_size  = 0;
     dt_ts_column->data.samples_count = 0;
-    strcpy(dt_ts_column->names[0].name, "TS");
+    strcpy(dt_ts_column->names[0].name, DATATABLE_COLUMN_TS_NAME);
 
     // initialize task-schedule configuration - data-table sampling task system clock synchronization
     time_into_interval_config_t dt_sampling_tii_cfg = {
@@ -1038,7 +1149,7 @@ esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_h
         .interval_offset    = datatable_config->sampling_config.interval_offset
     };
     strcpy(dt_sampling_tii_cfg.name, datatable_config->name);
-    strcat(dt_sampling_tii_cfg.name, "_tii_smp");
+    strcat(dt_sampling_tii_cfg.name, DATATABLE_COLUMN_TII_SMP_NAME);
 
     // initialize a time-into-interval handle - data-table sampling task system clock synchronization
     ESP_GOTO_ON_ERROR( time_into_interval_init(&dt_sampling_tii_cfg, &out_handle->sampling_tii_handle), 
@@ -1051,7 +1162,7 @@ esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_h
         .interval_offset    = datatable_config->processing_config.interval_offset
     };
     strcpy(dt_processing_tii_cfg.name, datatable_config->name);
-    strcat(dt_processing_tii_cfg.name, "_tii_prc");
+    strcat(dt_processing_tii_cfg.name, DATATABLE_COLUMN_TII_PRC_NAME);
 
     // initialize a time-into-interval handle - data-table column data buffer processing task system clock synchronization
     ESP_GOTO_ON_ERROR( time_into_interval_init(&dt_processing_tii_cfg, &out_handle->processing_tii_handle), 
@@ -1079,10 +1190,12 @@ esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_h
         out_handle->rows[i] = NULL;
     }
 
-    /* append default data-table columns (record id and timestamp) to state object */
+    /* append default data-table columns (record id[0] and timestamp[1]) to state object */
     out_handle->columns[0] = dt_id_column;
     out_handle->columns[1] = dt_ts_column;
 
+    /* invoke data-logger event */
+    datatable_invoke_event(out_handle, DATALOGGER_EVENT_DT_INIT, "data-table initialized successfully");
 
     /* set output handle */
     *datatable_handle = out_handle;
@@ -1120,11 +1233,11 @@ static inline esp_err_t datatable_add_vector_column(datatable_handle_t datatable
     ESP_GOTO_ON_FALSE( (strlen(name_uc) <= DATATABLE_COLUMN_NAME_SIZE), ESP_ERR_INVALID_ARG, err_arg, TAG, "column name_uc is too long, data-table add vector column failed" );
     ESP_GOTO_ON_FALSE( (strlen(name_vc) <= DATATABLE_COLUMN_NAME_SIZE), ESP_ERR_INVALID_ARG, err_arg, TAG, "column name_vc is too long, data-table add vector column failed" );
 
-    /* validate columns size */
-    ESP_GOTO_ON_FALSE((datatable_handle->columns_index + 1 <= datatable_handle->columns_size), ESP_ERR_INVALID_SIZE, err_arg, TAG, "unable to add columns to data-table for add vector column");
-
     /* lock the mutex */
     xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
+
+    /* validate columns size */
+    ESP_GOTO_ON_FALSE((datatable_handle->columns_index + 1 <= datatable_handle->columns_size), ESP_ERR_INVALID_SIZE, err_arg, TAG, "unable to add columns to data-table for add vector column");
 
     /* data-table column data buffer size of samples to process */
     uint16_t dt_data_buffer_size = datatable_handle->data_buffer_size;
@@ -1303,11 +1416,11 @@ static inline esp_err_t datatable_add_bool_column(datatable_handle_t datatable_h
     /* validate column name length */
     ESP_GOTO_ON_FALSE( (strlen(name) <= DATATABLE_COLUMN_NAME_SIZE), ESP_ERR_INVALID_ARG, err_arg, TAG, "column name is too long, data-table add bool column failed" );
 
-    /* validate columns size */
-    ESP_GOTO_ON_FALSE( (datatable_handle->columns_index + 1 < datatable_handle->columns_size), ESP_ERR_INVALID_SIZE, err_arg, TAG, "unable to add columns to data-table for add bool column" );
-
     /* lock the mutex */
     xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
+
+    /* validate columns size */
+    ESP_GOTO_ON_FALSE( (datatable_handle->columns_index + 1 < datatable_handle->columns_size), ESP_ERR_INVALID_SIZE, err_arg, TAG, "unable to add columns to data-table for add bool column" );
 
     /* static size (1-sample) for data-table column data buffer with bool data-type */
     uint16_t dt_data_buffer_size = 1;
@@ -1395,11 +1508,11 @@ static inline esp_err_t datatable_add_float_column(datatable_handle_t datatable_
     /* validate column name length */
     ESP_GOTO_ON_FALSE( (strlen(name) <= DATATABLE_COLUMN_NAME_SIZE), ESP_ERR_INVALID_ARG, err_arg, TAG, "column name is too long, data-table add float column failed" );
 
-    /* validate columns size */
-    ESP_GOTO_ON_FALSE( (datatable_handle->columns_index + 1 < datatable_handle->columns_size), ESP_ERR_INVALID_SIZE, err_arg, TAG, "unable to add columns to data-table for add float column" );
-
     /* lock the mutex */
     xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
+
+    /* validate columns size */
+    ESP_GOTO_ON_FALSE( (datatable_handle->columns_index + 1 < datatable_handle->columns_size), ESP_ERR_INVALID_SIZE, err_arg, TAG, "unable to add columns to data-table for add float column" );
 
     /* data-table column data buffer size of samples to process */
     uint16_t dt_data_buffer_size = datatable_handle->data_buffer_size;
@@ -1588,11 +1701,11 @@ static inline esp_err_t datatable_add_int16_column(datatable_handle_t datatable_
     /* validate column name length */
     ESP_GOTO_ON_FALSE( (strlen(name) <= DATATABLE_COLUMN_NAME_SIZE), ESP_ERR_INVALID_ARG, err_arg, TAG, "column name is too long, data-table add int16 column failed" );
 
-    /* validate columns size */
-    ESP_GOTO_ON_FALSE( (datatable_handle->columns_index + 1 <= datatable_handle->columns_size), ESP_ERR_INVALID_SIZE, err_arg, TAG, "unable to add columns to data-table for add int16 column" );
-
     /* lock the mutex */
     xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
+
+    /* validate columns size */
+    ESP_GOTO_ON_FALSE( (datatable_handle->columns_index + 1 <= datatable_handle->columns_size), ESP_ERR_INVALID_SIZE, err_arg, TAG, "unable to add columns to data-table for add int16 column" );
 
     /* data-table column data buffer size of samples to process */
     uint16_t dt_data_buffer_size = datatable_handle->data_buffer_size;
@@ -1816,7 +1929,6 @@ esp_err_t datatable_push_vector_sample(datatable_handle_t datatable_handle, cons
     /* validate column data-type */
     ESP_RETURN_ON_FALSE( datatable_handle->columns[index]->data_type == DATATABLE_COLUMN_DATA_VECTOR, ESP_ERR_INVALID_ARG, TAG, "column data-type is incorrect, push vector sample failed" );
 
-
     datatable_vector_column_data_type_t* dt_column_data = (datatable_vector_column_data_type_t*)calloc(1, sizeof(datatable_vector_column_data_type_t));
     ESP_RETURN_ON_FALSE( dt_column_data, ESP_ERR_NO_MEM, TAG, "no memory for data-table vector column data, push vector sample failed" );
 
@@ -1994,6 +2106,9 @@ esp_err_t datatable_sampling_task_delay(datatable_handle_t datatable_handle) {
         }
     }
 
+    /* invoke data-logger event */
+    datatable_invoke_event(datatable_handle, DATALOGGER_EVENT_TII_ELAPSED, "data-table time-into-interval task delay has elapsed");
+    
     return ESP_OK;
 }
 
@@ -2006,8 +2121,13 @@ esp_err_t datatable_process_samples(datatable_handle_t datatable_handle) {
 
     /* validate data-table processing interval event */
     if(time_into_interval(datatable_handle->processing_tii_handle) == false) {
-        /* data-table processing time into interval condition failed, exit the function */
+        /* data-table processing time-into-interval hasn't elapsed, exit the function */
         return ESP_OK;
+    }
+
+    /* invoke event handler */
+    if(datatable_handle->event_handler) {
+        datatable_invoke_event(datatable_handle, DATALOGGER_EVENT_TII_ELAPSED, "data-table process samples time-into-interval has elapsed");
     }
 
     /* validate data buffer samples processing condition */
@@ -2118,6 +2238,9 @@ esp_err_t datatable_process_samples(datatable_handle_t datatable_handle) {
 
     /* set data-table row */
     datatable_handle->rows[datatable_handle->rows_index] = dt_row;
+
+    /* invoke data-logger event */
+    datatable_invoke_event(datatable_handle, DATALOGGER_EVENT_DT_PRCS, "data-table samples processed successfully");
 
     return ESP_OK;
 }

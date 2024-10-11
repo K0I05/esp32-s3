@@ -72,7 +72,7 @@ extern "C" {
             .persistence_protect        = I2C_VEML7700_PERSISTENCE_PROTECTION_4,    \
             .hi_threshold               = 0,                                        \
             .lo_threshold               = 0,                                        \
-            .irq_enabled                = false,                                    \
+            .irq_enabled                = true,                                     \
             .shutdown                   = false,                                    \
             .power_saving_enabled       = false,                                    \
             .power_saving_mode          = I2C_VEML7700_POWER_SAVING_MODE_500MS }
@@ -181,9 +181,7 @@ typedef union __attribute__((packed)) {
  *
  * Table 7 - Interrupt Status (see datasheet pg. 9)
  * REGISTER NAME    BIT
- *  Reserved       15:3
- *  PSM             2:1
- *  PSM_EN          0
+
 **/
 typedef union __attribute__((packed)) {
     struct ISTS_REG_BITS_TAG {
@@ -249,7 +247,16 @@ typedef struct {
  */
 struct i2c_veml7700_t {
     i2c_master_dev_handle_t  i2c_dev_handle;  /*!< I2C device handle */
-    i2c_veml7700_params_t    *dev_params;     /*!< veml7700 device configuration parameters */
+    //i2c_veml7700_params_t    *dev_params;     /*!< veml7700 device configuration parameters */
+    bool                                        sleeping;               /*!< sleeping when true */
+    i2c_veml7700_configuration_register_t       config_reg;             /*!< configuration register */
+    uint16_t                                    hi_threshold_reg;       /*!< high threshold register for the interrupt */
+    uint16_t                                    lo_threshold_reg;       /*!< low threshold register for the interrupt */
+    i2c_veml7700_power_saving_mode_register_t   power_saving_mode_reg;  /*!< power saving mode register */
+    i2c_veml7700_interrupt_status_register_t    interrupt_status_reg;   /*!< interrupt status register */
+    i2c_veml7700_identifier_register_t          identifier_reg;         /*!< identifier register */
+    float                                       resolution;			    /*!< Current resolution and multiplier */
+    uint32_t                                    maximum_lux;		    /*!< Current maximum lux limit */
 };
 
 /**
@@ -375,7 +382,7 @@ esp_err_t i2c_veml7700_get_white_channel(i2c_veml7700_handle_t veml7700_handle, 
 esp_err_t i2c_veml7700_get_white_channel_auto(i2c_veml7700_handle_t veml7700_handle, float *lux);
 
 /**
- * @brief Reads ambient light from VEML7700.
+ * @brief Reads interrupt status from VEML7700.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
  * @param[out] hi_threshold_exceeded true when high threshold is exceeded.

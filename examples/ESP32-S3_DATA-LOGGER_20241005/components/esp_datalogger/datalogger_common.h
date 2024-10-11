@@ -37,6 +37,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <math.h>
 #include <time.h>
 #include <sys/time.h>
@@ -67,7 +68,7 @@ static const char *TAG_DL_COMMON = "datalogger_common";
 /**
  * @brief Data-logger event types enumerator.
  */
-typedef enum {
+typedef enum datalogger_event_types_tag {
     DATALOGGER_EVENT_DL_INIT,
     DATALOGGER_EVENT_DT_INIT,
     DATALOGGER_EVENT_DT_RESET,
@@ -75,6 +76,7 @@ typedef enum {
     DATALOGGER_EVENT_DT_FULL,
     DATALOGGER_EVENT_DT_ROW,
     DATALOGGER_EVENT_DT_COLUMN,
+    DATALOGGER_EVENT_DT_PRCS,  // process samples
     DATALOGGER_EVENT_TII_INIT,
     DATALOGGER_EVENT_TII_RESET,
     DATALOGGER_EVENT_TII_ELAPSED,
@@ -84,17 +86,17 @@ typedef enum {
 /**
  * @brief Data-logger event sources enumerator.
  */
-typedef enum {
+typedef enum datalogger_event_sources_tag {
     DATALOGGER_EVENT_DL,
     DATALOGGER_EVENT_DT,
     DATALOGGER_EVENT_TII
 } datalogger_event_sources_t;
 
 
-typedef struct {
+typedef struct datalogger_event_tag {
     datalogger_event_sources_t  source;
     datalogger_event_types_t    type;
-    char*                       message;
+    const char*                 message;
 } datalogger_event_t;
 
 
@@ -102,7 +104,7 @@ typedef struct {
  * @brief Data-logger event.
  * 
  */
-typedef void (*datalogger_event)(void *handle, datalogger_event_t event);
+typedef void (*datalogger_event)(void *handle, datalogger_event_t);
 
 
 
@@ -112,7 +114,7 @@ typedef void (*datalogger_event)(void *handle, datalogger_event_t event);
 /**
  * @brief Data-logger time interval types enumerator.
  */
-typedef enum {
+typedef enum datalogger_time_interval_types_tag {
     DATALOGGER_TIME_INTERVAL_SEC, /*!< Data-logger time interval in seconds. */
     DATALOGGER_TIME_INTERVAL_MIN, /*!< Data-logger time interval in minutes. */
     DATALOGGER_TIME_INTERVAL_HR   /*!< Data-logger time interval in hours. */
@@ -121,7 +123,7 @@ typedef enum {
 /**
  * @brief Data-logger time interval structure.
  */
-typedef struct {
+typedef struct datalogger_time_interval_tag {
     datalogger_time_interval_types_t    type;   /*!< Data-logger time interval type (seconds, minutes, hours). */
     uint16_t                            period; /*!< Data-logger time interval period (1 to 65535), 0 is not an acceptable period. */
     uint16_t                            offset; /*!< Data-logger time interval offset (0 to 65535, 0 by default), offset cannot be larger than period. */
@@ -157,7 +159,7 @@ static inline uint64_t datalogger_normalize_interval_to_sec(const datalogger_tim
  * @brief Normalizes data-logger time interval period or offset to milli-seconds.
  * 
  * @param[in] interval_type Data-logger time interval type of interval period or offset.
- * @param[in] interval_offset Data-logger time interval period or offset for interval type.
+ * @param[in] interval Data-logger time interval period or offset for interval type.
  * @return uint64_t Normalized time interval period or offset in milli-seconds.
  */
 static inline uint64_t datalogger_normalize_interval_to_msec(const datalogger_time_interval_types_t interval_type, const uint16_t interval) {
@@ -370,71 +372,103 @@ static inline uint16_t datalogger_get_hash_code(void) {
 }
 
 
+//https://github.com/skeeto/scratch/blob/master/misc/float16.c
+/**
+ * @brief Encodes a double to an int16_t data-type.
+ * 
+ * @param value double value to encode.
+ * @return uint16_t encoded double value.
+ */
+static inline uint16_t datalogger_encode_double(double f) {
+    uint64_t b;
+    memcpy(&b, &f, 8);
+    int s = (b>>48 & 0x8000);
+    int e = (b>>52 & 0x07ff) - 1023;
+    int m = (b>>42 & 0x03ff);
+    int t = !!(b && 0xffffffffffff);
 
+    if (e == -1023) {
+        // input is denormal, round to zero
+        e = m = 0;
+    } else if (e < -14) {
+        // convert to denormal
+        if (-14 - e > 10) {
+            m = 0;
+        } else {
+            m |= 0x400;
+            m >>= -14 - e - 1;
+            m = (m>>1) + (m&1);  // round
+        }
+        e = 0;
+    } else if (e > +16) {
+        // NaN / overflow to infinity
+        m &= t << 9;  // canonicalize to quiet NaN
+        e = 31;
+    } else {
+        e += 15;
+    }
 
-
-
-
-
-
-//
-// https://andreyor.st/posts/2022-03-15-generic-tuples-in-c/
-
-struct Tuple {
-    float x;
-    float y;
-    float z;
-};
-
-/*<! axis tuple (x, y, z) */
-#define tuple(...) (struct Tuple){__VA_ARGS__}
-
-// struct Tuple axes = tuple(42.544, 34.433, 23.44);
-
-//esp_err_t get_axes(datatable_handle_t datatable_handle, struct Tuple *axes);
-
-enum TupleItemType {
-    LONG,
-    DOUBLE,
-    STRING,
-};
-
-struct TupleItem {
-    enum TupleItemType type;
-    char               pad[4];
-    union {
-        long   i32;
-        double f64;
-        char * string;
-    } value;
-};
-
-struct TupleItem make_long(long);
-struct TupleItem make_double(double);
-struct TupleItem make_string(char *);
-
-/*
-
-// move to .c file
-
-struct TupleItem make_long(long x) {
-    return (struct TupleItem){.value.i32 = x, .type = LONG};
+    return s | e<<10 | m;
 }
 
-struct TupleItem make_double(double x) {
-    return (struct TupleItem){.value.f64 = x, .type = DOUBLE};
+/**
+ * @brief Decodes a uint16_t to a double data-type.
+ * 
+ * @param value uint16_t value to decode.
+ * @return double decoded uint16_t value.
+ */
+static inline double datalogger_decode_uint16(uint16_t x) {
+    int s = (x     & 0x8000);
+    int e = (x>>10 & 0x001f) - 15;
+    int m = (x     & 0x03ff);
+
+    switch (e) {
+    case -15: if (!m) {
+                  e = 0;
+              } else {
+                  // convert from denormal
+                  e += 1023 + 1;
+                  while (!(m&0x400)) {
+                      e--;
+                      m <<= 1;
+                  }
+                  m &= 0x3ff;
+              }
+              break;
+    case +16: m = !!m << 9;  // canonicalize to quiet NaN
+              e = 2047;
+              break;
+    default:  e += 1023;
+    }
+
+    uint64_t b = (uint64_t)s<<48 |
+                 (uint64_t)e<<52 |
+                 (uint64_t)m<<42;
+    double f;
+    memcpy(&f, &b, 8);
+    return f;
 }
 
-struct TupleItem make_string(char * x) {
-    return (struct TupleItem){.value.string = x, .type = STRING};
+
+/**
+ * @brief Calculates dewpoint temperature from air temperature and relative humidity.
+ *
+ * @param[in] temperature air temperature in degrees Celsius.
+ * @param[in] humidity relative humidity in percent.
+ * @return float calculated dewpoint temperature in degrees Celsius, otherwise, NAN.
+ */
+static inline float datalogger_dewpoint(const float temperature, const float humidity) {
+    float dewpoint = NAN;
+
+    // validate parameters
+    if(temperature > 80 || temperature < -40) return NAN;
+    if(humidity > 100 || humidity < 0) return NAN;
+    
+    // calculate dew-point temperature
+    double H = (log10(humidity)-2)/0.4343 + (17.62*temperature)/(243.12+temperature);
+    return dewpoint = 243.12*H/(17.62-H);
 }
 
-struct Tuple {
-    unsigned int       size;
-    char               pad[4];
-    struct TupleItem * tuple;
-};
-*/
 
 
 

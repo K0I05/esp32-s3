@@ -109,7 +109,7 @@ typedef struct {
 typedef struct {
     uint16_t                        index;                  // system-table row index, automatically populated when row is created.
     uint16_t                        data_columns_size;      // system-table size of row data columns, automatically populated when row is created.
-    systemtable_row_data_column_t*  data_columns;
+    systemtable_row_data_column_t** data_columns;
 } systemtable_row_t;
 
 
@@ -117,11 +117,11 @@ struct systemtable_t {
     char                            name[SYSTEMTABLE_NAME_MAX_SIZE];
     uint8_t                         columns_index;              /*!< system-table column index seed number, this number is always smaller than the column size */
     uint8_t                         columns_size;               /*!< system-table column array size, static, set when system-table is created */
-    systemtable_column_t*           columns;                    /*!< array of system-table columns */
+    systemtable_column_t**          columns;                    /*!< array of system-table columns */
     uint16_t                        rows_index;                 /*!< system-table row index seed number, this number is always smaller than the column size */
     uint16_t                        rows_count;                 /*!< system-table row count seed number, this number should not exceed the column size*/
     uint16_t                        rows_size;                  /*!< system-table row array size, static, set when system-table is created */
-    systemtable_row_t*              rows;                       /*!< array of system-table rows */   
+    systemtable_row_t**             rows;                       /*!< array of system-table rows */   
     uint16_t                        event_id;  
 };
 

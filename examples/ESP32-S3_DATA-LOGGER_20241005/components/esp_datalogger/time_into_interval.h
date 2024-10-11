@@ -40,6 +40,11 @@
 #include <time.h>
 #include <sys/time.h>
 #include <esp_err.h>
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/semphr.h>
+
 #include <datalogger_common.h>
 
 #ifdef __cplusplus
@@ -56,7 +61,7 @@ extern "C" {
  * @brief Time-into-interval configuration structure.
  * 
  */
-typedef struct {
+typedef struct time_into_interval_config_tag {
     char                             name[TIME_INTO_INTERVAL_NAME_MAX_SIZE]; /*!< time-into-interval, name, maximum of 25-characters */
     datalogger_time_interval_types_t interval_type;     /*!< time-into-interval, interval type setting */ 
     uint16_t                         interval_period;   /*!< time-into-interval, a non-zero interval period setting per interval type setting */ 
@@ -74,6 +79,7 @@ struct time_into_interval_t {
     uint16_t                         interval_period;    /*!< time-into-interval, a non-zero interval period setting per interval type setting */
     uint16_t                         interval_offset;    /*!< time-into-interval, interval offset setting, per interval type setting, that must be less than the interval period */
     uint16_t                         hash_code;          /*!< hash-code of the time-into-interval handle */
+    SemaphoreHandle_t                mutex_handle;       /*!< mutex handle of the time-into-interval handle */
 };
 
 /**

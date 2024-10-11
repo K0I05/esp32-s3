@@ -197,29 +197,6 @@ typedef union __attribute__((packed)) {
 } i2c_mlx90614_pwmctrl_register_t;
 
 /**
- * @brief MLX90614 device parameters structure.
- */
-typedef struct {
-    uint8_t                  address;               /*!< I2C device address */
-    uint32_t                 ident_number_hi;       /*!< I2C device identification number 32-bit hi */
-    uint32_t                 ident_number_lo;       /*!< I2C device identification number 32-bit lo */
-    float                    emissivity;            /*!< mlx90614 emissivity from 0.1 to 1.0. */
-    float                    obj_max_temperature;   /*!< mlx90614 maximum object temperature in degrees Celsius. */
-    float                    obj_min_temperature;   /*!< mlx90614 minimum object temperature in degrees Celsius. */
-    i2c_mlx90614_config_register_t  config_reg;     /*!< mlx90614 `ConfigRegister1` consits of control bits for configuring the analog and digital parts of the device. */
-    i2c_mlx90614_pwmctrl_register_t pwmctrl_reg;    /*!< mlx90614 `PWMCTRL` consists of control bits for configuring the PWM/SDA pin on the device. */
-} i2c_mlx90614_params_t;
-
-/**
- * @brief MLX90614 I2C device structure definition.
- */
-typedef struct i2c_mlx90614_t i2c_mlx90614_t;
-/**
- * @brief MLX90614 I2C device handle structure.
- */
-typedef struct i2c_mlx90614_t *i2c_mlx90614_handle_t;
-
-/**
  * @brief MLX90614 I2C device configuration structure.
  */
 typedef struct {
@@ -231,8 +208,25 @@ typedef struct {
  */
 struct i2c_mlx90614_t {
     i2c_master_dev_handle_t  i2c_dev_handle;        /*!< I2C device handle */
-    i2c_mlx90614_params_t    *dev_params;           /*!< mlx90614 device params */
+    uint8_t                  address;               /*!< I2C device address */
+    uint32_t                 ident_number_hi;       /*!< I2C device identification number 32-bit hi */
+    uint32_t                 ident_number_lo;       /*!< I2C device identification number 32-bit lo */
+    float                    emissivity;            /*!< mlx90614 emissivity from 0.1 to 1.0. */
+    float                    obj_max_temperature;   /*!< mlx90614 maximum object temperature in degrees Celsius. */
+    float                    obj_min_temperature;   /*!< mlx90614 minimum object temperature in degrees Celsius. */
+    i2c_mlx90614_config_register_t  config_reg;     /*!< mlx90614 `ConfigRegister1` consits of control bits for configuring the analog and digital parts of the device. */
+    i2c_mlx90614_pwmctrl_register_t pwmctrl_reg;    /*!< mlx90614 `PWMCTRL` consists of control bits for configuring the PWM/SDA pin on the device. */
 };
+
+/**
+ * @brief MLX90614 I2C device structure definition.
+ */
+typedef struct i2c_mlx90614_t i2c_mlx90614_t;
+/**
+ * @brief MLX90614 I2C device handle structure.
+ */
+typedef struct i2c_mlx90614_t *i2c_mlx90614_handle_t;
+
 
 /**
  * @brief initializes an mlx90614 device onto the master bus.
@@ -253,7 +247,7 @@ esp_err_t i2c_mlx90614_init(i2c_master_bus_handle_t bus_handle, const i2c_mlx906
  * @param[out] object2_temperature object2 temperature in degrees celsius
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mlx90614_get_temperatures(i2c_mlx90614_handle_t mlx90614_handle, float *ambient_temperature, float *object1_temperature, float *object2_temperature);
+esp_err_t i2c_mlx90614_get_temperatures(i2c_mlx90614_handle_t mlx90614_handle, float *const ambient_temperature, float *const object1_temperature, float *const object2_temperature);
 
 /**
  * @brief reads the ambient temperature from the mlx90614.
@@ -262,7 +256,7 @@ esp_err_t i2c_mlx90614_get_temperatures(i2c_mlx90614_handle_t mlx90614_handle, f
  * @param[out] ambient_temperature ambient temperature in degrees celsius
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mlx90614_get_ambient_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *ambient_temperature);
+esp_err_t i2c_mlx90614_get_ambient_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *const ambient_temperature);
 
 /**
  * @brief reads object1 temperature from the mlx90614.
@@ -271,7 +265,7 @@ esp_err_t i2c_mlx90614_get_ambient_temperature(i2c_mlx90614_handle_t mlx90614_ha
  * @param[out] object1_temperature object1 temperature in degrees celsius
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mlx90614_get_object1_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *object1_temperature);
+esp_err_t i2c_mlx90614_get_object1_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *const object1_temperature);
 
 /**
  * @brief reads object2 temperature from the mlx90614.
@@ -280,7 +274,7 @@ esp_err_t i2c_mlx90614_get_object1_temperature(i2c_mlx90614_handle_t mlx90614_ha
  * @param[out] object2_temperature object2 temperature in degrees celsius
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mlx90614_get_object2_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *object2_temperature);
+esp_err_t i2c_mlx90614_get_object2_temperature(i2c_mlx90614_handle_t mlx90614_handle, float *const object2_temperature);
 
 /**
  * @brief reads emissivity (0.1 to 1.0) from the mlx90614.
@@ -352,7 +346,7 @@ esp_err_t i2c_mlx90614_sleep(i2c_mlx90614_handle_t mlx90614_handle);
  * @param[in] mlx90614_handle mlx90614 device handle
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mlx90614_wake(i2c_mlx90614_handle_t mlx90614_handle);
+esp_err_t i2c_mlx90614_wakeup(i2c_mlx90614_handle_t mlx90614_handle);
 
 /**
  * @brief reads configuration register from mlx90614.
@@ -368,7 +362,7 @@ esp_err_t i2c_mlx90614_get_config_register(i2c_mlx90614_handle_t mlx90614_handle
  * @param[in] config_reg mlx90614 configuration register
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mlx90614_set_config_register(i2c_mlx90614_handle_t mlx90614_handle, i2c_mlx90614_config_register_t config_reg);
+esp_err_t i2c_mlx90614_set_config_register(i2c_mlx90614_handle_t mlx90614_handle, const i2c_mlx90614_config_register_t config_reg);
 /**
  * @brief reads PWM control register from mlx90614.
  * 
@@ -383,7 +377,7 @@ esp_err_t i2c_mlx90614_get_pwmctrl_register(i2c_mlx90614_handle_t mlx90614_handl
  * @param[in] pwmctrl_reg mlx90614 PWM control register
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mlx90614_set_pwmctrl_register(i2c_mlx90614_handle_t mlx90614_handle, i2c_mlx90614_pwmctrl_register_t pwmctrl_reg);
+esp_err_t i2c_mlx90614_set_pwmctrl_register(i2c_mlx90614_handle_t mlx90614_handle, const i2c_mlx90614_pwmctrl_register_t pwmctrl_reg);
 
 /**
  * @brief removes an mlx90614 device from master bus.

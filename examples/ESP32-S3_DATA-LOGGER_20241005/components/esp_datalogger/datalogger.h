@@ -74,10 +74,7 @@ struct datalogger_t {
     char                            name[DATALOGGER_NAME_SIZE];       /*!< data-logger textual name, 15-characters maximum */
     systemtable_handle_t            systemtable_handle;               /*!< data-logger system data-table handle, initialized when data-logger handle is created */
     uint8_t                         datatable_handles_count;          /*!< data-logger data-tables handles count, initialized to 0 when data-logger handle is created */
-    datalogger_datatable_handle_t  *datatable_handles;              /*!< data-logger array of referenced data-table handles, initialized when data-logger handle is created */
-    //uint8_t                         time_into_interval_handles_count; /*!< data-logger time-into-interval handles count, initialized to 0 when data-logger handle is created */
-    //time_into_interval_handle_t    *time_into_interval_handles;       /*!< data-logger array of referenced time-into-interval handles, initialized when data-logger handle is created */
-    //datalogger_event_cb_t           system_event_cb;
+    datalogger_datatable_handle_t** datatable_handles;                /*!< data-logger array of referenced data-table handles, initialized when data-logger handle is created */
     datalogger_event                event_handler;
 };
 
@@ -129,29 +126,6 @@ esp_err_t datalogger_new_datatable(datalogger_handle_t datalogger_handle, const 
 esp_err_t datalogger_get_datatable_count(datalogger_handle_t datalogger_handle, uint8_t *count);
 
 //esp_err_t datalogger_rm_datatable(datalogger_handle_t datalogger_handle, const uint8_t index);
-
-
-/**
- * @brief Creates a new time-into-interval handle that is referenced to the data-logger handle.
- * 
- * @param[in] datalogger_handle Data-logger handle to reference the time-inter-interval handle.
- * @param[in] time_into_interval_config Data-logger time-into-interval configuration.
- * @param[out] time_into_interval_handle Data-logger time-into-interval handle referenced to the data-logger handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t datalogger_new_time_into_interval(datalogger_handle_t datalogger_handle, const time_into_interval_config_t *time_into_interval_config, time_into_interval_handle_t *time_into_interval_handle);
-
-
-/**
- * @brief Gets a count of time-into-interval handles referenced by the data-logger handle.
- * 
- * @param[in] datalogger_handle Data-logger handle reference for the time-into-interval handles of interest.
- * @param[out] count Number of time-into-interval handles created and referenced in the data-logger handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t datalogger_get_time_into_intervals_count(datalogger_handle_t datalogger_handle, uint8_t *count);
-
-//esp_err_t datalogger_rm_time_into_interval(datalogger_handle_t datalogger_handle, const uint8_t index);
 
 
 

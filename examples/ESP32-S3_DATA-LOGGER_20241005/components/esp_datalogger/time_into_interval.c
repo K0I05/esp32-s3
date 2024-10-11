@@ -44,6 +44,7 @@
 #include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <freertos/semphr.h>
 
 /*
  * macro definitions
@@ -81,6 +82,7 @@ esp_err_t time_into_interval_init(const time_into_interval_config_t *time_into_i
     out_handle->interval_period = time_into_interval_config->interval_period;
     out_handle->interval_offset = time_into_interval_config->interval_offset;
     out_handle->hash_code       = datalogger_get_hash_code();
+    out_handle->mutex_handle    = xSemaphoreCreateMutex();
 
     /* set epoch timestamp of the next scheduled time-into-interval event */
     ESP_GOTO_ON_ERROR( datalogger_set_epoch_timestamp_event(out_handle->interval_type, 
@@ -108,6 +110,9 @@ bool time_into_interval(time_into_interval_handle_t time_into_interval_handle) {
         return state;
     }
 
+    /* lock the mutex */
+    xSemaphoreTake(time_into_interval_handle->mutex_handle, portMAX_DELAY);
+
     // get system unix epoch timestamp (UTC)
     uint64_t now_unix_msec = datalogger_get_epoch_timestamp_msec();
 
@@ -125,6 +130,9 @@ bool time_into_interval(time_into_interval_handle_t time_into_interval_handle) {
                                             time_into_interval_handle->interval_offset, 
                                             &time_into_interval_handle->epoch_timestamp);
     }
+
+    /* unlock the mutex */
+    xSemaphoreGive(time_into_interval_handle->mutex_handle);
     
     return state;
 }
@@ -132,6 +140,9 @@ bool time_into_interval(time_into_interval_handle_t time_into_interval_handle) {
 esp_err_t time_into_interval_delay(time_into_interval_handle_t time_into_interval_handle) {
     // validate arguments
     ESP_ARG_CHECK( time_into_interval_handle );
+
+    /* lock the mutex */
+    xSemaphoreTake(time_into_interval_handle->mutex_handle, portMAX_DELAY);
 
     // get system unix epoch timestamp (UTC)
     uint64_t now_unix_msec = datalogger_get_epoch_timestamp_msec();
@@ -157,14 +168,23 @@ esp_err_t time_into_interval_delay(time_into_interval_handle_t time_into_interva
     // compute ticks delay from time delta
     TickType_t delay = (delta_msec / portTICK_PERIOD_MS);
 
+    /* unlock the mutex */
+    xSemaphoreGive(time_into_interval_handle->mutex_handle);
+
     // delay the task per ticks delay
     vTaskDelay( delay );
+
+    /* lock the mutex */
+    xSemaphoreTake(time_into_interval_handle->mutex_handle, portMAX_DELAY);
 
     // set epoch timestamp of the next scheduled task
     datalogger_set_epoch_timestamp_event(time_into_interval_handle->interval_type, 
                                         time_into_interval_handle->interval_period, 
                                         time_into_interval_handle->interval_offset, 
                                         &time_into_interval_handle->epoch_timestamp);
+                                        
+    /* unlock the mutex */
+    xSemaphoreGive(time_into_interval_handle->mutex_handle);
 
     return ESP_OK;
 }

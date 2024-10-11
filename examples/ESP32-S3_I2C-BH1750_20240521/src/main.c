@@ -28,7 +28,6 @@
 #include <esp_event.h>
 #include <esp_log.h>
 #include <esp_vfs_fat.h>
-#include <driver/i2c_master.h>
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <freertos/FreeRTOS.h>
@@ -66,6 +65,7 @@ static inline void vTaskDelaySecUntil(TickType_t *previousWakeTime, const uint s
     vTaskDelayUntil( previousWakeTime, xFrequency );  
 }
 
+
 static void i2c_0_task( void *pvParameters ) {
     TickType_t                  xLastWakeTime;
     //
@@ -99,6 +99,9 @@ static void i2c_0_task( void *pvParameters ) {
         //
         // handle bh1750 sensor
         //
+        //i2c_detect(i2c0_bus_hdl);
+        //
+        
         float illuminance;
         //
         if(i2c_bh1750_get_measurement(bh1750_dev_hdl, &illuminance) != ESP_OK) {
@@ -106,6 +109,7 @@ static void i2c_0_task( void *pvParameters ) {
         } else {
             ESP_LOGI(CONFIG_APP_TAG, "bh1750 illuminance:   %0.2f Lux", illuminance);
         }
+        
         //
         ESP_LOGI(CONFIG_APP_TAG, "######################## BH1750 - END ###########################");
         //

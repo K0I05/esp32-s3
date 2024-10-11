@@ -66,6 +66,10 @@
 //#define CONFIG_WIFI_SSID                "YOUR SSID"
 //#define CONFIG_WIFI_PASSWORD            "SSID KEY"
 
+//#define CONFIG_WIFI_SSID                "NOKIA-8764"
+//#define CONFIG_WIFI_PASSWORD            "qpLQaC.pbk"
+#define CONFIG_WIFI_SSID                "APOLLO"
+#define CONFIG_WIFI_PASSWORD            "41F43DA524D6"
 
 #define CONFIG_I2C_0_PORT               I2C_NUM_0
 #define CONFIG_I2C_0_SDA_IO             (gpio_num_t)(45) // blue
@@ -219,7 +223,7 @@ static inline void set_time( void ) {
     assert(err == 0);
     char strftime_buf[64];
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &initial_time);
-    printf("Time set to:          %s", strftime_buf);
+    ESP_LOGW(APP_TAG, "Time set to:          %s", strftime_buf);
 }
 
 static inline void get_time( void ) {
@@ -237,7 +241,7 @@ static inline void get_time( void ) {
     char strftime_buf[64];
     // 'new_time' now contains the current time components
     strftime(strftime_buf, sizeof(strftime_buf), "%c", &new_time);
-    printf("Current time:         %s", strftime_buf); 
+    ESP_LOGW(APP_TAG, "Current Time:         %s", strftime_buf);
 }
 
 static inline void stnp_print_servers(void) {
@@ -541,6 +545,7 @@ static void dt_1min_smp_task( void *pvParameters ) {
         
         /* serialize data-table and output in json string format every 
         5-minutes (i.e. 12:00:00, 12:05:00, 12:10:00, etc.) */
+        /* omit for now - memory leak hunting...
         if(time_into_interval(dt_1min_tii_5min_hdl)) {
             // create root object for data-table
             cJSON *dt_1min_json = cJSON_CreateObject();
@@ -556,14 +561,12 @@ static void dt_1min_smp_task( void *pvParameters ) {
             cJSON_free(dt_1min_json_str);
             cJSON_Delete(dt_1min_json);
         }
+        */
 
         // print next data-table output time-into-interval event
         ESP_LOGI(APP_TAG, "Data-Table Output....");
         print_time_into_interval_event(dt_1min_tii_5min_hdl);
     
-        // print end of sampling process
-        ESP_LOGI(APP_TAG, "######################## DATA-LOGGER - END ###########################");
-        
         // set end timer
         uint64_t end_time = esp_timer_get_time();
         
@@ -572,6 +575,9 @@ static void dt_1min_smp_task( void *pvParameters ) {
         
         // print task duration in micro-seconds and milli-seconds.
         ESP_LOGI(APP_TAG, "Task Duration: %llu us / %llu ms", delta_time, delta_time / 1000);
+
+        // print end of sampling process
+        ESP_LOGI(APP_TAG, "######################## DATA-LOGGER - END ###########################");
     }
     //
     // free up task resources
@@ -659,11 +665,11 @@ void app_main( void ) {
     // data-logger testing
     //
     // initialize a data-logger handle for the example
-    //datalogger_init("Zeus-01", &dl_hdl);
-    //if (dl_hdl == NULL) {
-    //    ESP_LOGE(APP_TAG, "datalogger_init, data-logger handle initialization failed");
-        //abort();
-    //}
+    datalogger_init("Zeus-01", &dl_hdl);
+    if (dl_hdl == NULL) {
+        ESP_LOGE(APP_TAG, "datalogger_init, data-logger handle initialization failed");
+        abort();
+    }
 
     // print system-table as a string in json format
     //
@@ -681,8 +687,8 @@ void app_main( void ) {
     // data-table testing
     //
     // initialize a data-table handle for the example
-    datatable_init(&dt_1min_cfg, &dt_1min_hdl); 
-    //datalogger_new_datatable(dl_hdl, &dt_1min_cfg, &dt_1min_hdl);   
+    //datatable_init(&dt_1min_cfg, &dt_1min_hdl); 
+    datalogger_new_datatable(dl_hdl, &dt_1min_cfg, &dt_1min_hdl);   
     if (dt_1min_hdl == NULL) {
         ESP_LOGE(APP_TAG, "datatable_init, data-table handle initialization failed");
         //abort();
@@ -730,7 +736,7 @@ void app_main( void ) {
     // free-up json resources
     cJSON_free(dt_1min_json_str);
     cJSON_Delete(dt_1min_json);
-    
+
 
 
     // create a task that is pinned to core 1 for data-table sampling and processing

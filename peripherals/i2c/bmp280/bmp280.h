@@ -38,7 +38,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <esp_err.h>
-#include <driver/i2c_master.h>
 #include <i2c_master_ext.h>
 
 #ifdef __cplusplus
@@ -212,19 +211,6 @@ typedef union __attribute__((packed)) {
 } i2c_bmp280_configuration_register_t;
 
 
-typedef struct i2c_bmp280_t i2c_bmp280_t;
-typedef struct i2c_bmp280_t *i2c_bmp280_handle_t;
-
-/**
- * configuration parameters for BMP280 module.
- * use macro ::I2C_BMP280_PARAMS_DEFAULT to use default configuration.
- */
-typedef struct {
-    uint8_t                                     dev_type;           /*!< device type, should be bmp280 */
-    i2c_bmp280_status_register_t                status_reg;         /*!< bmp280 status register */
-    i2c_bmp280_control_measurement_register_t   ctrl_meas_reg;      /*!< bmp280 control measurement register */
-    i2c_bmp280_configuration_register_t         config_reg;         /*!< bmp280 configuration register */
-} i2c_bmp280_params_t;
 
 /**
  * @brief BMP280 temperature and pressure calibration factors structure.
@@ -255,10 +241,17 @@ typedef struct {
 } i2c_bmp280_config_t;
 
 struct i2c_bmp280_t {
-    i2c_master_dev_handle_t  i2c_dev_handle;    /*!< I2C device handle */
-    i2c_bmp280_cal_factors_t *dev_cal_factors;  /*!< bmp280 device calibration factors */
-    i2c_bmp280_params_t      *dev_params;       /*!< bmp280 device configuration parameters */
+    i2c_master_dev_handle_t                     i2c_dev_handle;    /*!< I2C device handle */
+    i2c_bmp280_cal_factors_t                   *dev_cal_factors;  /*!< bmp280 device calibration factors */
+    uint8_t                                     dev_type;           /*!< device type, should be bmp280 */
+    i2c_bmp280_status_register_t                status_reg;         /*!< bmp280 status register */
+    i2c_bmp280_control_measurement_register_t   ctrl_meas_reg;      /*!< bmp280 control measurement register */
+    i2c_bmp280_configuration_register_t         config_reg;         /*!< bmp280 configuration register */
 };
+
+typedef struct i2c_bmp280_t i2c_bmp280_t;
+typedef struct i2c_bmp280_t *i2c_bmp280_handle_t;
+
 
 
 /**
@@ -292,7 +285,7 @@ esp_err_t i2c_bmp280_get_control_measurement_register(i2c_bmp280_handle_t bmp280
  * @param[in] ctrl_meas_reg control measurement register.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_set_control_measurement_register(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_control_measurement_register_t ctrl_meas_reg);
+esp_err_t i2c_bmp280_set_control_measurement_register(i2c_bmp280_handle_t bmp280_handle, const i2c_bmp280_control_measurement_register_t ctrl_meas_reg);
 
 /**
  * @brief reads configuration register from bmp280.
@@ -309,7 +302,7 @@ esp_err_t i2c_bmp280_get_configuration_register(i2c_bmp280_handle_t bmp280_handl
  * @param[in] config_reg configuration register.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_set_configuration_register(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_configuration_register_t config_reg);
+esp_err_t i2c_bmp280_set_configuration_register(i2c_bmp280_handle_t bmp280_handle, const i2c_bmp280_configuration_register_t config_reg);
 
 /**
  * @brief initializes an bmp280 device onto the master bus.
@@ -329,7 +322,7 @@ esp_err_t i2c_bmp280_init(i2c_master_bus_handle_t bus_handle, const i2c_bmp280_c
  * @param[out] pressure pressure in pascal
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_get_measurements(i2c_bmp280_handle_t bmp280_handle, float *temperature, float *pressure);
+esp_err_t i2c_bmp280_get_measurements(i2c_bmp280_handle_t bmp280_handle, float *const temperature, float *const pressure);
 
 /**
  * @brief high-level temperature measurement function for bmp280
@@ -338,7 +331,7 @@ esp_err_t i2c_bmp280_get_measurements(i2c_bmp280_handle_t bmp280_handle, float *
  * @param[out] temperature temperature in degree Celsius
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_get_temperature(i2c_bmp280_handle_t bmp280_handle, float *temperature);
+esp_err_t i2c_bmp280_get_temperature(i2c_bmp280_handle_t bmp280_handle, float *const temperature);
 
 /**
  * @brief high-level pressure measurement function for bmp280
@@ -347,7 +340,7 @@ esp_err_t i2c_bmp280_get_temperature(i2c_bmp280_handle_t bmp280_handle, float *t
  * @param[out] pressure pressure in pascal
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_get_pressure(i2c_bmp280_handle_t bmp280_handle, float *pressure);
+esp_err_t i2c_bmp280_get_pressure(i2c_bmp280_handle_t bmp280_handle, float *const pressure);
 
 /**
  * @brief reads data status of the bmp280.
@@ -356,7 +349,7 @@ esp_err_t i2c_bmp280_get_pressure(i2c_bmp280_handle_t bmp280_handle, float *pres
  * @param[out] ready data is ready when asserted to true.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_get_data_status(i2c_bmp280_handle_t bmp280_handle, bool *ready);
+esp_err_t i2c_bmp280_get_data_status(i2c_bmp280_handle_t bmp280_handle, bool *const ready);
 
 /**
  * @brief reads power mode setting from the bmp280.
@@ -365,7 +358,7 @@ esp_err_t i2c_bmp280_get_data_status(i2c_bmp280_handle_t bmp280_handle, bool *re
  * @param[out] power_mode power mode setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_get_power_mode(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_power_modes_t *power_mode);
+esp_err_t i2c_bmp280_get_power_mode(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_power_modes_t *const power_mode);
 
 /**
  * @brief writes power mode setting to the bmp280.  See datasheet, section 3.6, table 10.
@@ -374,7 +367,7 @@ esp_err_t i2c_bmp280_get_power_mode(i2c_bmp280_handle_t bmp280_handle, i2c_bmp28
  * @param[in] power_mode power mode setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_set_power_mode(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_power_modes_t power_mode);
+esp_err_t i2c_bmp280_set_power_mode(i2c_bmp280_handle_t bmp280_handle, const i2c_bmp280_power_modes_t power_mode);
 
 /**
  * @brief reads pressure oversampling setting from bmp280.
@@ -383,7 +376,7 @@ esp_err_t i2c_bmp280_set_power_mode(i2c_bmp280_handle_t bmp280_handle, i2c_bmp28
  * @param[out] oversampling pressure oversampling setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_get_pressure_oversampling(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_pressure_oversampling_t *oversampling);
+esp_err_t i2c_bmp280_get_pressure_oversampling(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_pressure_oversampling_t *const oversampling);
 
 /**
  * @brief writes pressure oversampling setting to bmp280.  See datasheet, section 3.3.1, table 4.
@@ -392,7 +385,7 @@ esp_err_t i2c_bmp280_get_pressure_oversampling(i2c_bmp280_handle_t bmp280_handle
  * @param oversampling[in] pressure oversampling setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_set_pressure_oversampling(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_pressure_oversampling_t oversampling);
+esp_err_t i2c_bmp280_set_pressure_oversampling(i2c_bmp280_handle_t bmp280_handle, const i2c_bmp280_pressure_oversampling_t oversampling);
 
 /**
  * @brief reads temperature oversampling setting from bmp280.
@@ -401,7 +394,7 @@ esp_err_t i2c_bmp280_set_pressure_oversampling(i2c_bmp280_handle_t bmp280_handle
  * @param[out] oversampling temperature oversampling setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_get_temperature_oversampling(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_temperature_oversampling_t *oversampling);
+esp_err_t i2c_bmp280_get_temperature_oversampling(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_temperature_oversampling_t *const oversampling);
 
 /**
  * @brief writes temperature oversampling setting to bmp280.  See datasheet, section 3.3.1, table 4.
@@ -410,7 +403,7 @@ esp_err_t i2c_bmp280_get_temperature_oversampling(i2c_bmp280_handle_t bmp280_han
  * @param[in] oversampling temperature oversampling setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_set_temperature_oversampling(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_temperature_oversampling_t oversampling);
+esp_err_t i2c_bmp280_set_temperature_oversampling(i2c_bmp280_handle_t bmp280_handle, const i2c_bmp280_temperature_oversampling_t oversampling);
 
 /**
  * @brief reads standby time setting from bmp280.
@@ -419,7 +412,7 @@ esp_err_t i2c_bmp280_set_temperature_oversampling(i2c_bmp280_handle_t bmp280_han
  * @param[out] standby_time standby time setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_get_standby_time(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_standby_times_t *standby_time);
+esp_err_t i2c_bmp280_get_standby_time(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_standby_times_t *const standby_time);
 
 /**
  * @brief writes standby time setting to bmp280.
@@ -428,7 +421,7 @@ esp_err_t i2c_bmp280_get_standby_time(i2c_bmp280_handle_t bmp280_handle, i2c_bmp
  * @param[in] standby_time standby time setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_set_standby_time(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_standby_times_t standby_time);
+esp_err_t i2c_bmp280_set_standby_time(i2c_bmp280_handle_t bmp280_handle, const i2c_bmp280_standby_times_t standby_time);
 
 /**
  * @brief reads IIR filter setting to bmp280.
@@ -437,7 +430,7 @@ esp_err_t i2c_bmp280_set_standby_time(i2c_bmp280_handle_t bmp280_handle, i2c_bmp
  * @param[out] iir_filter IIR filter setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_get_iir_filter(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_iir_filters_t *iir_filter);
+esp_err_t i2c_bmp280_get_iir_filter(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_iir_filters_t *const iir_filter);
 
 /**
  * @brief writes IIR filter setting from bmp280.  See datasheet, section 3.4, table 7.
@@ -446,7 +439,7 @@ esp_err_t i2c_bmp280_get_iir_filter(i2c_bmp280_handle_t bmp280_handle, i2c_bmp28
  * @param[in] iir_filter IIR filter setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_set_iir_filter(i2c_bmp280_handle_t bmp280_handle, i2c_bmp280_iir_filters_t iir_filter);
+esp_err_t i2c_bmp280_set_iir_filter(i2c_bmp280_handle_t bmp280_handle, const i2c_bmp280_iir_filters_t iir_filter);
 
 /**
  * @brief issues soft-reset sensor and initializes registers for bmp280.

@@ -88,47 +88,29 @@ static void i2c_0_task( void *pvParameters ) {
     //
     // instantiate i2c 0 master bus
     i2c_new_master_bus(&i2c0_master_cfg, &i2c0_bus_hdl);
-    if (i2c0_bus_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "[APP] i2c0 i2c_bus_create handle init failed");
+    if (i2c0_bus_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "i2c_bus_create handle init failed");
     //
     // init i2c devices
     //
     // bmp280 init device
     i2c_bmp280_init(i2c0_bus_hdl, &bmp280_dev_cfg, &bmp280_dev_hdl);
-    if (bmp280_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "[APP] i2c0 i2c_bus_device_create bmp280 handle init failed");
+    if (bmp280_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "i2c_bus_device_create bmp280 handle init failed");
     //
     //
-    /*
-    ESP_LOGI(CONFIG_APP_TAG, "Calibration data received:");
-    ESP_LOGI(CONFIG_APP_TAG, "dig_T1=%u", bmp280_dev_hdl->dev_cal_factors->dig_T1);
-    ESP_LOGI(CONFIG_APP_TAG, "dig_T2=%d", bmp280_dev_hdl->dev_cal_factors->dig_T2);
-    ESP_LOGI(CONFIG_APP_TAG, "dig_T3=%d", bmp280_dev_hdl->dev_cal_factors->dig_T3);
-    ESP_LOGI(CONFIG_APP_TAG, "dig_P1=%u", bmp280_dev_hdl->dev_cal_factors->dig_P1);
-    ESP_LOGI(CONFIG_APP_TAG, "dig_P2=%d", bmp280_dev_hdl->dev_cal_factors->dig_P2);
-    ESP_LOGI(CONFIG_APP_TAG, "dig_P3=%d", bmp280_dev_hdl->dev_cal_factors->dig_P3);
-    ESP_LOGI(CONFIG_APP_TAG, "dig_P4=%d", bmp280_dev_hdl->dev_cal_factors->dig_P4);
-    ESP_LOGI(CONFIG_APP_TAG, "dig_P5=%d", bmp280_dev_hdl->dev_cal_factors->dig_P5);
-    ESP_LOGI(CONFIG_APP_TAG, "dig_P6=%d", bmp280_dev_hdl->dev_cal_factors->dig_P6);
-    ESP_LOGI(CONFIG_APP_TAG, "dig_P7=%d", bmp280_dev_hdl->dev_cal_factors->dig_P7);
-    ESP_LOGI(CONFIG_APP_TAG, "dig_P8=%d", bmp280_dev_hdl->dev_cal_factors->dig_P8);
-    ESP_LOGI(CONFIG_APP_TAG, "dig_P9=%d", bmp280_dev_hdl->dev_cal_factors->dig_P9);
-    */
-    //
-    //
-    //vTaskDelayMs(50);
     //
     // task loop entry point
     for ( ;; ) {
         ESP_LOGI(CONFIG_APP_TAG, "######################## BMP280 - START #########################");
         //
         // handle bmp280 sensor
-        float temperature;
-        float pressure;
-        if(i2c_bmp280_get_measurement(bmp280_dev_hdl, &temperature, &pressure) != ESP_OK) {
-            ESP_LOGE(CONFIG_APP_TAG, "bmp280 device read failed");
+        float temperature, pressure;
+        esp_err_t result = i2c_bmp280_get_measurements(bmp280_dev_hdl, &temperature, &pressure);
+        if(result != ESP_OK) {
+            ESP_LOGE(CONFIG_APP_TAG, "bmp280 device read failed (%s)", esp_err_to_name(result));
         } else {
             pressure = pressure / 100;
-            ESP_LOGI(CONFIG_APP_TAG, "bmp280 air temperature:     %.2f C", temperature);
-            ESP_LOGI(CONFIG_APP_TAG, "bmp280 barometric pressure: %.2f hPa", pressure);
+            ESP_LOGI(CONFIG_APP_TAG, "air temperature:     %.2f C", temperature);
+            ESP_LOGI(CONFIG_APP_TAG, "barometric pressure: %.2f hPa", pressure);
         }
         //
         ESP_LOGI(CONFIG_APP_TAG, "######################## BMP280 - END ###########################");

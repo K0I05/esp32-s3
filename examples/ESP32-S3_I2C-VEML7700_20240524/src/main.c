@@ -29,7 +29,6 @@
 #include <esp_timer.h>
 #include <esp_event.h>
 #include <esp_log.h>
-#include <driver/i2c_master.h>
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <freertos/FreeRTOS.h>
@@ -68,18 +67,6 @@ static inline void vTaskDelaySecUntil(TickType_t *previousWakeTime, const uint s
     vTaskDelayUntil( previousWakeTime, xFrequency );  
 }
 
-static inline void print_binary(uint16_t n) {
-    char buffer[17]; // 16 bits + 1 for null terminator
-    buffer[16] = '\0';
-
-    for (int i = 15; i >= 0; --i) {
-        buffer[i] = '0' + (n & 1); // '0' or '1'
-        n >>= 1; // Shift to the next bit
-    }
-
-    ESP_LOGI(CONFIG_APP_TAG, "Register in Binary: %s", buffer);
-}
-
 static void i2c_0_task( void *pvParameters ) {
     TickType_t                          xLastWakeTime;
     //
@@ -107,14 +94,14 @@ static void i2c_0_task( void *pvParameters ) {
     if (veml7700_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "i2c0 i2c_bus_device_create veml7700 handle init failed");
     //
     // veml7700 registers
-    print_binary(veml7700_dev_hdl->dev_params->config_reg.reg);
-    print_binary(veml7700_dev_hdl->dev_params->power_saving_mode_reg.reg);
-    print_binary(veml7700_dev_hdl->dev_params->interrupt_status_reg.reg);
-    print_binary(veml7700_dev_hdl->dev_params->identifier_reg.reg);
-    ESP_LOGI(CONFIG_APP_TAG, "Hi Threshold: %d", veml7700_dev_hdl->dev_params->hi_threshold_reg);
-    ESP_LOGI(CONFIG_APP_TAG, "Lo Threshold: %d", veml7700_dev_hdl->dev_params->lo_threshold_reg);
-    ESP_LOGI(CONFIG_APP_TAG, "Resolution:   %0.4f", veml7700_dev_hdl->dev_params->resolution);
-    ESP_LOGI(CONFIG_APP_TAG, "Maximum Lux:  %lu", veml7700_dev_hdl->dev_params->maximum_lux);
+    ESP_LOGI(CONFIG_APP_TAG, "Configuration Register in Binary:     %s", uint16_to_binary(veml7700_dev_hdl->config_reg.reg));
+    ESP_LOGI(CONFIG_APP_TAG, "Power Saving Mode Register in Binary: %s", uint16_to_binary(veml7700_dev_hdl->power_saving_mode_reg.reg));
+    ESP_LOGI(CONFIG_APP_TAG, "Interrupt Status Register in Binary:  %s", uint16_to_binary(veml7700_dev_hdl->interrupt_status_reg.reg));
+    ESP_LOGI(CONFIG_APP_TAG, "Identifier Register in Binary:        %s", uint16_to_binary(veml7700_dev_hdl->identifier_reg.reg));
+    ESP_LOGI(CONFIG_APP_TAG, "Hi Threshold: %d", veml7700_dev_hdl->hi_threshold_reg);
+    ESP_LOGI(CONFIG_APP_TAG, "Lo Threshold: %d", veml7700_dev_hdl->lo_threshold_reg);
+    ESP_LOGI(CONFIG_APP_TAG, "Resolution:   %0.4f", veml7700_dev_hdl->resolution);
+    ESP_LOGI(CONFIG_APP_TAG, "Maximum Lux:  %lu", veml7700_dev_hdl->maximum_lux);
     //
     // task loop entry point
     for ( ;; ) {

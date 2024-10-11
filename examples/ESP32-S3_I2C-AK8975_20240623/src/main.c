@@ -28,7 +28,6 @@
 #include <esp_timer.h>
 #include <esp_event.h>
 #include <esp_log.h>
-#include <driver/i2c_master.h>
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <freertos/FreeRTOS.h>
@@ -66,32 +65,6 @@ static inline void vTaskDelaySecUntil(TickType_t *previousWakeTime, const uint s
     vTaskDelayUntil( previousWakeTime, xFrequency );  
 }
 
-static inline int i2c_detect(i2c_master_bus_handle_t master_bus_handle) {
-    const uint16_t probe_timeout_ms = 50; // timeout in milliseconds
-    uint8_t address;
-
-    printf("     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f\r\n");
-
-    for (int i = 0; i < 128; i += 16) {
-        printf("%02x: ", i);
-        for (int j = 0; j < 16; j++) {
-            fflush(stdout);
-            address = i + j;
-            esp_err_t ret = i2c_master_probe(master_bus_handle, address, probe_timeout_ms);
-            if (ret == ESP_OK) {
-                printf("%02x ", address);
-            } else if (ret == ESP_ERR_TIMEOUT) {
-                printf("UU ");
-            } else {
-                printf("-- ");
-            }
-        }
-        printf("\r\n");
-    }
-
-    return 0;  
-}
-
 static void i2c_0_task( void *pvParameters ) {
     TickType_t                   xLastWakeTime;
     //
@@ -118,8 +91,10 @@ static void i2c_0_task( void *pvParameters ) {
     i2c_ak8975_init(i2c0_bus_hdl, &ak8975_dev_cfg, &ak8975_dev_hdl);
     if (ak8975_dev_hdl == NULL) ESP_LOGE(CONFIG_APP_TAG, "i2c0 i2c_bus_device_create ak8975 handle init failed");
     //
-    ESP_LOGW(CONFIG_APP_TAG, "ak8975 device id   %02x", ak8975_dev_hdl->dev_params->device_id);
-    ESP_LOGW(CONFIG_APP_TAG, "ak8975 device info %02x", ak8975_dev_hdl->dev_params->device_info);
+    ESP_LOGW(CONFIG_APP_TAG, "ak8975 device id   %02x", ak8975_dev_hdl->device_id);
+    ESP_LOGW(CONFIG_APP_TAG, "ak8975 device info %02x", ak8975_dev_hdl->device_info);
+    //
+    //
     //
     // task loop entry point
     for ( ;; ) {

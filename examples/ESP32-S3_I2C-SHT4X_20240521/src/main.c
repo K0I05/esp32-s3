@@ -27,7 +27,6 @@
 #include <esp_timer.h>
 #include <esp_event.h>
 #include <esp_log.h>
-#include <driver/i2c_master.h>
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <freertos/FreeRTOS.h>
@@ -96,8 +95,11 @@ static void i2c_0_task( void *pvParameters ) {
     for ( ;; ) {
         ESP_LOGI(CONFIG_APP_TAG, "######################## SHT4X - START #########################");
         //
+        //i2c_master_bus_detect_devices(i2c0_bus_hdl);
+        //
         // handle sht4x sensor
         //
+        
         float air_temperature, dewpoint_temperature, relative_humidity;
         //
         if(i2c_sht4x_get_measurements(sht4x_dev_hdl, &air_temperature, &relative_humidity, &dewpoint_temperature) != ESP_OK) {
@@ -107,6 +109,7 @@ static void i2c_0_task( void *pvParameters ) {
             ESP_LOGI(CONFIG_APP_TAG, "sht4x relative humidity:     %.2f %%", relative_humidity);
             ESP_LOGI(CONFIG_APP_TAG, "sht4x dewpoint temperature:  %.2f C", dewpoint_temperature);
         }
+        
         //
         ESP_LOGI(CONFIG_APP_TAG, "######################## SHT4X - END ###########################");
         //

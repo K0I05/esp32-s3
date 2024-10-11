@@ -62,7 +62,10 @@ extern "C"
 #define DATATABLE_COLUMN_NAME_MAX_SIZE  (25)        //!< 25-characters for column name
 #define DATATABLE_COLUMNS_MAX           (255)       //!< 
 #define DATATABLE_ROWS_MAX              (65535)     //!< 
-
+#define DATATABLE_COLUMN_ID_NAME        "Record ID"
+#define DATATABLE_COLUMN_TS_NAME        "TS"
+#define DATATABLE_COLUMN_TII_SMP_NAME   "_tii_smp"
+#define DATATABLE_COLUMN_TII_PRC_NAME   "_tii_prc"
 
 /*
  * ESP DATA-TABLE macro definitions
@@ -76,7 +79,7 @@ extern "C"
 /**
  * @brief Data-table data storage-types enumerator.
  */
-typedef enum {
+typedef enum datatable_data_storage_types_tag {
     DATATABLE_DATA_STORAGE_MEMORY_RING,     /*!< data-table ring memory performs a first-in first-out (FIFO) with the data-table */
     DATATABLE_DATA_STORAGE_MEMORY_RESET,    /*!< data-table memory reset performs a data-table reset when data-table is full */
     DATATABLE_DATA_STORAGE_MEMORY_STOP      /*!< data-table memory stop pauses data storage when data-table is full */
@@ -85,7 +88,7 @@ typedef enum {
 /**
  * @brief Data-table column statistical process-types enumerator.
  */
-typedef enum {
+typedef enum datatable_column_process_types_tag {
     DATATABLE_COLUMN_PROCESS_SMP,       /*!< a sample is stored at every processing interval */
     DATATABLE_COLUMN_PROCESS_AVG,       /*!< stored samples are averaged over the processing interval */
     DATATABLE_COLUMN_PROCESS_MIN,       /*!< stored samples are analyzed for minimum over the processing interval */
@@ -97,7 +100,7 @@ typedef enum {
 /**
  * @brief Data-table column data-types enumerator.
  */
-typedef enum {
+typedef enum datatable_column_data_types_tag {
     DATATABLE_COLUMN_DATA_ID,       /*!< record identifier column data-type, system default, see `datatable_id_data_type_t` for data-type structure. */
     DATATABLE_COLUMN_DATA_TS,       /*!< record timestamp (date and time) column data type, system default, see `datatable_ts_data_type_t` for data-type structure. */
     DATATABLE_COLUMN_DATA_VECTOR,   /*!< vector (u and v components) column data type, user-defined, see `datatable_vector_data_type_t` for data-type structure. */
@@ -110,21 +113,21 @@ typedef enum {
 /**
  * @brief Data-table record identifier column data-type structure.
  */
-typedef struct {
+typedef struct datatable_id_column_data_type_tag {
     uint16_t                            value;      // record id value   
 } datatable_id_column_data_type_t;
 
 /**
  * @brief Data-table record timestamp (utc) column data-type structure.
  */
-typedef struct {
+typedef struct datatable_ts_column_data_type_tag {
     time_t                              value;      // timestamp value    
 } datatable_ts_column_data_type_t;
 
 /**
  * @brief Data-table vector data-type column structure.
  */
-typedef struct {
+typedef struct datatable_vector_column_data_type_tag {
     float                               value_uc;   // u-component (angle) value 
     float                               value_vc;   // v-component (velocity) value
     time_t                              value_ts;   // timestamp of values, used for time of max or min
@@ -133,14 +136,14 @@ typedef struct {
 /**
  * @brief Data-table bool data-type column structure.
  */
-typedef struct {
+typedef struct datatable_bool_column_data_type_tag {
     bool                                value;      // boolean value 
 } datatable_bool_column_data_type_t;
 
 /**
  * @brief Data-table float data-type column structure.
  */
-typedef struct {
+typedef struct datatable_float_column_data_type_tag {
     float                               value;      // float value
     time_t                              value_ts;   // timestamp of value, used for time of max or min  
 } datatable_float_column_data_type_t;
@@ -148,7 +151,7 @@ typedef struct {
 /**
  * @brief Data-table int16 data-type column structure.
  */
-typedef struct {
+typedef struct datatable_int16_column_data_type_tag {
     int16_t                             value;      // int16 value
     time_t                              value_ts;   // timestamp of value, used for time of max or min   
 } datatable_int16_column_data_type_t;
@@ -157,11 +160,11 @@ typedef struct {
  * @brief Data-table column data buffer structure.  The record identifier and
  * record timestamp data-types are excluded from data processing.
  */
-typedef struct {
+typedef struct datatable_column_data_buffer_tag {
     uint16_t                            samples_size;       // data-table size of data buffer samples, automatically populated when column is created
     uint16_t                            samples_count;      // data-table number of samples in the data buffer, automatically populated when data-table is processed
     datatable_column_data_types_t       data_type;          // data-table column data buffer data-type, automatically populated when column is created
-    union {
+    union buffer_tag {
         datatable_vector_column_data_type_t** vector_samples;     // data-table vector samples data buffer, automatic array sizing when column is created based configured column data-type
         datatable_bool_column_data_type_t**   bool_samples;       // data-table boolean samples data buffer, automatic array sizing when column is created based configured column data-type
         datatable_float_column_data_type_t**  float_samples;      // data-table float samples data buffer, automatic array sizing when column is created based configured column data-type
@@ -170,7 +173,7 @@ typedef struct {
 } datatable_column_data_buffer_t;
 
 
-typedef struct {
+typedef struct datatable_column_name_tag {
     char                                name[DATATABLE_COLUMN_NAME_MAX_SIZE];  // data-table column name, maximum 15 characters.
 } datatable_column_name_t;
 
@@ -178,7 +181,7 @@ typedef struct {
  * @brief Data-table column structure.  The data-table record identifier and timestamp columns
  * are created by default when the data-table is created.
  */
-typedef struct {
+typedef struct datatable_column_tag {
     uint8_t                             index;              // data-table column index, automatically populated when column is created.
     datatable_column_name_t             names[3];           // data-table column names, index 0 and 1 for vector data-type or index 0, 1, and 2 for max and min with timestamp process-types, and index 0 for all other scenarios.
     datatable_column_data_types_t       data_type;          // data-table column data-type setting, automatically populated when column is created.
@@ -190,11 +193,11 @@ typedef struct {
  * @brief Data-table row data column structure.  This structure is a data model that represents 
  * data storage of the record based on the data-table's column column data-type.
  */
-typedef struct {
+typedef struct datatable_row_data_column_tag {
     uint8_t                             column_index;       // data-table column index, automatically populated when row is created.
     uint16_t                            row_index;          // data-table row index, automatically populated when row is created.
     datatable_column_data_types_t       data_type;          // data-table column data-type, automatically populated when row is created.
-    union {
+    union column_data_tag {
         datatable_id_column_data_type_t        id_data;            // data-table column record identifier data-type structure, automatically populated when row is created.
         datatable_ts_column_data_type_t        ts_data;            // data-table column record timestamp data-type structure, automatically populated when row is created.
         datatable_vector_column_data_type_t    vector_data;        // data-table column unit-vector data-type structure, automatically populated when row is created.
@@ -208,7 +211,7 @@ typedef struct {
  * @brief Data-table row structure.  This structure is a data model that represents
  * data storage of record by data-table row and configured data-table columns.
  */
-typedef struct {
+typedef struct datatable_row_tag {
     uint16_t                        index;                  // data-table row index, automatically populated when row is created.
     uint16_t                        data_columns_size;      // data-table size of row data columns, automatically populated when row is created.
     datatable_row_data_column_t**   data_columns;           // data-table data columns of the record contained in the row, automatically populated when row is created.
@@ -218,13 +221,14 @@ typedef struct {
 /**
  * @brief Data-table configuration structure definition.
  */
-typedef struct {
+typedef struct datatable_config_tag {
     char                                name[DATATABLE_NAME_MAX_SIZE];  /*!< data-table textual name, maximum of 15 characters */
     uint8_t                             columns_size;               /*!< data-table column array size, this setting cannot be 0 */
     uint16_t                            rows_size;                  /*!< data-table row array size, this setting cannot be 0 */
     datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, defines handling of records when the data-table is full */
     time_into_interval_config_t         sampling_config;            /*!< data-table sampling time-into-interval configuration, configures the sampling interval  */
     time_into_interval_config_t         processing_config;          /*!< data-table processing time-into-interval configuration, configures the processing interval */
+    datalogger_event                    event_handler;
 } datatable_config_t;
 
 /**
@@ -249,6 +253,7 @@ struct datatable_t {
     uint16_t                            data_buffer_size;           /*!< data-table column data buffer size */
     uint16_t                            hash_code;                  /*!< hash-code of the data-table handle */
     SemaphoreHandle_t                   mutex_handle;
+    datalogger_event                    event_handler;
 };
 
 /**
@@ -271,12 +276,24 @@ typedef struct datatable_t *datatable_handle_t;
 
 /**
  * @brief Initializes a data-table handle.  A data-table handle instance is required before any other
- * data-table functions can be called.
+ * data-table functions can be called.  Once the data-table is initialized the following functions are
+ * used to configure the data-table columns and within the sampling task.
  * 
  * Use the `datatable_add_[data-type]_[process-type]_column` functions to define data-table columns   
- * by data-type.  The data-table columns are ordered as they are added and column index for the  
- * first user-defined column always starts at 2 given  the record identifier and timestamp columns  
+ * by data-type and process-type.  The data-table columns are ordered as they are added and column index 
+ * for the first user-defined column always starts at 2 given  the record identifier and timestamp columns  
  * are created by default and consume column indexes 0 and 1 respectively.
+ * 
+ * Use the `datatable_sampling_task_delay` function wihtin the sampling task to sample measurements 
+ * at the data-table's configured sampling interval.
+ * 
+ * Use the `datatable_push_[data-type]_sample` functions within the sampling task to push samples 
+ * onto the column data buffer stack for processing.  These functions should be placed after the
+ * `datatable_sampling_task_delay` function.
+ * 
+ * Use the `datatable_process_samples` function within the sampling task to process column data buffer 
+ * samples at the data-table's configured processing interval.  This function should be placed after 
+ * the `datatable_push_[data-type]_sample` functions.
  * 
  * @param[in] datatable_config Data-table configuration.
  * @param[out] datatable_handle Data-table handle.
@@ -647,124 +664,97 @@ esp_err_t datatable_del(datatable_handle_t datatable_handle);
                         "index":        0,
                         "columns":      [{
                                         "index":        0,
-                                        "data-type":    "id",
                                         "value":        1
                                 }, {
                                         "index":        1,
-                                        "data-type":    "ts",
                                         "value":        61684380120
                                 }, {
                                         "index":        2,
-                                        "data-type":    "float",
                                         "value":        1001.3500366210938
                                 }, {
                                         "index":        3,
-                                        "data-type":    "float",
+
                                         "value":        22.350000381469727
                                 }, {
                                         "index":        4,
-                                        "data-type":    "float",
                                         "value":        22.340000152587891
                                 }, {
                                         "index":        5,
-                                        "data-type":    "float",
                                         "value":        22.360000610351562
                                 }, {
                                         "index":        6,
-                                        "data-type":    "float",
                                         "value":        20.350000381469727
                                 }]
                 }, {
                         "index":        1,
                         "columns":      [{
                                         "index":        0,
-                                        "data-type":    "id",
                                         "value":        2
                                 }, {
                                         "index":        1,
-                                        "data-type":    "ts",
                                         "value":        61684380180
                                 }, {
                                         "index":        2,
-                                        "data-type":    "float",
                                         "value":        1001.3533325195312
                                 }, {
                                         "index":        3,
-                                        "data-type":    "float",
                                         "value":        22.35333251953125
                                 }, {
                                         "index":        4,
-                                        "data-type":    "float",
                                         "value":        22.340000152587891
                                 }, {
                                         "index":        5,
-                                        "data-type":    "float",
                                         "value":        22.360000610351562
                                 }, {
                                         "index":        6,
-                                        "data-type":    "float",
                                         "value":        20.353334426879883
                                 }]
                 }, {
                         "index":        2,
                         "columns":      [{
                                         "index":        0,
-                                        "data-type":    "id",
                                         "value":        3
                                 }, {
                                         "index":        1,
-                                        "data-type":    "ts",
                                         "value":        61684380240
                                 }, {
                                         "index":        2,
-                                        "data-type":    "float",
                                         "value":        1001.3583374023438
                                 }, {
                                         "index":        3,
-                                        "data-type":    "float",
                                         "value":        22.358335494995117
                                 }, {
                                         "index":        4,
-                                        "data-type":    "float",
                                         "value":        22.350000381469727
                                 }, {
                                         "index":        5,
-                                        "data-type":    "float",
                                         "value":        22.3700008392334
                                 }, {
                                         "index":        6,
-                                        "data-type":    "float",
                                         "value":        20.358333587646484
                                 }]
                 }, {
                         "index":        3,
                         "columns":      [{
                                         "index":        0,
-                                        "data-type":    "id",
                                         "value":        4
                                 }, {
                                         "index":        1,
-                                        "data-type":    "ts",
                                         "value":        61684380300
                                 }, {
                                         "index":        2,
-                                        "data-type":    "float",
                                         "value":        1001.3417358398438
                                 }, {
                                         "index":        3,
-                                        "data-type":    "float",
                                         "value":        22.341667175292969
                                 }, {
                                         "index":        4,
-                                        "data-type":    "float",
                                         "value":        22.329999923706055
                                 }, {
                                         "index":        5,
-                                        "data-type":    "float",
                                         "value":        22.350000381469727
                                 }, {
                                         "index":        6,
-                                        "data-type":    "float",
                                         "value":        20.341667175292969
                                 }]
                 }]
