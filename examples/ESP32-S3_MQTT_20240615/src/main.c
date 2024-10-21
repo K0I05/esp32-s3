@@ -76,6 +76,13 @@
 //#define CONFIG_WIFI_SSID                      "SSID"
 //#define CONFIG_WIFI_PASSWORD                  "PWD"
 
+/* home internet */
+#define CONFIG_WIFI_SSID                        "APOLLO"
+#define CONFIG_WIFI_PASSWORD                    "41F43DA524D6"
+/* trailer internet 5ghz WPA2-Personal */
+//#define CONFIG_WIFI_SSID                      "NOKIA-8764"
+//#define CONFIG_WIFI_PASSWORD                  "qpLQaC.pbk"
+
 
 #define INET4_IP_FORMAT_BUFFER_SIZE             (15) // (255.255.255.255)
 
@@ -87,9 +94,6 @@
 
 #define MQTT_SMP_FORMAT_BUFFER_SIZE             (12)
 #define MQTT_PUB_QOS0_QUEUE_SIZE                (10)
-#define MQTT_PUB_ENV_TEMPERATURE                "environmental/temperature"
-#define MQTT_PUB_ENV_HUMIDITY                   "environmental/humidity"
-#define MQTT_PUB_ENV_PRESSURE                   "environmental/pressure"
 
 
 /**
@@ -129,67 +133,14 @@
 /**
  * @brief macro definitions
  */
-#define SEC_TO_US(sec) { return (1000000U * sec); }
-#define SEC_TO_MS(sec) { return (1000U * sec); }
-#define SEC_TO_TICKS(sec) { return (SEC_TO_MS(sec) / portTICK_PERIOD_MS); }
-#define MS_TO_TICKS(ms) { return (ms / portTICK_PERIOD_MS); }
+#define SEC_TO_USEC(sec)    { return (1000000U * sec); }
+#define SEC_TO_MSEC(sec)    { return (1000U * sec); }
+#define SEC_TO_TICKS(sec)   { return (SEC_TO_MSEC(sec) / portTICK_PERIOD_MS); }
+#define MSEC_TO_TICKS(msec) { return (msec / portTICK_PERIOD_MS); }
 
-/* test ca certificate */
-#define CACERTPEM "-----BEGIN CERTIFICATE-----\n\
-MIIFFjCCAv6gAwIBAgIRAJErCErPDBinU/bWLiWnX1owDQYJKoZIhvcNAQELBQAw\n\
-TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh\n\
-cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMjAwOTA0MDAwMDAw\n\
-WhcNMjUwOTE1MTYwMDAwWjAyMQswCQYDVQQGEwJVUzEWMBQGA1UEChMNTGV0J3Mg\n\
-RW5jcnlwdDELMAkGA1UEAxMCUjMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK\n\
-AoIBAQC7AhUozPaglNMPEuyNVZLD+ILxmaZ6QoinXSaqtSu5xUyxr45r+XXIo9cP\n\
-R5QUVTVXjJ6oojkZ9YI8QqlObvU7wy7bjcCwXPNZOOftz2nwWgsbvsCUJCWH+jdx\n\
-sxPnHKzhm+/b5DtFUkWWqcFTzjTIUu61ru2P3mBw4qVUq7ZtDpelQDRrK9O8Zutm\n\
-NHz6a4uPVymZ+DAXXbpyb/uBxa3Shlg9F8fnCbvxK/eG3MHacV3URuPMrSXBiLxg\n\
-Z3Vms/EY96Jc5lP/Ooi2R6X/ExjqmAl3P51T+c8B5fWmcBcUr2Ok/5mzk53cU6cG\n\
-/kiFHaFpriV1uxPMUgP17VGhi9sVAgMBAAGjggEIMIIBBDAOBgNVHQ8BAf8EBAMC\n\
-AYYwHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUFBwMBMBIGA1UdEwEB/wQIMAYB\n\
-Af8CAQAwHQYDVR0OBBYEFBQusxe3WFbLrlAJQOYfr52LFMLGMB8GA1UdIwQYMBaA\n\
-FHm0WeZ7tuXkAXOACIjIGlj26ZtuMDIGCCsGAQUFBwEBBCYwJDAiBggrBgEFBQcw\n\
-AoYWaHR0cDovL3gxLmkubGVuY3Iub3JnLzAnBgNVHR8EIDAeMBygGqAYhhZodHRw\n\
-Oi8veDEuYy5sZW5jci5vcmcvMCIGA1UdIAQbMBkwCAYGZ4EMAQIBMA0GCysGAQQB\n\
-gt8TAQEBMA0GCSqGSIb3DQEBCwUAA4ICAQCFyk5HPqP3hUSFvNVneLKYY611TR6W\n\
-PTNlclQtgaDqw+34IL9fzLdwALduO/ZelN7kIJ+m74uyA+eitRY8kc607TkC53wl\n\
-ikfmZW4/RvTZ8M6UK+5UzhK8jCdLuMGYL6KvzXGRSgi3yLgjewQtCPkIVz6D2QQz\n\
-CkcheAmCJ8MqyJu5zlzyZMjAvnnAT45tRAxekrsu94sQ4egdRCnbWSDtY7kh+BIm\n\
-lJNXoB1lBMEKIq4QDUOXoRgffuDghje1WrG9ML+Hbisq/yFOGwXD9RiX8F6sw6W4\n\
-avAuvDszue5L3sz85K+EC4Y/wFVDNvZo4TYXao6Z0f+lQKc0t8DQYzk1OXVu8rp2\n\
-yJMC6alLbBfODALZvYH7n7do1AZls4I9d1P4jnkDrQoxB3UqQ9hVl3LEKQ73xF1O\n\
-yK5GhDDX8oVfGKF5u+decIsH4YaTw7mP3GFxJSqv3+0lUFJoi5Lc5da149p90Ids\n\
-hCExroL1+7mryIkXPeFM5TgO9r0rvZaBFOvV2z0gp35Z0+L4WPlbuEjN/lxPFin+\n\
-HlUjr8gRsI3qfJOQFy/9rKIJR0Y/8Omwt/8oTWgy1mdeHmmjk7j1nYsvC9JSQ6Zv\n\
-MldlTTKB3zhThV1+XWYp6rjd5JW1zbVWEkLNxE7GJThEUG3szgBVGP7pSWTUTsqX\n\
-nLRbwHOoq7hHwg==\n\
------END CERTIFICATE-----\n"
-
-/* test ca certificate */
-const char* ca_cert = \
-"-----BEGIN CERTIFICATE-----\n" \
-"MIIDjjCCAnagAwIBAgIQAzrx5qcRqaC7KGSxHQn65TANBgkqhkiG9w0BAQsFADBh\n" \
-"MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\n" \
-"d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBH\n" \
-"MjAeFw0xMzA4MDExMjAwMDBaFw0zODAxMTUxMjAwMDBaMGExCzAJBgNVBAYTAlVT\n" \
-"MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j\n" \
-"b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IEcyMIIBIjANBgkqhkiG\n" \
-"9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuzfNNNx7a8myaJCtSnX/RrohCgiN9RlUyfuI\n" \
-"2/Ou8jqJkTx65qsGGmvPrC3oXgkkRLpimn7Wo6h+4FR1IAWsULecYxpsMNzaHxmx\n" \
-"1x7e/dfgy5SDN67sH0NO3Xss0r0upS/kqbitOtSZpLYl6ZtrAGCSYP9PIUkY92eQ\n" \
-"q2EGnI/yuum06ZIya7XzV+hdG82MHauVBJVJ8zUtluNJbd134/tJS7SsVQepj5Wz\n" \
-"tCO7TG1F8PapspUwtP1MVYwnSlcUfIKdzXOS0xZKBgyMUNGPHgm+F6HmIcr9g+UQ\n" \
-"vIOlCsRnKPZzFBQ9RnbDhxSJITRNrw9FDKZJobq7nMWxM4MphQIDAQABo0IwQDAP\n" \
-"BgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBhjAdBgNVHQ4EFgQUTiJUIBiV\n" \
-"5uNu5g/6+rkS7QYXjzkwDQYJKoZIhvcNAQELBQADggEBAGBnKJRvDkhj6zHd6mcY\n" \
-"1Yl9PMWLSn/pvtsrF9+wX3N3KjITOYFnQoQj8kVnNeyIv/iPsGEMNKSuIEyExtv4\n" \
-"NeF22d+mQrvHRAiGfzZ0JFrabA0UWTW98kndth/Jsw1HKj2ZL7tcu7XUIOGZX1NG\n" \
-"Fdtom/DzMNU+MeKNhJ7jitralj41E6Vf8PlwUHBHQRFXGU7Aj64GxJUTFy8bJZ91\n" \
-"8rGOmaFvE7FBcf6IKshPECBV1/MUReXgRPTqh5Uykw7+U0b6LJ3/iyK5S9kJRaTe\n" \
-"pLiaWN0bfVKfjllDiIGknibVb63dDcY3fe0Dkhvld1927jyNxF1WW6LZZm6zNTfl\n" \
-"MrY=\n" \
-"-----END CERTIFICATE-----\n";
+/* SNTP default config for single or multiple time servers */
+#define SNTP_DEFAULT_CONFIG                     ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org")
+//#define SNTP_DEFAULT_CONFIG                     ESP_NETIF_SNTP_DEFAULT_CONFIG_MULTIPLE(2, ESP_SNTP_SERVER_LIST("ca.pool.ntp.org", "pool.ntp.org") ) // set lwip->sntp config CONFIG_LWIP_SNTP_MAX_SERVERS
 
 /**
  * @brief struct and enum definitions
@@ -209,20 +160,16 @@ typedef struct environmental_samples_tag {
  * @brief external constant definitions
  */
 
-/* eclipse ca certificate - binary (embed file as text) */
+/* eclipse ca certificate - binary (embedded file as text) */
 extern const uint8_t mqtt_eclipse_server_pem_start[] asm("_binary_mqtt_eclipseprojects_io_pem_start");
 extern const uint8_t mqtt_eclipse_server_pem_end[]   asm("_binary_mqtt_eclipseprojects_io_pem_end");
-
-/* emqx ca certificate - binary (embed file as text) */
-extern const uint8_t mqtt_emqx_server_pem_start[]    asm("_binary_mqtt_broker_emqx_io_pem_start");
-extern const uint8_t mqtt_emqx_server_pem_end[]      asm("_binary_mqtt_broker_emqx_io_pem_end");
 
 /**
  * @brief static constant and global definitions
  */
 
-/* app tag */
-static const char *TAG = "MQTT TLS [APP]";
+/* app tag for esp logging */
+static const char              *TAG                         = "MQTT TLS [APP]";
 
 /* global variables */
 static esp_netif_t             *l_sta_netif                 = NULL;
@@ -251,7 +198,7 @@ static inline void print_system_time(void) {
 }
 
 /**
- * @brief Prints NTP time server(s) as esp information log.
+ * @brief Prints NTP time server(s) as an esp information log.
  */
 static inline void print_sntp_time_servers(void) {
     ESP_LOGI(TAG, "List of configured NTP servers:");
@@ -270,12 +217,12 @@ static inline void print_sntp_time_servers(void) {
 }
 
 /**
- * @brief Prints the free heap size in bytes with consumed bytes stats an a 
- * esp information log. This is used to monitor consumed bytes for possible 
+ * @brief Prints the free heap size in bytes with consumed bytes stats as an
+ * esp information log.  This is used to monitor consumed bytes for possible 
  * memory leak(s) in the application.
  * 
  * @param last_free_heap_size Last free heap size in bytes.
- * @return uint32_t Adjusted free heap size in bytes.
+ * @return uint32_t Adjusted last free heap size in bytes.
  */
 static inline uint32_t print_free_heap_size(const uint32_t last_free_heap_size) {
     uint32_t free_heap_size_start = last_free_heap_size; /* set last heap size */
@@ -577,28 +524,24 @@ static inline esp_err_t wifi_stop(void) {
  * @brief Synchronizes system date-time with time server(s) over SNTP once 
  * a network connection over IP is established.
  * 
- * @note Synchronizes with one time server for now: pool.ntp.org.
- * 
  * @return esp_err_t ESP_OK on success.
  */
 static inline esp_err_t sntp_synch_time(void) {
-    esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
+    /* set sntp configuration */
+    esp_sntp_config_t config = SNTP_DEFAULT_CONFIG;
     config.start             = false;                        // start SNTP service explicitly (after connecting)
     config.sync_cb           = sntp_time_sync_event_handler; // only if we need the notification function
 
-    /* initialize sntp */
+    /* attempt to initialize and start sntp services */
     ESP_RETURN_ON_ERROR( esp_netif_sntp_init(&config), TAG, "Unable to initialize sntp, sntp time synchronization failed" );
-
-    /* start sntp */
     ESP_RETURN_ON_ERROR( esp_netif_sntp_start(), TAG, "Unable to start sntp, sntp time synchronization failed" );
 
     // attempt to synchronize system time with time server(s)
     esp_err_t ret        = ESP_OK;
     int sntp_retry_count = 1;
-    
+    //
     do {
-        ret = esp_netif_sntp_sync_wait(2000 / portTICK_PERIOD_MS);
-
+        ret = esp_netif_sntp_sync_wait(SNTP_TIME_SYNC_TIMEOUT_MS / portTICK_PERIOD_MS);
         ESP_LOGI(TAG, "Waiting for system date-time to be set... (%d/%d)", sntp_retry_count, SNTP_TIME_SYNC_MAXIMUM_RETRY);
     } while (ret == ESP_ERR_TIMEOUT && ++sntp_retry_count <= SNTP_TIME_SYNC_MAXIMUM_RETRY);
     ESP_RETURN_ON_ERROR( ret, TAG, "Unable to synchronize system date-time with time server(s), sntp time synchronization failed" );
@@ -629,7 +572,7 @@ static inline esp_err_t sntp_get_time(const char* timezone) {
         ESP_RETURN_ON_ERROR( sntp_synch_time(), TAG, "Unable to get sntp time from time server(s), get sntp time failed" );
     }
 
-    /* set timezone or leave it in UTC */
+    /* set timezone or leave it in UTC when empty */
     if(timezone == NULL || strlen(timezone) == 0) {
         // attempt to set timezone to UTC
         ESP_RETURN_ON_FALSE( setenv("TZ", "GMT0", 1) == 0, ESP_ERR_INVALID_RESPONSE, TAG, "Unable to set UTC environment time-zone, get sntp time failed");
@@ -653,29 +596,16 @@ static inline esp_err_t mqtt_app_start(void) {
     l_mqtt_evtgrp_hdl = xEventGroupCreate();
     ESP_RETURN_ON_FALSE( l_mqtt_evtgrp_hdl, ESP_ERR_INVALID_STATE, TAG, "Unable to create MQTT event group handle, MQTT app start failed");
 
-    //"mqtts://mqtt.eclipseprojects.io:8883"
-    //"mqtt://mqtt.eclipseprojects.io:1883"
-
-    ESP_LOGW(TAG, "ECLIPSE PEM CERT:\n%s", (const char *)mqtt_eclipse_server_pem_start);
-
+    /* set mqtt client configuration */
     const esp_mqtt_client_config_t mqtt_cfg = {
         .broker = {
             //.address.uri = "mqtt://mqtt.eclipseprojects.io:1883",
             .address.uri = "mqtts://mqtt.eclipseprojects.io:8883",
             .verification.certificate = (const char *)mqtt_eclipse_server_pem_start,
-            //.verification.certificate = CACERTPEM,
         },
     };
 
-    /* validate pem certificate */
-    mbedtls_x509_crt cacert;
-    mbedtls_x509_crt_init( &cacert );
-    int crt_ret;
-    if( (crt_ret = mbedtls_x509_crt_parse_file( &cacert, (const char *)mqtt_emqx_server_pem_start ) ) != 0 ) {
-        printf( " failed\n  !  mbedtls_x509_crt_parse returned -0x%x\n\n", -crt_ret );
-    }
-
-    /* attempt to instantiate mqtt client handle */
+    /* attempt to initialize mqtt client handle */
     l_mqtt_client_hdl = esp_mqtt_client_init(&mqtt_cfg);
     ESP_RETURN_ON_FALSE( l_mqtt_client_hdl, ESP_ERR_INVALID_STATE, TAG, "Unable to initialize MQTT client, MQTT app start failed");
 
@@ -696,8 +626,8 @@ static inline esp_err_t mqtt_app_start(void) {
  * @param pvParameters Parameters for task.
  */
 static void sample_sensor_task( void *pvParameters ) {
-    static const float smp_offset_seed = 0.02135; /* to show change in sample values */
-    float t_lst_smp = 23.321; float h_lst_smp = 43.454; float p_lst_smp = 1002.33; /* init last sample values */
+    static const float smp_offset_seed = 0.02135;                                   /* to show change in sample values */
+    float t_lst_smp = 23.321; float h_lst_smp = 43.454; float p_lst_smp = 1002.33;  /* init last sample values */
 
     /* set last wake ticks from tick count */
     TickType_t last_wake_ticks = xTaskGetTickCount ();
@@ -820,9 +750,16 @@ static void publish_sensor_task( void *pvParameters ) {
     vTaskDelete( NULL );
 }
 
-
+/**
+ * @brief Main application entry point
+ */
 void app_main(void) {
+    /* increment boot counter */
+    ++l_boot_count;
+
+    /* print general startup information */
     ESP_LOGI(TAG, "Startup..");
+    ESP_LOGI(TAG, "Boot Count: %d", l_boot_count);
     ESP_LOGI(TAG, "Free Memory: %lu bytes", esp_get_free_heap_size());
     ESP_LOGI(TAG, "IDF Version: %s", esp_get_idf_version());
 
@@ -842,10 +779,6 @@ void app_main(void) {
       ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK( ret );
-
-    /* increment boot counter and print boot count */
-    ++l_boot_count;
-    ESP_LOGI(TAG, "Boot Count: %d", l_boot_count);
 
     /* attempt to start wifi services */
     ESP_ERROR_CHECK( wifi_start() );
@@ -876,6 +809,5 @@ void app_main(void) {
         (tskIDLE_PRIORITY + 2), 
         &l_publish_sensor_task_hdl, 
         APP_CPU_NUM );
-        
 }
 
