@@ -31,6 +31,17 @@
  */
 
 /* 
+
+    OpenSSL Example: https://stackoverflow.com/questions/59340198/how-do-i-save-a-https-certificate-and-put-it-in-a-pem-file-on-openssl
+
+    it is the second base-64 certificate that seems to work 
+
+    openssl s_client -connect mqtt.eclipseprojects.io:8883 -showcerts > eclipseprojects.txt
+
+    openssl x509 -in eclipseprojects_io.pem -inform PEM -text
+    openssl x509 -in lets_encrypt.pem -inform PEM -text
+
+
     LwIP SNTP example: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/system/system_time.html#overview
 
     Time-Zone: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html
@@ -48,29 +59,26 @@
 #include <sys/param.h>
 #include <sdkconfig.h>
 
-#include "esp_system.h"
-#include "esp_partition.h"
-#include "esp_wifi.h"
-#include "esp_event.h"
-#include "esp_check.h"
-#include "esp_log.h"
-#include "esp_attr.h"
+#include <esp_system.h>
+#include <esp_event.h>
+#include <esp_check.h>
+#include <esp_log.h>
 #include <esp_types.h>
-#include "esp_sleep.h"
-#include "esp_netif_sntp.h"
-#include "esp_sntp.h"
-#include "esp_tls.h"
+#include <esp_wifi.h>
+#include <esp_netif_sntp.h>
+#include <esp_sntp.h>
+#include <esp_tls.h>
 
-#include "lwip/ip_addr.h"
+#include <lwip/ip_addr.h>
 
-#include "nvs_flash.h"
+#include <nvs_flash.h>
 
-#include "mqtt_client.h"
+#include <mqtt_client.h>
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-#include "freertos/queue.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/event_groups.h>
+#include <freertos/queue.h>
 
 
 #define CONFIG_WIFI_SSID                      "SSID"
@@ -101,27 +109,15 @@
 #define WIFI_EVTGRP_CONNECTED_BIT               (BIT0)
 #define WIFI_EVTGRP_DISCONNECTED_BIT            (BIT1)
 //
-/* The ntp event group allows multiple bits for each event, but we only care about 2 events:
- *
- * 0 - NTP time synchronized
- * 1 - NTP time synchronization failed
- */
-#define NTP_EVTGRP_SYNCHRONIZED_BIT             (BIT0)
-#define NTP_EVTGRP_SYNCH_FAILED_BIT             (BIT1)
-//
-/* The mqtt event group allows multiple bits for each event, but we only care about 4 events:
+/* The mqtt event group allows multiple bits for each event, but we only care about 3 events:
  *
  * 0 - MQTT client connected to broker
  * 1 - MQTT client discconnected from broker
- * 2 - MQTT client connection refused by broker
- * 3 - MQTT client subscribed to qos0 topic
- * 4 - MQTT client subscription to qos0 topic failed
+ * 2 - MQTT client connection error
  */
 #define MQTT_EVTGRP_CONNECTED_BIT               (BIT0)
 #define MQTT_EVTGRP_DISCONNECTED_BIT            (BIT1)
-#define MQTT_EVTGRP_CONNECTION_REFUSED_BIT      (BIT2)
-#define MQTT_EVTGRP_QOS0_SUBSCRIBED_BIT         (BIT3)
-#define MQTT_EVTGRP_QOS0_SUBSCRIBE_FAILED_BIT   (BIT4)
+#define MQTT_EVTGRP_ERROR_BIT                   (BIT2)
 
 /**
  * @brief macro definitions
@@ -214,13 +210,13 @@ static inline void print_sntp_time_servers(void) {
  * esp information log.  This is used to monitor consumed bytes for possible 
  * memory leak(s) in the application.
  * 
- * @param last_free_heap_size Last free heap size in bytes.
+ * @param free_heap_size_last Last free heap size in bytes.
  * @return uint32_t Adjusted last free heap size in bytes.
  */
-static inline uint32_t print_free_heap_size(const uint32_t last_free_heap_size) {
-    uint32_t free_heap_size_start = last_free_heap_size; /* set last heap size */
+static inline uint32_t print_free_heap_size(const uint32_t free_heap_size_last) {
+    uint32_t free_heap_size_start = free_heap_size_last; /* set last heap size */
     uint32_t free_heap_size = esp_get_free_heap_size(); /* set free heap size */
-    if(free_heap_size_start == 0) free_heap_size_start = free_heap_size;  /* set start of free heap size */
+    if(free_heap_size_start == 0) free_heap_size_start = free_heap_size; 
     int32_t free_heap_size_delta = free_heap_size_start - free_heap_size;
     if(free_heap_size_delta < 0) { free_heap_size_start = free_heap_size; free_heap_size_delta = 0; }
     ESP_LOGW(TAG, "Free Memory: %lu bytes (%li bytes Consumed)", free_heap_size, free_heap_size_delta);
@@ -269,35 +265,42 @@ static inline void task_delay_until_sec(TickType_t *previous_wake_ticks, const u
  * @param event_data The data for the event, esp_wifi_event_handle_t.
  */
 static inline void wifi_event_handler(void* handler_args, esp_event_base_t event_base, int32_t event_id, void* event_data) {
-
-    ESP_LOGI(TAG, "wifi_event_handler: %s:%lu", event_base, event_id);
+    ESP_LOGD(TAG, "WIFI event dispatched from event loop base=%s, event_id=%" PRIi32, event_base, event_id);
 
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+        /* init wifi event group state bits */
         xEventGroupClearBits(l_wifi_evtgrp_hdl, WIFI_EVTGRP_CONNECTED_BIT);
         xEventGroupClearBits(l_wifi_evtgrp_hdl, WIFI_EVTGRP_DISCONNECTED_BIT);
-
-        l_wifi_retry_count = 0; /* initialize wifi retry counter to 0 */
+        /* initialize wifi retry counter to 0 */
+        l_wifi_retry_count = 0;
+        /* connect to wifi sta */
         esp_wifi_connect();
         ESP_LOGI(TAG, "Starting wifi access point connection.");
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        /* init wifi event group state bits */
         xEventGroupClearBits(l_wifi_evtgrp_hdl, WIFI_EVTGRP_CONNECTED_BIT);
         xEventGroupClearBits(l_wifi_evtgrp_hdl, WIFI_EVTGRP_DISCONNECTED_BIT);
-
+        /* wifi connection retry handler */
         if (l_wifi_retry_count <= WIFI_CONNECT_MAXIMUM_RETRY) {
+            /* connect to wifi sta */
             esp_wifi_connect();
-            l_wifi_retry_count++; /* increment wifi retry counter */
+            ESP_LOGW(TAG,"Connect to wifi access point failed, attempting retry (%d/%d)", l_wifi_retry_count, WIFI_CONNECT_MAXIMUM_RETRY);
+            /* increment wifi retry counter */
+            ++l_wifi_retry_count;
         } else {
+            /* init wifi event group state bits */
             xEventGroupSetBits(l_wifi_evtgrp_hdl, WIFI_EVTGRP_DISCONNECTED_BIT);
             xEventGroupClearBits(l_wifi_evtgrp_hdl, WIFI_EVTGRP_CONNECTED_BIT);
+            ESP_LOGE(TAG,"Unable to connect to wifi access point.");
         }
-        ESP_LOGI(TAG,"Connect to wifi access point failed... (%d/%d)", l_wifi_retry_count, WIFI_CONNECT_MAXIMUM_RETRY);
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        /* init wifi event group state bits */
         xEventGroupSetBits(l_wifi_evtgrp_hdl, WIFI_EVTGRP_CONNECTED_BIT);
         xEventGroupClearBits(l_wifi_evtgrp_hdl, WIFI_EVTGRP_DISCONNECTED_BIT);
-
-        l_wifi_retry_count = 0; /* reset wifi retry counter to 0 */
+        /* reset wifi retry counter to 0 */
+        l_wifi_retry_count = 0;
+        /* set got ip event data */
         ip_event_got_ip_t* event = (ip_event_got_ip_t*)event_data;
-
         ESP_LOGI(TAG, "Got ip from wifi access point:" IPSTR, IP2STR(&event->ip_info.ip));
     }
 }
@@ -310,16 +313,16 @@ static inline void wifi_event_handler(void* handler_args, esp_event_base_t event
 static inline void sntp_time_sync_event_handler(struct timeval *tv) {
     sntp_sync_status_t status = sntp_get_sync_status();
 
-    ESP_LOGW(TAG, "Notification of a time synchronization event:");
+    ESP_LOGD(TAG, "SNTP notification of a time synchronization event");
 
     if(status == SNTP_SYNC_STATUS_COMPLETED) {
-        ESP_LOGW(TAG, "->Time synchronization completed..");
+        ESP_LOGI(TAG, "Time synchronization completed..");
     } else if (status == SNTP_SYNC_STATUS_IN_PROGRESS) {
-        ESP_LOGW(TAG, "->Time synchronization in progress...");
+        ESP_LOGI(TAG, "Time synchronization in progress...");
     } else if (status == SNTP_SYNC_STATUS_RESET) {
-        ESP_LOGW(TAG, "->Time synchronization was reset...");
+        ESP_LOGI(TAG, "Time synchronization was reset...");
     } else {
-        ESP_LOGW(TAG, "->Time synchronization status is unknown...");
+        ESP_LOGI(TAG, "Time synchronization status is unknown...");
     }
 }
 
@@ -336,79 +339,69 @@ static inline void mqtt_event_handler(void *handler_args, esp_event_base_t event
     esp_mqtt_event_handle_t  event  = event_data;
     esp_mqtt_client_handle_t client = event->client;
 
-    ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%" PRIi32, event_base, event_id);
+    ESP_LOGD(TAG, "MQTT event dispatched from event loop base=%s, event_id=%" PRIi32, event_base, event_id);
     
     switch ((esp_mqtt_event_id_t)event_id) {
-    case MQTT_EVENT_CONNECTED:
-        ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+		case MQTT_EVENT_CONNECTED:
+			ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
 
-        l_mqtt_connected = true;
+			xEventGroupSetBits(l_mqtt_evtgrp_hdl, MQTT_EVTGRP_CONNECTED_BIT);
+			xEventGroupClearBits(l_mqtt_evtgrp_hdl, MQTT_EVTGRP_DISCONNECTED_BIT);
 
-        xEventGroupSetBits(l_mqtt_evtgrp_hdl, MQTT_EVTGRP_CONNECTED_BIT);
-        xEventGroupClearBits(l_mqtt_evtgrp_hdl, MQTT_EVTGRP_DISCONNECTED_BIT);
+			msg_id = esp_mqtt_client_subscribe(client, "/topic/qos0", 0);
+			ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
-        msg_id = esp_mqtt_client_subscribe(client, "/topic/qos0", 0);
-        ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+			break;
+		case MQTT_EVENT_DISCONNECTED:
+			ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
 
-        if(msg_id == -1 || msg_id == -2) {
-            xEventGroupSetBits(l_mqtt_evtgrp_hdl, MQTT_EVTGRP_QOS0_SUBSCRIBE_FAILED_BIT);
-            xEventGroupClearBits(l_mqtt_evtgrp_hdl, MQTT_EVTGRP_QOS0_SUBSCRIBED_BIT);
-        } else {
-            xEventGroupSetBits(l_mqtt_evtgrp_hdl, MQTT_EVTGRP_QOS0_SUBSCRIBED_BIT);
-            xEventGroupClearBits(l_mqtt_evtgrp_hdl, MQTT_EVTGRP_QOS0_SUBSCRIBE_FAILED_BIT);
-        }
+			xEventGroupSetBits(l_mqtt_evtgrp_hdl, MQTT_EVTGRP_DISCONNECTED_BIT);
+			xEventGroupClearBits(l_mqtt_evtgrp_hdl, MQTT_EVTGRP_CONNECTED_BIT);
+			break;
+		case MQTT_EVENT_SUBSCRIBED:
+			ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
 
-        break;
-    case MQTT_EVENT_DISCONNECTED:
-        ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+			break;
+		case MQTT_EVENT_UNSUBSCRIBED:
+			ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
+	 
+			break;
+		case MQTT_EVENT_PUBLISHED:
+			ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+	  
+			break;
+		case MQTT_EVENT_DATA:
+			ESP_LOGI(TAG, "MQTT_EVENT_DATA");
 
-        l_mqtt_connected = false;
+			printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+			printf("DATA=%.*s\r\n", event->data_len, event->data);
 
-        xEventGroupSetBits(l_mqtt_evtgrp_hdl, MQTT_EVTGRP_DISCONNECTED_BIT);
-        xEventGroupClearBits(l_mqtt_evtgrp_hdl, MQTT_EVTGRP_CONNECTED_BIT);
-        break;
-    case MQTT_EVENT_SUBSCRIBED:
-        ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
+			break;
+		case MQTT_EVENT_ERROR:
+			ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
 
-        break;
-    case MQTT_EVENT_UNSUBSCRIBED:
-        ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
- 
-        break;
-    case MQTT_EVENT_PUBLISHED:
-        ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
-  
-        break;
-    case MQTT_EVENT_DATA:
-        ESP_LOGI(TAG, "MQTT_EVENT_DATA");
+			if (event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
+				ESP_LOGI(TAG, "Last error code reported from esp-tls: 0x%x", event->error_handle->esp_tls_last_esp_err);
+				ESP_LOGI(TAG, "Last tls stack error number: 0x%x", event->error_handle->esp_tls_stack_err);
+				ESP_LOGI(TAG, "Last captured errno : %d (%s)",  event->error_handle->esp_transport_sock_errno,
+						 strerror(event->error_handle->esp_transport_sock_errno));
+			} else if (event->error_handle->error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED) {
+				ESP_LOGI(TAG, "Connection refused error: 0x%x", event->error_handle->connect_return_code);
+			} else {
+				ESP_LOGW(TAG, "Unknown error type: 0x%x", event->error_handle->error_type);
+			}
 
-        printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-        printf("DATA=%.*s\r\n", event->data_len, event->data);
-
-        break;
-    case MQTT_EVENT_ERROR:
-        ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
-
-        if (event->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT) {
-            ESP_LOGI(TAG, "Last error code reported from esp-tls: 0x%x", event->error_handle->esp_tls_last_esp_err);
-            ESP_LOGI(TAG, "Last tls stack error number: 0x%x", event->error_handle->esp_tls_stack_err);
-            ESP_LOGI(TAG, "Last captured errno : %d (%s)",  event->error_handle->esp_transport_sock_errno,
-                     strerror(event->error_handle->esp_transport_sock_errno));
-        } else if (event->error_handle->error_type == MQTT_ERROR_TYPE_CONNECTION_REFUSED) {
-            ESP_LOGI(TAG, "Connection refused error: 0x%x", event->error_handle->connect_return_code);
-        } else {
-            ESP_LOGW(TAG, "Unknown error type: 0x%x", event->error_handle->error_type);
-        }
-
-        break;
-    default:
-        ESP_LOGI(TAG, "Other event id:%d", event->event_id);
-        break;
+			break;
+		default:
+			ESP_LOGI(TAG, "Other event id:%d", event->event_id);
+			break;
     }
 }
 
 /**
- * @brief Starts wifi services.
+ * @brief Starts WIFI services.  This is a blocking function that waits for event bits to be
+ * initialized based on WIFI event results or it returns an error when the timeout period 
+ * has elapsed.
  * 
  * @return esp_err_t ESP_OK on success.
  */
@@ -490,7 +483,7 @@ static inline esp_err_t wifi_start( void ) {
 }
 
 /**
- * @brief Stops wifi services.
+ * @brief Stops WIFI services.  Do not use this function within the WIFI event handler.
  * 
  * @return esp_err_t ESP_OK on success.
  */
@@ -515,7 +508,9 @@ static inline esp_err_t wifi_stop(void) {
 
 /**
  * @brief Synchronizes system date-time with time server(s) over SNTP once 
- * a network connection over IP is established.
+ * connected to an IP network.  This is a blocking function that returns
+ * once the system date-time is initialized or it returns an error when 
+ * the timeout period has elapsed.
  * 
  * @return esp_err_t ESP_OK on success.
  */
@@ -537,17 +532,22 @@ static inline esp_err_t sntp_synch_time(void) {
         ret = esp_netif_sntp_sync_wait(SNTP_TIME_SYNC_TIMEOUT_MS / portTICK_PERIOD_MS);
         ESP_LOGI(TAG, "Waiting for system date-time to be set... (%d/%d)", sntp_retry_count, SNTP_TIME_SYNC_MAXIMUM_RETRY);
     } while (ret == ESP_ERR_TIMEOUT && ++sntp_retry_count <= SNTP_TIME_SYNC_MAXIMUM_RETRY);
-    ESP_RETURN_ON_ERROR( ret, TAG, "Unable to synchronize system date-time with time server(s), sntp time synchronization failed" );
 
     /* de-initialize sntp */
     esp_netif_sntp_deinit();
+
+    /* validate ntp sync results */
+    ESP_RETURN_ON_ERROR( ret, TAG, "Unable to synchronize system date-time with time server(s), sntp time synchronization failed" );
 
     return ESP_OK;
 }
 
 /**
- * @brief Gets date-time from network time server(s) and synchronize system date-time 
- * and time-zone. The function should only be called once connected to an IP network. 
+ * @brief Gets date-time from network time server(s) and synchronizes system date-time 
+ * and time-zone.  This function should only be called once connected to an IP network.
+ * This is a blocking function that returns once the system date-time is initialized or 
+ * it returns an error when the timeout period has elapsed.
+ * 
  * See time-zones list: https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
  * 
  * @param[in] timezone system timezone or set this parameter empty to default to UTC.
@@ -580,11 +580,15 @@ static inline esp_err_t sntp_get_time(const char* timezone) {
 }
 
 /**
- * @brief Starts the MQTT application.
+ * @brief Starts the MQTT application.  This function should only be called once connected 
+ * to an IP network.  This is a blocking function that waits for event bits to be initialized 
+ * based on MQTT event results or it returns an error when the timeout period has elapsed. 
  * 
  * @return esp_err_t ESP_OK on success.
  */
 static inline esp_err_t mqtt_app_start(void) {
+    esp_err_t     ret = ESP_OK;
+
     /* attempt to instantiate mqtt event group handle */
     l_mqtt_evtgrp_hdl = xEventGroupCreate();
     ESP_RETURN_ON_FALSE( l_mqtt_evtgrp_hdl, ESP_ERR_INVALID_STATE, TAG, "Unable to create MQTT event group handle, MQTT app start failed");
@@ -608,13 +612,63 @@ static inline esp_err_t mqtt_app_start(void) {
     /* attempt to start mqtt client services */
     ESP_RETURN_ON_ERROR( esp_mqtt_client_start(l_mqtt_client_hdl), TAG, "Unable to start MQTT client, MQTT app start failed" );
 
+    /* wait for either an mqtt connected, disconnected, or error event bit to be set */
+    EventBits_t mqtt_link_bits = xEventGroupWaitBits(l_mqtt_evtgrp_hdl,
+        MQTT_EVTGRP_CONNECTED_BIT | MQTT_EVTGRP_DISCONNECTED_BIT | MQTT_EVTGRP_ERROR_BIT,
+        pdFALSE,
+        pdFALSE,
+        portMAX_DELAY);
+        
+    /* xEventGroupWaitBits() returns the bits before the call returned, hence we 
+        can test which event actually happened with mqtt link bits. */
+    if (mqtt_link_bits & MQTT_EVTGRP_CONNECTED_BIT) {
+        ESP_LOGI(TAG, "Connected to MQTT broker");
+        l_mqtt_connected = true;
+        ret = ESP_OK;
+    } else if (mqtt_link_bits & MQTT_EVTGRP_DISCONNECTED_BIT) {
+        ESP_LOGE(TAG, "Disconnected from MQTT broker");
+        l_mqtt_connected = false;
+        ret = MQTT_ERROR_TYPE_CONNECTION_REFUSED;
+    } else if (mqtt_link_bits & MQTT_EVTGRP_ERROR_BIT) {
+        ESP_LOGE(TAG, "MQTT client error");
+        l_mqtt_connected = false;
+        ret = MQTT_ERROR_TYPE_NONE;
+    } else {
+        ESP_LOGE(TAG, "Unexpected MQTT client event");
+        l_mqtt_connected = false;
+        ret = ESP_ERR_NOT_SUPPORTED;
+    }
+
+    return ret;
+}
+
+/**
+ * @brief Stops the MQTT application.  Do not use this function within the MQTT event handler.
+ * 
+ * @return esp_err_t ESP_OK on success.
+ */
+static inline esp_err_t mqtt_app_stop(void) {
+    /* attempt to disconnect mqtt client */
+    ESP_RETURN_ON_ERROR( esp_mqtt_client_disconnect(l_mqtt_client_hdl), TAG, "Unable to disconnect MQTT client, MQTT app stop failed" );
+
+    /* attempt to stop mqtt client services */
+    ESP_RETURN_ON_ERROR( esp_mqtt_client_stop(l_mqtt_client_hdl), TAG, "Unable to stop MQTT client, MQTT app stop failed" );
+
+    /* attempt to unregister mqtt client event */
+    ESP_RETURN_ON_ERROR(esp_mqtt_client_unregister_event(l_mqtt_client_hdl, ESP_EVENT_ANY_ID, mqtt_event_handler), TAG, "Unable to unregister MQTT client event, MQTT app stop failed" );
+
+    /* clean-up */
+    esp_mqtt_client_destroy(l_mqtt_client_hdl);
+    l_mqtt_client_hdl = NULL;
+    free(l_mqtt_evtgrp_hdl);
+    l_mqtt_evtgrp_hdl = NULL;
+
     return ESP_OK;
 }
 
 /**
  * @brief Task that sends a sensor sample item to the MQTT sensor 
- * sampling queue every 30-seconds.  This task waits for MQTT connection 
- * and subscription group event bits to be set before starting.
+ * sampling queue every 30-seconds once MQTT client is connected.
  * 
  * @param pvParameters Parameters for task.
  */
@@ -625,44 +679,11 @@ static void sample_sensor_task( void *pvParameters ) {
     /* set last wake ticks from tick count */
     TickType_t last_wake_ticks = xTaskGetTickCount ();
 
-    /* instantiate qos0 topic queue for environmental samples */
+    /* attempt to create a queue for environmental samples */
     l_mqtt_pub_qos0_queue_hdl = xQueueCreate(MQTT_PUB_QOS0_QUEUE_SIZE, sizeof(environmental_samples_t*));
-
-    /* wait for either an mqtt connected or disconnected event bit to be set */
-    EventBits_t mqtt_link_bits = xEventGroupWaitBits(l_mqtt_evtgrp_hdl,
-        MQTT_EVTGRP_CONNECTED_BIT | MQTT_EVTGRP_DISCONNECTED_BIT,
-        pdFALSE,
-        pdFALSE,
-        portMAX_DELAY);
-        
-    /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually happened with mqtt link bits. */
-    if (mqtt_link_bits & MQTT_EVTGRP_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "Connected to MQTT broker");
-        l_mqtt_connected = true;
-    } else if (mqtt_link_bits & MQTT_EVTGRP_DISCONNECTED_BIT) {
-        ESP_LOGE(TAG, "Disconnected from MQTT broker");
-        //esp_restart();
-    } else {
-        ESP_LOGE(TAG, "UNEXPECTED MQTT EVENT");
-        //esp_restart();
-    }
-
-    /* wait for either an mqtt qos0 subscribed or qos0 subscribe failure event bit to be set */
-    EventBits_t mqtt_qos0_pub_bits = xEventGroupWaitBits(l_mqtt_evtgrp_hdl,
-        MQTT_EVTGRP_QOS0_SUBSCRIBED_BIT | MQTT_EVTGRP_QOS0_SUBSCRIBE_FAILED_BIT,
-        pdFALSE,
-        pdFALSE,
-        portMAX_DELAY);
-
-    /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually happened with mqtt qos0 publish bits. */
-    if (mqtt_qos0_pub_bits & MQTT_EVTGRP_QOS0_SUBSCRIBED_BIT) {
-        ESP_LOGI(TAG, "Subscribed to QOS0 Topic");
-    } else if (mqtt_qos0_pub_bits & MQTT_EVTGRP_QOS0_SUBSCRIBE_FAILED_BIT) {
-        ESP_LOGE(TAG, "Subscribe to QOS0 Topic Failed");
-    //    esp_restart();
-    } else {
-        ESP_LOGE(TAG, "UNEXPECTED MQTT EVENT");
-        //esp_restart();
+    if(l_mqtt_pub_qos0_queue_hdl == pdFALSE) {
+        ESP_LOGE(TAG, "Unable to create queue for publishing environmental samples");
+        esp_restart();
     }
 
     /* attempt to instantiate samples pointer */
@@ -678,7 +699,7 @@ static void sample_sensor_task( void *pvParameters ) {
         task_delay_until_sec( &last_wake_ticks, 30 );
 
         /* validate mqtt link status */
-        if(l_mqtt_connected == false) esp_restart();
+        if(l_mqtt_connected == false) continue;
 
         /* clear sample values */
         clear_samples(samples);
@@ -710,15 +731,14 @@ static void sample_sensor_task( void *pvParameters ) {
  * @param pvParameters Parameters for task.
  */
 static void publish_sensor_task( void *pvParameters ) {
-    uint32_t free_heap_size_start = 0;
+    static char fmt_buffer_ta[MQTT_SMP_FORMAT_BUFFER_SIZE];
+    static char fmt_buffer_hr[MQTT_SMP_FORMAT_BUFFER_SIZE];
+    static char fmt_buffer_pa[MQTT_SMP_FORMAT_BUFFER_SIZE];
+    environmental_samples_t* samples = NULL;
+    uint32_t free_heap_size_last     = 0;
 
     /* enter task loop */
     for ( ;; ) {
-        static char fmt_buffer_ta[MQTT_SMP_FORMAT_BUFFER_SIZE];
-        static char fmt_buffer_hr[MQTT_SMP_FORMAT_BUFFER_SIZE];
-        static char fmt_buffer_pa[MQTT_SMP_FORMAT_BUFFER_SIZE];
-        environmental_samples_t* samples = NULL;
-
         /* validate receive queue and handle queued item */
         if(xQueueReceive(l_mqtt_pub_qos0_queue_hdl, &(samples), (TickType_t)20) && samples != NULL) {
             /* validate mqtt link status */
@@ -737,7 +757,7 @@ static void publish_sensor_task( void *pvParameters ) {
             esp_mqtt_client_publish(l_mqtt_client_hdl, "/topic/qos0", fmt_buffer_pa, 0, 0, 0);
 
             /* monitor consumed bytes for possible memory leak */
-            free_heap_size_start = print_free_heap_size(free_heap_size_start);
+            free_heap_size_last = print_free_heap_size(free_heap_size_last);
         }
     }
     vTaskDelete( NULL );
