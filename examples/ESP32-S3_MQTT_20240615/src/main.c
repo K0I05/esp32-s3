@@ -73,15 +73,8 @@
 #include "freertos/queue.h"
 
 
-//#define CONFIG_WIFI_SSID                      "SSID"
-//#define CONFIG_WIFI_PASSWORD                  "PWD"
-
-/* home internet */
-#define CONFIG_WIFI_SSID                        "APOLLO"
-#define CONFIG_WIFI_PASSWORD                    "41F43DA524D6"
-/* trailer internet 5ghz WPA2-Personal */
-//#define CONFIG_WIFI_SSID                      "NOKIA-8764"
-//#define CONFIG_WIFI_PASSWORD                  "qpLQaC.pbk"
+#define CONFIG_WIFI_SSID                      "SSID"
+#define CONFIG_WIFI_PASSWORD                  "PWD"
 
 
 #define INET4_IP_FORMAT_BUFFER_SIZE             (15) // (255.255.255.255)
