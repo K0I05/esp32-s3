@@ -47,7 +47,19 @@
 #include <datalogger_common.h>
 #include <time_into_interval.h>
 
+/*
 
+{
+  "data": {
+    "columns": ["name", "time", "value"],
+    "rows": [
+      [ "wave.pi", 1687481466000000000, 1.2345],
+      [ "wave.pi", 1687481467000000000, 3.1415]
+    ]
+  }
+}
+
+*/
 
 #ifdef __cplusplus
 extern "C"
@@ -156,11 +168,18 @@ typedef struct datatable_int16_column_data_type_tag {
     time_t                              value_ts;   // timestamp of value, used for time of max or min   
 } datatable_int16_column_data_type_t;
 
+
+typedef struct datatable_column_name_tag {
+    const char*                          name;      // data-table column name, maximum 15 characters.
+} datatable_column_name_t;
+
 /**
- * @brief Data-table column data buffer structure.  The record identifier and
+ * @brief Data-table column structure.  The data-table record identifier and timestamp columns
+ * are created by default when the data-table is created.  The record identifier and
  * record timestamp data-types are excluded from data processing.
  */
-typedef struct datatable_column_data_buffer_tag {
+typedef struct datatable_column_tag {
+    datatable_column_name_t             names[3];           // data-table column names, index 0 and 1 for vector data-type or index 0, 1, and 2 for max and min with timestamp process-types, and index 0 for all other scenarios.
     uint16_t                            samples_size;       // data-table size of data buffer samples, automatically populated when column is created
     uint16_t                            samples_count;      // data-table number of samples in the data buffer, automatically populated when data-table is processed
     datatable_column_data_types_t       data_type;          // data-table column data buffer data-type, automatically populated when column is created
@@ -169,23 +188,7 @@ typedef struct datatable_column_data_buffer_tag {
         datatable_bool_column_data_type_t**   bool_samples;       // data-table boolean samples data buffer, automatic array sizing when column is created based configured column data-type
         datatable_float_column_data_type_t**  float_samples;      // data-table float samples data buffer, automatic array sizing when column is created based configured column data-type
         datatable_int16_column_data_type_t**  int16_samples;      // data-table int16 samples data buffer, automatic array sizing when column is created based configured column data-type
-    } buffer;                                               // data-table column data buffer union based on the configured column data-type, automatically populated when column is created.
-} datatable_column_data_buffer_t;
-
-
-typedef struct datatable_column_name_tag {
-    char                                name[DATATABLE_COLUMN_NAME_MAX_SIZE];  // data-table column name, maximum 15 characters.
-} datatable_column_name_t;
-
-/**
- * @brief Data-table column structure.  The data-table record identifier and timestamp columns
- * are created by default when the data-table is created.
- */
-typedef struct datatable_column_tag {
-    uint8_t                             index;              // data-table column index, automatically populated when column is created.
-    datatable_column_name_t             names[3];           // data-table column names, index 0 and 1 for vector data-type or index 0, 1, and 2 for max and min with timestamp process-types, and index 0 for all other scenarios.
-    datatable_column_data_types_t       data_type;          // data-table column data-type setting, automatically populated when column is created.
-    datatable_column_data_buffer_t      data;               // data-table column data buffer structure for data processing, automatically populated when column is created.
+    } buffer;
     datatable_column_process_types_t    process_type;       // data-table statistical data processing type setting.
 } datatable_column_t;
 
@@ -194,9 +197,7 @@ typedef struct datatable_column_tag {
  * data storage of the record based on the data-table's column column data-type.
  */
 typedef struct datatable_row_data_column_tag {
-    uint8_t                             column_index;       // data-table column index, automatically populated when row is created.
-    uint16_t                            row_index;          // data-table row index, automatically populated when row is created.
-    datatable_column_data_types_t       data_type;          // data-table column data-type, automatically populated when row is created.
+    datatable_column_data_types_t              data_type;          // data-table column data-type, automatically populated when row is created.
     union column_data_tag {
         datatable_id_column_data_type_t        id_data;            // data-table column record identifier data-type structure, automatically populated when row is created.
         datatable_ts_column_data_type_t        ts_data;            // data-table column record timestamp data-type structure, automatically populated when row is created.
@@ -212,8 +213,7 @@ typedef struct datatable_row_data_column_tag {
  * data storage of record by data-table row and configured data-table columns.
  */
 typedef struct datatable_row_tag {
-    uint16_t                        index;                  // data-table row index, automatically populated when row is created.
-    uint16_t                        data_columns_size;      // data-table size of row data columns, automatically populated when row is created.
+    uint8_t                         data_columns_size;      // data-table size of row data columns, automatically populated when row is created.
     datatable_row_data_column_t**   data_columns;           // data-table data columns of the record contained in the row, automatically populated when row is created.
 } datatable_row_t;
 
@@ -222,9 +222,9 @@ typedef struct datatable_row_tag {
  * @brief Data-table configuration structure definition.
  */
 typedef struct datatable_config_tag {
-    char                                name[DATATABLE_NAME_MAX_SIZE];  /*!< data-table textual name, maximum of 15 characters */
-    uint8_t                             columns_size;               /*!< data-table column array size, this setting cannot be 0 */
-    uint16_t                            rows_size;                  /*!< data-table row array size, this setting cannot be 0 */
+    const char*                         name;                       /*!< data-table textual name, maximum of 15 characters */
+    uint8_t                             columns_size;               /*!< data-table column array size, 1..255, this setting cannot be 0 */
+    uint16_t                            rows_size;                  /*!< data-table row array size, 1..65535, this setting cannot be 0 */
     datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, defines handling of records when the data-table is full */
     time_into_interval_config_t         sampling_config;            /*!< data-table sampling time-into-interval configuration, configures the sampling interval  */
     time_into_interval_config_t         processing_config;          /*!< data-table processing time-into-interval configuration, configures the processing interval */
@@ -236,18 +236,17 @@ typedef struct datatable_config_tag {
  * data-table handle is created, these are read-only, and represent a state machine.
  */
 struct datatable_t {
-    char                                name[DATATABLE_NAME_MAX_SIZE];  /*!< data-table textual name, maximum of 15 characters */
+    const char*                         name;                       /*!< data-table textual name, maximum of 15 characters */
     datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, defines handling of records when the data-table is full, set when data-table is created */
-    //uint64_t                            sampling_ticks;             /*!< ticks since the last sampling to validate timeticks of samples */
+    //uint64_t                            sampling_ticks;             /*!< ticks since the last sampling to validate timeticks between samples */
     uint16_t                            sampling_count;             /*!< data-table data sampling count seed number */
     time_into_interval_handle_t         sampling_tii_handle;        /*!< data-table sampling time-into-interval handle */
     time_into_interval_handle_t         processing_tii_handle;      /*!< data-table processing time-into-interval handle */
     uint16_t                            record_id;                  /*!< data-table record identifer seed number */
-    uint8_t                             columns_index;              /*!< data-table column index seed number, this number is always smaller than the column size */
+    uint8_t                             columns_count;              /*!< data-table column count seed number, this number should not exceed the column size*/
     uint8_t                             columns_size;               /*!< data-table column array size, static, set when data-table is created */
     datatable_column_t**                columns;                    /*!< array of data-table columns */
-    uint16_t                            rows_index;                 /*!< data-table row index seed number, this number is always smaller than the column size */
-    uint16_t                            rows_count;                 /*!< data-table row count seed number, this number should not exceed the column size*/
+    uint16_t                            rows_count;                 /*!< data-table row count seed number, this number should not exceed the row size*/
     uint16_t                            rows_size;                  /*!< data-table row array size, static, set when data-table is created */
     datatable_row_t**                   rows;                       /*!< array of data-table rows */
     uint16_t                            data_buffer_size;           /*!< data-table column data buffer size */

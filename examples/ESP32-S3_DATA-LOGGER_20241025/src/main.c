@@ -2,6 +2,18 @@
  * @file main.c
  * @brief ESP Data-Logger Component
  *
+ * i2c sensors: AHT20 + BMP280 
+ * 
+ * This example takes the parameters 
+ *
+ *  Sensor Board AHT20 + BMP280 Wiring
+ *  VIN -> MCU VDD 3.3V Pin
+ *  GNG -> MCU GND Pin
+ *  SCL -> MCU SCL Pin
+ *  SDA -> MCU SDA Pin
+ *  
+ *  BMP280 I2C Address: 0x77
+ *  AHT20  I2C Address: 0x38
  *  
  * 
  * CTRL + SHIFT + P
@@ -105,7 +117,7 @@ static datatable_config_t       dt_1min_cfg = {       /* example data-table conf
     .name                       = "1min_tbl",
     .data_storage_type          = DATATABLE_DATA_STORAGE_MEMORY_RING,
     .columns_size               = 7,
-    .rows_size                  = 5,
+    .rows_size                  = 10,
     .sampling_config            = { /* 10-sec sampling */
         .interval_type          = DATALOGGER_TIME_INTERVAL_SEC,
         .interval_period        = 10,
@@ -464,6 +476,8 @@ static void dt_1min_smp_task( void *pvParameters ) {
         .interval_offset    = 0
     };
 
+    uint32_t free_heap_size_start = 0;
+
     /*
     // wait for an event group bit to be set.
     EventBits_t bits = xEventGroupWaitBits(net_event_group_hdl,
@@ -497,9 +511,12 @@ static void dt_1min_smp_task( void *pvParameters ) {
         ESP_LOGI(APP_TAG, "######################## DATA-LOGGER - START #########################");
         
         // print free memory available and boot count
-        ESP_LOGI(APP_TAG, "Free Memory:   %lu bytes", esp_get_free_heap_size());
-        ESP_LOGI(APP_TAG, "Reboot Count:  %li", restart_counter);
-        ESP_LOGI(APP_TAG, "Records Count: %u", dt_1min_hdl->rows_count);
+        uint32_t heap_size = esp_get_free_heap_size();
+        if(free_heap_size_start == 0) free_heap_size_start = heap_size;
+        //ESP_LOGI(APP_TAG, "Free Memory Start:   %lu bytes", free_heap_size_start);
+        ESP_LOGI(APP_TAG, "Free Memory:         %lu bytes (%lu bytes Consumed)", heap_size, free_heap_size_start - heap_size);
+        ESP_LOGI(APP_TAG, "Reboot Count:        %li", restart_counter);
+        ESP_LOGI(APP_TAG, "Records Count:       %u", dt_1min_hdl->rows_count);
 
         // print next data-table sampling time-into-interval event
         ESP_LOGI(APP_TAG, "Data-Table Sampling....");
@@ -529,7 +546,7 @@ static void dt_1min_smp_task( void *pvParameters ) {
         
         /* serialize data-table and output in json string format every 
         5-minutes (i.e. 12:00:00, 12:05:00, 12:10:00, etc.) */
-        /* omit for now - memory leak hunting...
+        // omit for now - memory leak hunting...
         if(time_into_interval(dt_1min_tii_5min_hdl)) {
             // create root object for data-table
             cJSON *dt_1min_json = cJSON_CreateObject();
@@ -542,10 +559,10 @@ static void dt_1min_smp_task( void *pvParameters ) {
             ESP_LOGI(APP_TAG, "JSON Data-Table:\n%s",dt_1min_json_str);
 
             // free-up json resources
-            cJSON_free(dt_1min_json_str);
             cJSON_Delete(dt_1min_json);
+            cJSON_free(dt_1min_json_str);
         }
-        */
+        
 
         // print next data-table output time-into-interval event
         ESP_LOGI(APP_TAG, "Data-Table Output....");
@@ -718,9 +735,8 @@ void app_main( void ) {
     char *dt_1min_json_str = cJSON_Print(dt_1min_json);
     ESP_LOGI(APP_TAG, "JSON Data-Table:\n%s",dt_1min_json_str);
     // free-up json resources
-    cJSON_free(dt_1min_json_str);
     cJSON_Delete(dt_1min_json);
-
+    cJSON_free(dt_1min_json_str);
 
 
     // create a task that is pinned to core 1 for data-table sampling and processing
@@ -732,6 +748,4 @@ void app_main( void ) {
         CONFIG_I2C_0_TASK_PRIORITY, 
         NULL, 
         APP_CPU_NUM );
-    
-    
 }

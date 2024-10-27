@@ -124,9 +124,9 @@ esp_err_t datalogger_init(const char *name, datalogger_handle_t *datalogger_hand
     ESP_GOTO_ON_ERROR( systemtable_init(&out_handle->systemtable_handle), err, TAG, "unable to initialize system-table, data-logger handle initialization failed" );
 
     /* initialize data-logger state object */
-    strcpy(out_handle->name, name);
+    out_handle->name                    = name;
     out_handle->datatable_handles_count = 0;
-    out_handle->event_handler = datalogger_event_handler;
+    out_handle->event_handler           = datalogger_event_handler;
 
     /* invoke data-logger event */
     datalogger_invoke_event(out_handle, DATALOGGER_EVENT_DL_INIT, "data-logger initialized successfully");
@@ -151,7 +151,8 @@ esp_err_t datalogger_new_datatable(datalogger_handle_t datalogger_handle, const 
     ESP_RETURN_ON_FALSE( (datalogger_handle->datatable_handles_count + 1 < DATALOGGER_DT_HANDLES_MAXIMUM + 1), ESP_ERR_INVALID_SIZE, TAG, "number of data-table handles exceeds the maximum allowed, data-logger new data-table failed" );
     
     /* copy data-table config */
-    datatable_config_t dt_config = {
+    const datatable_config_t dt_config = {
+        .name               = datatable_config->name,
         .columns_size       = datatable_config->columns_size,
         .rows_size          = datatable_config->rows_size,
         .data_storage_type  = datatable_config->data_storage_type,
@@ -159,7 +160,6 @@ esp_err_t datalogger_new_datatable(datalogger_handle_t datalogger_handle, const 
         .processing_config  = datatable_config->processing_config,
         .event_handler      = datalogger_event_handler
     };
-    strcpy(dt_config.name, datatable_config->name);
 
     /* attempt to create a new data-table handle */
     ESP_RETURN_ON_ERROR( datatable_init(&dt_config, &out_handle), TAG, "unable to create new data-table, data-logger new data-table failed." );

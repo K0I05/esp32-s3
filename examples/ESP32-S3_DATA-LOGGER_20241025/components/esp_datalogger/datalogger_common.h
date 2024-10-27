@@ -449,7 +449,6 @@ static inline double datalogger_decode_uint16(uint16_t x) {
     return f;
 }
 
-
 /**
  * @brief Calculates dewpoint temperature from air temperature and relative humidity.
  *
@@ -467,6 +466,20 @@ static inline float datalogger_dewpoint(const float temperature, const float hum
     // calculate dew-point temperature
     double H = (log10(humidity)-2)/0.4343 + (17.62*temperature)/(243.12+temperature);
     return dewpoint = 243.12*H/(17.62-H);
+}
+
+/**
+ * @brief Concatenates the `append` string to the `base` string.
+ * 
+ * @param base String base.
+ * @param append String to append to the base.
+ * @return const char* `append` string concatenated to the `base` string.
+ */
+static inline const char* datalogger_concat(const char* base, const char* append) {
+    char *res = malloc(strlen(base) + strlen(append) + 1);
+    strcpy(res, base);
+    strcat(res, append);
+    return res;
 }
 
 

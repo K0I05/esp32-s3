@@ -62,7 +62,7 @@ extern "C" {
  * 
  */
 typedef struct time_into_interval_config_tag {
-    char                             name[TIME_INTO_INTERVAL_NAME_MAX_SIZE]; /*!< time-into-interval, name, maximum of 25-characters */
+    const char*                      name;              /*!< time-into-interval, name, maximum of 25-characters */
     datalogger_time_interval_types_t interval_type;     /*!< time-into-interval, interval type setting */ 
     uint16_t                         interval_period;   /*!< time-into-interval, a non-zero interval period setting per interval type setting */ 
     uint16_t                         interval_offset;   /*!< time-into-interval, interval offset setting, per interval type setting, that must be less than the interval period */ 
@@ -73,7 +73,7 @@ typedef struct time_into_interval_config_tag {
  * @brief Time-into-interval structure.
  */
 struct time_into_interval_t {
-    char                             name[TIME_INTO_INTERVAL_NAME_MAX_SIZE]; /*!< time-into-interval, name, maximum of 25-characters */
+    const char*                      name;               /*!< time-into-interval, name, maximum of 25-characters */
     uint64_t                         epoch_timestamp;    /*!< time-into-interval, next event unix epoch timestamp (UTC) in milli-seconds */
     datalogger_time_interval_types_t interval_type;      /*!< time-into-interval, interval type setting */
     uint16_t                         interval_period;    /*!< time-into-interval, a non-zero interval period setting per interval type setting */
@@ -135,6 +135,15 @@ bool time_into_interval(time_into_interval_handle_t time_into_interval_handle);
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t time_into_interval_delay(time_into_interval_handle_t time_into_interval_handle);
+
+/**
+ * @brief Gets epoch timestamp (UTC) of the last event in milli-seconds.
+ * 
+ * @param time_into_interval_handle Time-into-interval handle.
+ * @param epoch_timestamp Unix epoch timestamp (UTC) in milli-seconds of the last event.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t time_into_interval_get_last_event(time_into_interval_handle_t time_into_interval_handle, uint64_t *epoch_timestamp);
 
 /**
  * @brief Deletes the time-into-interval handle and frees up resources.

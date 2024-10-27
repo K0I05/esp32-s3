@@ -76,7 +76,7 @@ esp_err_t time_into_interval_init(const time_into_interval_config_t *time_into_i
     ESP_GOTO_ON_FALSE( out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for time-into-interval handle, time-into-interval handle initialization failed" );
 
     /* initialize task schedule state object parameters */
-    strcpy(out_handle->name, time_into_interval_config->name);
+    out_handle->name            = time_into_interval_config->name;
     out_handle->epoch_timestamp = 0;
     out_handle->interval_type   = time_into_interval_config->interval_type;
     out_handle->interval_period = time_into_interval_config->interval_period;
@@ -183,6 +183,25 @@ esp_err_t time_into_interval_delay(time_into_interval_handle_t time_into_interva
                                         time_into_interval_handle->interval_offset, 
                                         &time_into_interval_handle->epoch_timestamp);
                                         
+    /* unlock the mutex */
+    xSemaphoreGive(time_into_interval_handle->mutex_handle);
+
+    return ESP_OK;
+}
+
+esp_err_t time_into_interval_get_last_event(time_into_interval_handle_t time_into_interval_handle, uint64_t *epoch_timestamp) {
+    // validate arguments
+    ESP_ARG_CHECK( time_into_interval_handle );
+
+    /* lock the mutex */
+    xSemaphoreTake(time_into_interval_handle->mutex_handle, portMAX_DELAY);
+
+    /* convert interval into msec */
+    uint64_t interval_msec = datalogger_normalize_interval_to_msec(time_into_interval_handle->interval_type, time_into_interval_handle->interval_period);
+
+    /* set last event epoch timestamp */
+    *epoch_timestamp = time_into_interval_handle->epoch_timestamp - interval_msec;
+
     /* unlock the mutex */
     xSemaphoreGive(time_into_interval_handle->mutex_handle);
 

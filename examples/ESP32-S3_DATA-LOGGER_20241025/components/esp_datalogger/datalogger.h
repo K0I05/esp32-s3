@@ -71,7 +71,7 @@ typedef struct {
  * data-logger handle is created, these are read-only, and represent a state machine.
  */
 struct datalogger_t {
-    char                            name[DATALOGGER_NAME_SIZE];       /*!< data-logger textual name, 15-characters maximum */
+    const char*                     name;                             /*!< data-logger textual name, 15-characters maximum */
     systemtable_handle_t            systemtable_handle;               /*!< data-logger system data-table handle, initialized when data-logger handle is created */
     uint8_t                         datatable_handles_count;          /*!< data-logger data-tables handles count, initialized to 0 when data-logger handle is created */
     datalogger_datatable_handle_t** datatable_handles;                /*!< data-logger array of referenced data-table handles, initialized when data-logger handle is created */
