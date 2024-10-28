@@ -57,6 +57,10 @@ extern "C"
 #define SYSTEMTABLE_COLUMNS_MAX           (3)         //!< 3-columns for system-table (event id, event timestamp, message) 
 #define SYSTEMTABLE_ROWS_MAX              (20)        //!< 
 #define SYSTEMTABLE_DATA_COL_MSG_MAX_SIZE (40)        //!< 40-characters for data-column message
+#define SYSTEMTABLE_NAME                  "system_tbl"
+#define SYSTEMTABLE_COLUMN_ID_NAME        "Event ID"
+#define SYSTEMTABLE_COLUMN_TS_NAME        "Event TS"
+#define SYSTEMTABLE_COLUMN_MSG_NAME       "Event MSG"
 
 /**
  * @brief System-table column data-types enumerator.
@@ -85,13 +89,11 @@ typedef struct {
  * @brief System-table event message column data-type structure.
  */
 typedef struct {
-    char*                              value;      // message value    
+    const char*                        value;      // message value    
 } systemtable_message_column_data_type_t;
 
 
 typedef struct {
-    uint8_t                         column_index;       // system-table column index, automatically populated when row is created.
-    uint16_t                        row_index;          // system-table row index, automatically populated when row is created.
     systemtable_column_data_types_t data_type;
     union {
         systemtable_id_column_data_type_t       id;
@@ -101,25 +103,22 @@ typedef struct {
 } systemtable_row_data_column_t;
 
 typedef struct {
-    uint8_t                         index;              // system-table column index, automatically populated when column is created.
-    char                            name[SYSTEMTABLE_COLUMN_NAME_MAX_SIZE];
+    const char*                     name;
     systemtable_column_data_types_t data_type;
 } systemtable_column_t;
 
 typedef struct {
-    uint16_t                        index;                  // system-table row index, automatically populated when row is created.
     uint16_t                        data_columns_size;      // system-table size of row data columns, automatically populated when row is created.
     systemtable_row_data_column_t** data_columns;
 } systemtable_row_t;
 
 
 struct systemtable_t {
-    char                            name[SYSTEMTABLE_NAME_MAX_SIZE];
-    uint8_t                         columns_index;              /*!< system-table column index seed number, this number is always smaller than the column size */
+    const char*                     name;
+    uint8_t                         columns_count;              /*!< system-table column count seed number, this number should not exceed the column size */
     uint8_t                         columns_size;               /*!< system-table column array size, static, set when system-table is created */
     systemtable_column_t**          columns;                    /*!< array of system-table columns */
-    uint16_t                        rows_index;                 /*!< system-table row index seed number, this number is always smaller than the column size */
-    uint16_t                        rows_count;                 /*!< system-table row count seed number, this number should not exceed the column size*/
+    uint16_t                        rows_count;                 /*!< system-table row count seed number, this number should not exceed the row size */
     uint16_t                        rows_size;                  /*!< system-table row array size, static, set when system-table is created */
     systemtable_row_t**             rows;                       /*!< array of system-table rows */   
     uint16_t                        event_id;  

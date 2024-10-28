@@ -170,7 +170,7 @@ typedef struct datatable_int16_column_data_type_tag {
 
 
 typedef struct datatable_column_name_tag {
-    const char*                          name;      // data-table column name, maximum 15 characters.
+    const char*                         name;      // data-table column name, maximum 15 characters.
 } datatable_column_name_t;
 
 /**

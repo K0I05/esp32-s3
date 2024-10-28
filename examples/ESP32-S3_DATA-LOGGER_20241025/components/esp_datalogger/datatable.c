@@ -324,7 +324,7 @@ static inline esp_err_t datatable_column_exist(datatable_handle_t datatable_hand
     xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
 
     /* validate index */
-    ESP_RETURN_ON_FALSE((index < datatable_handle->columns_size), ESP_ERR_INVALID_ARG, TAG, "index is out of range, get column failed");
+    ESP_RETURN_ON_FALSE((index < datatable_handle->columns_count), ESP_ERR_INVALID_ARG, TAG, "index is out of range, get column failed");
 
     /* unlock the mutex */
     xSemaphoreGive(datatable_handle->mutex_handle);
@@ -423,16 +423,160 @@ static inline esp_err_t datatable_fifo_rows(datatable_handle_t datatable_handle)
     /* lock the mutex */
     xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
 
+    /* validate memory availability and instantiate temporary data-table rows */
+    datatable_row_t** dt_rows = (datatable_row_t**)calloc(datatable_handle->rows_size, sizeof(datatable_row_t*));
+    ESP_RETURN_ON_FALSE( dt_rows, ESP_ERR_NO_MEM, TAG, "no memory for temporary data-table rows, data-table handle fifo rows failed" );
+
+    /* perform a deep copy of the data-table rows */
+    for(uint16_t i = 0; i < datatable_handle->rows_size; i++) {
+        /* validate memory availability and instantiate data-table row */
+        datatable_row_t* dt_row = (datatable_row_t*)calloc(1, sizeof(datatable_row_t));
+        ESP_RETURN_ON_FALSE( dt_row, ESP_ERR_NO_MEM, TAG, "no memory for temporary data-table row, data-table handle fifo rows failed" );
+
+        /* validate memory availability and instantiate data-table row data columns */
+        dt_row->data_columns = (datatable_row_data_column_t**)calloc(datatable_handle->columns_size, sizeof(datatable_row_data_column_t*));
+        ESP_RETURN_ON_FALSE( dt_row->data_columns, ESP_ERR_NO_MEM, TAG, "no memory for temporary data-table row data columns, data-table handle fifo rows failed");
+
+        /* validate data-table handle row instance */
+        if(datatable_handle->rows[i] != NULL) {
+            /* copy row attributes */
+            dt_row->data_columns_size = datatable_handle->rows[i]->data_columns_size;
+
+            /* perform a deep copy of the data-table row data columns */
+            for(uint8_t ii = 0; ii < datatable_handle->columns_size; ii++) {
+                /* validate memory availability and instantiate data-table row data colum */
+                dt_row->data_columns[ii] = (datatable_row_data_column_t*)calloc(1, sizeof(datatable_row_data_column_t));
+                ESP_RETURN_ON_FALSE( dt_row->data_columns[ii], ESP_ERR_NO_MEM, TAG, "no memory for temporary data-table row data column, data-table handle fifo rows failed" );
+
+                /* validate data-table handle row data column instance */
+                if(datatable_handle->rows[i]->data_columns[ii] != NULL) {
+                    /* copy row data column attributes */
+                    dt_row->data_columns[ii]->data_type = datatable_handle->rows[i]->data_columns[ii]->data_type;
+                    
+                    /* data-table handle data column data-type */
+                    switch(datatable_handle->rows[i]->data_columns[ii]->data_type) {
+                        case DATATABLE_COLUMN_DATA_ID:
+                            dt_row->data_columns[ii]->data.id_data.value = datatable_handle->rows[i]->data_columns[ii]->data.id_data.value;
+                            break;
+                        case DATATABLE_COLUMN_DATA_TS:
+                            dt_row->data_columns[ii]->data.ts_data.value = datatable_handle->rows[i]->data_columns[ii]->data.ts_data.value;
+                            break;
+                        case DATATABLE_COLUMN_DATA_VECTOR:
+                            dt_row->data_columns[ii]->data.vector_data.value_vc = datatable_handle->rows[i]->data_columns[ii]->data.vector_data.value_vc;
+                            dt_row->data_columns[ii]->data.vector_data.value_uc = datatable_handle->rows[i]->data_columns[ii]->data.vector_data.value_uc;
+                            dt_row->data_columns[ii]->data.vector_data.value_ts = datatable_handle->rows[i]->data_columns[ii]->data.vector_data.value_ts;
+                            break;
+                        case DATATABLE_COLUMN_DATA_BOOL:
+                            dt_row->data_columns[ii]->data.bool_data.value = datatable_handle->rows[i]->data_columns[ii]->data.bool_data.value;
+                            break;
+                        case DATATABLE_COLUMN_DATA_FLOAT:
+                            dt_row->data_columns[ii]->data.float_data.value = datatable_handle->rows[i]->data_columns[ii]->data.float_data.value;
+                            dt_row->data_columns[ii]->data.float_data.value_ts = datatable_handle->rows[i]->data_columns[ii]->data.float_data.value_ts;
+                            break;
+                        case DATATABLE_COLUMN_DATA_INT16:
+                            dt_row->data_columns[ii]->data.int16_data.value = datatable_handle->rows[i]->data_columns[ii]->data.int16_data.value;
+                            dt_row->data_columns[ii]->data.int16_data.value_ts = datatable_handle->rows[i]->data_columns[ii]->data.int16_data.value_ts;
+                            break;
+                    }
+                } /* data-table handle row data column instance */
+            } /* for-each data-table handle row data column*/
+
+            /* free data-table handle row */
+            datatable_free_row(datatable_handle->rows[i]);
+        } /* data-table handle row instance */
+
+        /* set temporary data-table row instance */
+        dt_rows[i] = dt_row;
+    } /* for-each row */
+
+    /* validate data-table handle rows instance */
+    if(datatable_handle->rows != NULL) {
+        /* free data-table handle rows */
+        free(datatable_handle->rows);
+    } /* data-table handle rows instance */
+
+    /* validate memory availability and instantiate data-table handle rows */
+    datatable_handle->rows = (datatable_row_t**)calloc(datatable_handle->rows_size, sizeof(datatable_row_t*));
+    ESP_RETURN_ON_FALSE( datatable_handle->rows, ESP_ERR_NO_MEM, TAG, "no memory for data-table handle rows, data-table handle fifo rows failed" );
+
+    /* perform a deep copy of the temporary data-table rows by shifting stack down by one to pop the first row */
+    for(uint16_t i = 0; i < datatable_handle->rows_size - 1; i++) {
+        /* validate memory availability and instantiate data-table handle row */
+        datatable_handle->rows[i] = (datatable_row_t*)calloc(1, sizeof(datatable_row_t));
+        ESP_RETURN_ON_FALSE( datatable_handle->rows[i], ESP_ERR_NO_MEM, TAG, "no memory for data-table handle row, data-table handle fifo rows failed" );
+
+        /* validate memory availability and instantiate data-table handle row data columns */
+        datatable_handle->rows[i]->data_columns = (datatable_row_data_column_t**)calloc(datatable_handle->columns_size, sizeof(datatable_row_data_column_t*));
+        ESP_RETURN_ON_FALSE( datatable_handle->rows[i]->data_columns, ESP_ERR_NO_MEM, TAG, "no memory for data-table handle row data columns, data-table handle fifo rows failed");
+
+        /* validate temporary data-table row instance */
+        if(dt_rows[i] != NULL) {
+            /* copy row attributes */
+            datatable_handle->rows[i]->data_columns_size = dt_rows[i + 1]->data_columns_size;
+
+            /* perform a deep shifted copy of the temporary data-table row data columns */
+            for(uint8_t ii = 0; ii < datatable_handle->columns_size; ii++) {
+                /* validate memory availability and instantiate data-table row data colum */
+                datatable_handle->rows[i]->data_columns[ii] = (datatable_row_data_column_t*)calloc(1, sizeof(datatable_row_data_column_t));
+                ESP_RETURN_ON_FALSE( datatable_handle->rows[i]->data_columns[ii], ESP_ERR_NO_MEM, TAG, "no memory for data-table handle row data column, data-table handle fifo rows failed" );
+
+                /* validate temporary data-table row data column instance */
+                if(dt_rows[i]->data_columns[ii] != NULL) {
+                    /* copy shifted row data column attributes */
+                    datatable_handle->rows[i]->data_columns[ii]->data_type = dt_rows[i + 1]->data_columns[ii]->data_type;
+                    
+                    /* temporary data-table data column data-type */
+                    switch(dt_rows[i]->data_columns[ii]->data_type) {
+                        case DATATABLE_COLUMN_DATA_ID:
+                            datatable_handle->rows[i]->data_columns[ii]->data.id_data.value = dt_rows[i + 1]->data_columns[ii]->data.id_data.value;
+                            break;
+                        case DATATABLE_COLUMN_DATA_TS:
+                            datatable_handle->rows[i]->data_columns[ii]->data.ts_data.value = dt_rows[i + 1]->data_columns[ii]->data.ts_data.value;
+                            break;
+                        case DATATABLE_COLUMN_DATA_VECTOR:
+                            datatable_handle->rows[i]->data_columns[ii]->data.vector_data.value_uc = dt_rows[i + 1]->data_columns[ii]->data.vector_data.value_uc;
+                            datatable_handle->rows[i]->data_columns[ii]->data.vector_data.value_vc = dt_rows[i + 1]->data_columns[ii]->data.vector_data.value_vc;
+                            datatable_handle->rows[i]->data_columns[ii]->data.vector_data.value_ts = dt_rows[i + 1]->data_columns[ii]->data.vector_data.value_ts;
+                            break;
+                        case DATATABLE_COLUMN_DATA_BOOL:
+                            datatable_handle->rows[i]->data_columns[ii]->data.bool_data.value = dt_rows[i + 1]->data_columns[ii]->data.bool_data.value;
+                            break;
+                        case DATATABLE_COLUMN_DATA_FLOAT:
+                            datatable_handle->rows[i]->data_columns[ii]->data.float_data.value = dt_rows[i + 1]->data_columns[ii]->data.float_data.value;
+                            datatable_handle->rows[i]->data_columns[ii]->data.float_data.value_ts = dt_rows[i + 1]->data_columns[ii]->data.float_data.value_ts;
+                            break;
+                        case DATATABLE_COLUMN_DATA_INT16:
+                            datatable_handle->rows[i]->data_columns[ii]->data.int16_data.value = dt_rows[i + 1]->data_columns[ii]->data.int16_data.value;
+                            datatable_handle->rows[i]->data_columns[ii]->data.int16_data.value_ts = dt_rows[i + 1]->data_columns[ii]->data.int16_data.value_ts;
+                            break;
+                    }
+                } /* temporary data-table row data column instance */
+            } /* for-each row data column*/
+
+            /* free temporary data-table row */
+            datatable_free_row(dt_rows[i]);
+        } /* temporary data-table row instance */
+    } /* for-each row */
+
+    /* validate temporary data-table rows instance */
+    if(dt_rows != NULL) {
+        /* free temporary data-table rows */
+        free(dt_rows);
+    } /* temporary data-table rows instance */
+
+
+
+
     //ESP_LOGE(TAG, "datatable_handle->rows_count %d", datatable_handle->rows_count);
 
     /* shift rows down by one index */
-    for(uint16_t r = 0; r < datatable_handle->rows_count - 1; r++) {
+    //for(uint16_t r = 0; r < datatable_handle->rows_count - 1; r++) {
 
-        memcpy(&datatable_handle->rows[r], &datatable_handle->rows[r + 1], sizeof(datatable_handle->rows[r + 1]));
-
-        ESP_LOGE(TAG, "datatable_fifo_rows row->index %d  rows->data_columns_size %d", r+1, datatable_handle->rows[r+1]->data_columns_size);
-        ESP_LOGE(TAG, "datatable_fifo_rows row->index %d  rows->data_columns_size %d", r, datatable_handle->rows[r]->data_columns_size);
-    }
+        //memcpy(&datatable_handle->rows[r], &datatable_handle->rows[r + 1], sizeof(datatable_handle->rows[r + 1]));
+        //memcpy(&datatable_handle->rows[r], &datatable_handle->rows[r + 1], sizeof(datatable_handle->rows[r + 1]));
+        //ESP_LOGE(TAG, "datatable_fifo_rows row->index %d  rows->data_columns_size %d", r+1, datatable_handle->rows[r+1]->data_columns_size);
+        //ESP_LOGE(TAG, "datatable_fifo_rows row->index %d  rows->data_columns_size %d", r, datatable_handle->rows[r]->data_columns_size);
+    //}
 
     //if(datatable_handle->rows[datatable_handle->rows_count - 1] != NULL) datatable_free_row(datatable_handle->rows[datatable_handle->rows_count - 1]);
 
@@ -2044,7 +2188,7 @@ esp_err_t datatable_process_samples(datatable_handle_t datatable_handle) {
         if(datatable_handle->rows_count > datatable_handle->rows_size) {
             datatable_handle->rows_count -= 1;
 
-            datatable_is_full = false;
+            datatable_is_full = true;
 
             ESP_LOGE(TAG, "datatable_process_samples rows_count %d", datatable_handle->rows_count);
 
@@ -2065,128 +2209,82 @@ esp_err_t datatable_process_samples(datatable_handle_t datatable_handle) {
         }
     }
 
-    if(datatable_is_full) {
+    /* validate memory availability for data-table row */
+    datatable_row_t* dt_row = (datatable_row_t*)calloc(1, sizeof(datatable_row_t));
+    ESP_RETURN_ON_FALSE( dt_row, ESP_ERR_NO_MEM, TAG, "no memory for data-table row, data-table handle process samples failed" );
 
-        /* set data-table row data-column size */
-        datatable_handle->rows[datatable_handle->rows_count - 1]->data_columns_size = datatable_handle->columns_size;
+    /* validate memory availability for data-table row data columns */
+    dt_row->data_columns = (datatable_row_data_column_t**)calloc(datatable_handle->columns_size, sizeof(datatable_row_data_column_t*));
+    ESP_RETURN_ON_FALSE( dt_row->data_columns, ESP_ERR_NO_MEM, TAG, "no memory for data-table row data columns, data-table handle process samples failed");
 
-        /* process data-table row data columns by data-type for each column */
-        for(uint8_t i = 0; i < datatable_handle->columns_count; i++) {
-            // set data column data-type
-            datatable_handle->rows[datatable_handle->rows_count - 1]->data_columns[i]->data_type = datatable_handle->columns[i]->data_type;
+    /* set data-table row data-column size */
+    dt_row->data_columns_size = datatable_handle->columns_size;
 
-            // process data-table buffer data by data-type
-            switch(datatable_handle->columns[i]->data_type) {
-                case DATATABLE_COLUMN_DATA_ID:
-                    datatable_handle->record_id++;
-                    datatable_handle->rows[datatable_handle->rows_count - 1]->data_columns[i]->data.id_data.value = datatable_handle->record_id;
-                    break;
-                case DATATABLE_COLUMN_DATA_TS:
-                    datatable_handle->rows[datatable_handle->rows_count - 1]->data_columns[i]->data.ts_data.value = datalogger_get_epoch_timestamp(); // unix epoch timestamp
-                    break;
-                case DATATABLE_COLUMN_DATA_VECTOR:
-                    ESP_RETURN_ON_ERROR( datatable_process_vector_data_buffer(datatable_handle, i, 
-                                                                            &datatable_handle->rows[datatable_handle->rows_count - 1]->data_columns[i]->data.vector_data.value_uc, 
-                                                                            &datatable_handle->rows[datatable_handle->rows_count - 1]->data_columns[i]->data.vector_data.value_vc, 
-                                                                            &datatable_handle->rows[datatable_handle->rows_count - 1]->data_columns[i]->data.vector_data.value_ts), 
-                                                                            TAG, "process vector data buffer for data-table process samples failed" );
-                    ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, i), TAG, "reset data buffer for data-table process samples failed" );
-                    break;
-                case DATATABLE_COLUMN_DATA_BOOL:
-                    ESP_RETURN_ON_ERROR( datatable_process_bool_data_buffer(datatable_handle, i, 
-                                                                            &datatable_handle->rows[datatable_handle->rows_count - 1]->data_columns[i]->data.bool_data.value), 
-                                                                            TAG, "process bool data buffer for data-table process samples failed" );
-                    ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, i), TAG, "reset data buffer for data-table process samples failed" );
-                    break;
-                case DATATABLE_COLUMN_DATA_FLOAT:
-                    ESP_RETURN_ON_ERROR( datatable_process_float_data_buffer(datatable_handle, i, 
-                                                                            &datatable_handle->rows[datatable_handle->rows_count - 1]->data_columns[i]->data.float_data.value, 
-                                                                            &datatable_handle->rows[datatable_handle->rows_count - 1]->data_columns[i]->data.float_data.value_ts), 
-                                                                            TAG, "process float data buffer for data-table process samples failed" );
-                    ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, i), TAG, "reset data buffer for data-table process samples failed" );
-                    break;
-                case DATATABLE_COLUMN_DATA_INT16:
-                    ESP_RETURN_ON_ERROR( datatable_process_int16_data_buffer(datatable_handle, i, 
-                                                                            &datatable_handle->rows[datatable_handle->rows_count - 1]->data_columns[i]->data.int16_data.value, 
-                                                                            &datatable_handle->rows[datatable_handle->rows_count - 1]->data_columns[i]->data.int16_data.value_ts), 
-                                                                            TAG, "process int16 data buffer for data-table process samples failed" );
-                    ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, i), TAG, "reset data buffer for data-table process samples failed" );
-                    break;
-            }
+    /* process data-table row data columns by data-type for each column */
+    for(uint8_t i = 0; i < datatable_handle->columns_count; i++) {
+        /* validate memory availability for data-table row data column */
+        datatable_row_data_column_t* dt_data_column = (datatable_row_data_column_t*)calloc(1, sizeof(datatable_row_data_column_t));
+        ESP_RETURN_ON_FALSE( dt_data_column, ESP_ERR_NO_MEM, TAG, "no memory for data-table row data column, data-table handle process samples failed" );
 
+        // set data column data-type
+        dt_data_column->data_type = datatable_handle->columns[i]->data_type;
+
+        // process data-table buffer data by data-type
+        switch(datatable_handle->columns[i]->data_type) {
+            case DATATABLE_COLUMN_DATA_ID:
+                datatable_handle->record_id++;
+                dt_data_column->data.id_data.value = datatable_handle->record_id;
+                break;
+            case DATATABLE_COLUMN_DATA_TS:
+                dt_data_column->data.ts_data.value = datalogger_get_epoch_timestamp(); // unix epoch timestamp in seconds
+                break;
+            case DATATABLE_COLUMN_DATA_VECTOR:
+                ESP_RETURN_ON_ERROR( datatable_process_vector_data_buffer(datatable_handle, i, 
+                                                                        &dt_data_column->data.vector_data.value_uc, 
+                                                                        &dt_data_column->data.vector_data.value_vc, 
+                                                                        &dt_data_column->data.vector_data.value_ts), 
+                                                                        TAG, "process vector data buffer for data-table process samples failed" );
+                ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, i), TAG, "reset data buffer for data-table process samples failed" );
+                break;
+            case DATATABLE_COLUMN_DATA_BOOL:
+                ESP_RETURN_ON_ERROR( datatable_process_bool_data_buffer(datatable_handle, i, 
+                                                                        &dt_data_column->data.bool_data.value), 
+                                                                        TAG, "process bool data buffer for data-table process samples failed" );
+                ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, i), TAG, "reset data buffer for data-table process samples failed" );
+                break;
+            case DATATABLE_COLUMN_DATA_FLOAT:
+                ESP_RETURN_ON_ERROR( datatable_process_float_data_buffer(datatable_handle, i, 
+                                                                        &dt_data_column->data.float_data.value, 
+                                                                        &dt_data_column->data.float_data.value_ts), 
+                                                                        TAG, "process float data buffer for data-table process samples failed" );
+                ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, i), TAG, "reset data buffer for data-table process samples failed" );
+                break;
+            case DATATABLE_COLUMN_DATA_INT16:
+                ESP_RETURN_ON_ERROR( datatable_process_int16_data_buffer(datatable_handle, i, 
+                                                                        &dt_data_column->data.int16_data.value, 
+                                                                        &dt_data_column->data.int16_data.value_ts), 
+                                                                        TAG, "process int16 data buffer for data-table process samples failed" );
+                ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, i), TAG, "reset data buffer for data-table process samples failed" );
+                break;
         }
 
-    } else {
-
-        /* validate memory availability for data-table row */
-        datatable_row_t* dt_row = (datatable_row_t*)calloc(1, sizeof(datatable_row_t));
-        ESP_RETURN_ON_FALSE( dt_row, ESP_ERR_NO_MEM, TAG, "no memory for data-table row, data-table handle process samples failed" );
-
-        /* validate memory availability for data-table row data columns */
-        dt_row->data_columns = (datatable_row_data_column_t**)calloc(datatable_handle->columns_size, sizeof(datatable_row_data_column_t*));
-        ESP_RETURN_ON_FALSE( dt_row->data_columns, ESP_ERR_NO_MEM, TAG, "no memory for data-table row data columns, data-table handle process samples failed");
-
-        /* set data-table row data-column size */
-        dt_row->data_columns_size   = datatable_handle->columns_size;
-
-        /* process data-table row data columns by data-type for each column */
-        for(uint8_t i = 0; i < datatable_handle->columns_count; i++) {
-            /* validate memory availability for data-table row data column */
-            datatable_row_data_column_t* dt_data_column = (datatable_row_data_column_t*)calloc(1, sizeof(datatable_row_data_column_t));
-            ESP_RETURN_ON_FALSE( dt_data_column, ESP_ERR_NO_MEM, TAG, "no memory for data-table row data column, data-table handle process samples failed" );
-
-            // set data column data-type
-            dt_data_column->data_type = datatable_handle->columns[i]->data_type;
-
-            // process data-table buffer data by data-type
-            switch(datatable_handle->columns[i]->data_type) {
-                case DATATABLE_COLUMN_DATA_ID:
-                    datatable_handle->record_id++;
-                    dt_data_column->data.id_data.value = datatable_handle->record_id;
-                    break;
-                case DATATABLE_COLUMN_DATA_TS:
-                    dt_data_column->data.ts_data.value = datalogger_get_epoch_timestamp(); // unix epoch timestamp in seconds
-                    break;
-                case DATATABLE_COLUMN_DATA_VECTOR:
-                    ESP_RETURN_ON_ERROR( datatable_process_vector_data_buffer(datatable_handle, i, 
-                                                                            &dt_data_column->data.vector_data.value_uc, 
-                                                                            &dt_data_column->data.vector_data.value_vc, 
-                                                                            &dt_data_column->data.vector_data.value_ts), 
-                                                                            TAG, "process vector data buffer for data-table process samples failed" );
-                    ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, i), TAG, "reset data buffer for data-table process samples failed" );
-                    break;
-                case DATATABLE_COLUMN_DATA_BOOL:
-                    ESP_RETURN_ON_ERROR( datatable_process_bool_data_buffer(datatable_handle, i, 
-                                                                            &dt_data_column->data.bool_data.value), 
-                                                                            TAG, "process bool data buffer for data-table process samples failed" );
-                    ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, i), TAG, "reset data buffer for data-table process samples failed" );
-                    break;
-                case DATATABLE_COLUMN_DATA_FLOAT:
-                    ESP_RETURN_ON_ERROR( datatable_process_float_data_buffer(datatable_handle, i, 
-                                                                            &dt_data_column->data.float_data.value, 
-                                                                            &dt_data_column->data.float_data.value_ts), 
-                                                                            TAG, "process float data buffer for data-table process samples failed" );
-                    ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, i), TAG, "reset data buffer for data-table process samples failed" );
-                    break;
-                case DATATABLE_COLUMN_DATA_INT16:
-                    ESP_RETURN_ON_ERROR( datatable_process_int16_data_buffer(datatable_handle, i, 
-                                                                            &dt_data_column->data.int16_data.value, 
-                                                                            &dt_data_column->data.int16_data.value_ts), 
-                                                                            TAG, "process int16 data buffer for data-table process samples failed" );
-                    ESP_RETURN_ON_ERROR( datatable_reset_data_buffer(datatable_handle, i), TAG, "reset data buffer for data-table process samples failed" );
-                    break;
-            }
-
-            /* set data-table row data column */
-            dt_row->data_columns[i] = dt_data_column;
-        }
-
-        /* set data-table row */
-        //if(datatable_handle->rows[datatable_handle->rows_index] != NULL) datatable_free_row(datatable_handle->rows[datatable_handle->rows_index]);
-
-        datatable_handle->rows[datatable_handle->rows_count - 1] = dt_row;
-
+        /* set data-table row data column */
+        dt_row->data_columns[i] = dt_data_column;
     }
+
+    //if(datatable_is_full == true) {
+        /* free last data-table row */
+       // if(datatable_handle->rows[datatable_handle->rows_count - 1] != NULL) {
+           //datatable_free_row(datatable_handle->rows[datatable_handle->rows_count - 1]);
+       // }
+    //}
+
+    /* set data-table row */
+    datatable_handle->rows[datatable_handle->rows_count - 1] = dt_row;
+
+    //memcpy(&datatable_handle->rows[datatable_handle->rows_count - 1], &dt_row, sizeof(dt_row));
+    //memcpy(&datatable_handle->rows[datatable_handle->rows_count - 1], &dt_row, sizeof(dt_row));
+
 
     /* invoke data-logger event */
     datatable_invoke_event(datatable_handle, DATALOGGER_EVENT_DT_PRCS, "data-table samples processed successfully");
@@ -2330,124 +2428,130 @@ esp_err_t datatable_to_json(datatable_handle_t datatable_handle, cJSON **datatab
             // create row data columns array
             cJSON *json_row_data_columns = cJSON_CreateArray();
 
+            if(dt_row == NULL || dt_row->data_columns == NULL) continue;
+
             // render each data-table row data column
             for(uint8_t ci = 0; ci < datatable_handle->columns_count; ci++) {
                 datatable_column_t* dt_column = datatable_handle->columns[ci];
                 datatable_row_data_column_t* dt_row_data_column = dt_row->data_columns[ci];
 
-                /* handle basic and complex data-types */
-                if(dt_column->data_type == DATATABLE_COLUMN_DATA_ID || dt_column->data_type == DATATABLE_COLUMN_DATA_TS ||
-                dt_column->data_type == DATATABLE_COLUMN_DATA_BOOL) {
-                    cJSON *json_row_data_column = cJSON_CreateObject();
+                /* validate row-data-column instance */
+                if(dt_row_data_column != NULL) {
 
-                    // set row data column attributes
+                    /* handle basic and complex data-types */
+                    if(dt_column->data_type == DATATABLE_COLUMN_DATA_ID || dt_column->data_type == DATATABLE_COLUMN_DATA_TS ||
+                        dt_column->data_type == DATATABLE_COLUMN_DATA_BOOL) {
+                        cJSON *json_row_data_column = cJSON_CreateObject();
 
-                    /* handle data-type */
-                    if(dt_column->data_type == DATATABLE_COLUMN_DATA_ID) {
-                        cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column->data.id_data.value);
-                    } else if(dt_column->data_type == DATATABLE_COLUMN_DATA_TS) {
-                        cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column->data.ts_data.value);
-                    } else {
-                        cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column->data.bool_data.value);
-                    }
+                        // set row data column attributes
 
-                    // append rendered row data column to row data columns array
-                    cJSON_AddItemToArray(json_row_data_columns, json_row_data_column);
-                } else {
-                    /* handle complex data-types*/
-                    if(dt_row_data_column->data_type == DATATABLE_COLUMN_DATA_VECTOR) {
-                        /* handle process-types */
-                        if(dt_column->process_type == DATATABLE_COLUMN_PROCESS_SMP || dt_column->process_type == DATATABLE_COLUMN_PROCESS_AVG || 
-                            dt_column->process_type == DATATABLE_COLUMN_PROCESS_MIN || dt_column->process_type == DATATABLE_COLUMN_PROCESS_MAX) {
-                            cJSON *json_row_data_column_0 = cJSON_CreateObject();  // u-component
-                            cJSON *json_row_data_column_1 = cJSON_CreateObject();  // v-component
-
-                            /* 2-columns */
-
-                            // set row data column 0 attributes - value
-                            cJSON_AddNumberToObject(json_row_data_column_0, "value", dt_row_data_column->data.vector_data.value_uc);
-
-                            // append rendered row data column 0 to row data columns array
-                            cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_0);
-
-                            // set row data column 1 attributes - value
-                            cJSON_AddNumberToObject(json_row_data_column_1, "value", dt_row_data_column->data.vector_data.value_vc);
-
-                            // append rendered row data column 1 to row data columns array
-                            cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_1);
-                        } else if(dt_column->process_type == DATATABLE_COLUMN_PROCESS_MIN_TS || dt_column->process_type == DATATABLE_COLUMN_PROCESS_MAX_TS) {
-                            cJSON *json_row_data_column_0 = cJSON_CreateObject();  // u-component
-                            cJSON *json_row_data_column_1 = cJSON_CreateObject();  // v-component
-                            cJSON *json_row_data_column_2 = cJSON_CreateObject();  // timestamp
-
-                            /* 3-columns */
-
-                            // set row data column 0 attributes - value
-                            cJSON_AddNumberToObject(json_row_data_column_0, "value", dt_row_data_column->data.vector_data.value_uc);
-
-                            // append rendered row data column 0 to row data columns array
-                            cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_0);
-
-                            // set row data column 1 attributes - value
-                            cJSON_AddNumberToObject(json_row_data_column_1, "value", dt_row_data_column->data.vector_data.value_vc);
-
-                            // append rendered row data column 1 to row data columns array
-                            cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_1);
-
-                            // set row data column 2 attributes - value
-                            cJSON_AddNumberToObject(json_row_data_column_2, "value", dt_row_data_column->data.vector_data.value_ts);
-
-                            // append rendered row data column 0 to row data columns array
-                            cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_2);
+                        /* handle data-type */
+                        if(dt_column->data_type == DATATABLE_COLUMN_DATA_ID) {
+                            cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column->data.id_data.value);
+                        } else if(dt_column->data_type == DATATABLE_COLUMN_DATA_TS) {
+                            cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column->data.ts_data.value);
+                        } else {
+                            cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column->data.bool_data.value);
                         }
-                    } else if(dt_column->data_type == DATATABLE_COLUMN_DATA_FLOAT || dt_column->data_type == DATATABLE_COLUMN_DATA_INT16) {
-                        /* handle process-types */
-                        if(dt_column->process_type == DATATABLE_COLUMN_PROCESS_SMP || dt_column->process_type == DATATABLE_COLUMN_PROCESS_AVG || 
-                            dt_column->process_type == DATATABLE_COLUMN_PROCESS_MIN || dt_column->process_type == DATATABLE_COLUMN_PROCESS_MAX) {
-                            cJSON *json_row_data_column = cJSON_CreateObject();
 
-                            // set row data column attributes
+                        // append rendered row data column to row data columns array
+                        cJSON_AddItemToArray(json_row_data_columns, json_row_data_column);
+                    } else {
+                        /* handle complex data-types*/
+                        if(dt_column->data_type == DATATABLE_COLUMN_DATA_VECTOR) {
+                            /* handle process-types */
+                            if(dt_column->process_type == DATATABLE_COLUMN_PROCESS_SMP || dt_column->process_type == DATATABLE_COLUMN_PROCESS_AVG || 
+                                dt_column->process_type == DATATABLE_COLUMN_PROCESS_MIN || dt_column->process_type == DATATABLE_COLUMN_PROCESS_MAX) {
+                                cJSON *json_row_data_column_0 = cJSON_CreateObject();  // u-component
+                                cJSON *json_row_data_column_1 = cJSON_CreateObject();  // v-component
 
-                            /* handle data-type */
-                            if(dt_column->data_type == DATATABLE_COLUMN_DATA_FLOAT) {
-                                cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column->data.float_data.value);
-                            } else {
-                                cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column->data.int16_data.value);
+                                /* 2-columns */
+
+                                // set row data column 0 attributes - value
+                                cJSON_AddNumberToObject(json_row_data_column_0, "value", dt_row_data_column->data.vector_data.value_uc);
+
+                                // append rendered row data column 0 to row data columns array
+                                cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_0);
+
+                                // set row data column 1 attributes - value
+                                cJSON_AddNumberToObject(json_row_data_column_1, "value", dt_row_data_column->data.vector_data.value_vc);
+
+                                // append rendered row data column 1 to row data columns array
+                                cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_1);
+                            } else if(dt_column->process_type == DATATABLE_COLUMN_PROCESS_MIN_TS || dt_column->process_type == DATATABLE_COLUMN_PROCESS_MAX_TS) {
+                                cJSON *json_row_data_column_0 = cJSON_CreateObject();  // u-component
+                                cJSON *json_row_data_column_1 = cJSON_CreateObject();  // v-component
+                                cJSON *json_row_data_column_2 = cJSON_CreateObject();  // timestamp
+
+                                /* 3-columns */
+
+                                // set row data column 0 attributes - value
+                                cJSON_AddNumberToObject(json_row_data_column_0, "value", dt_row_data_column->data.vector_data.value_uc);
+
+                                // append rendered row data column 0 to row data columns array
+                                cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_0);
+
+                                // set row data column 1 attributes - value
+                                cJSON_AddNumberToObject(json_row_data_column_1, "value", dt_row_data_column->data.vector_data.value_vc);
+
+                                // append rendered row data column 1 to row data columns array
+                                cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_1);
+
+                                // set row data column 2 attributes - value
+                                cJSON_AddNumberToObject(json_row_data_column_2, "value", dt_row_data_column->data.vector_data.value_ts);
+
+                                // append rendered row data column 0 to row data columns array
+                                cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_2);
                             }
+                        } else if(dt_column->data_type == DATATABLE_COLUMN_DATA_FLOAT || dt_column->data_type == DATATABLE_COLUMN_DATA_INT16) {
+                            /* handle process-types */
+                            if(dt_column->process_type == DATATABLE_COLUMN_PROCESS_SMP || dt_column->process_type == DATATABLE_COLUMN_PROCESS_AVG || 
+                                dt_column->process_type == DATATABLE_COLUMN_PROCESS_MIN || dt_column->process_type == DATATABLE_COLUMN_PROCESS_MAX) {
+                                cJSON *json_row_data_column = cJSON_CreateObject();
 
-                            // append rendered row data column to row data columns array
-                            cJSON_AddItemToArray(json_row_data_columns, json_row_data_column);
-                        } else if(dt_column->process_type == DATATABLE_COLUMN_PROCESS_MIN_TS || dt_column->process_type == DATATABLE_COLUMN_PROCESS_MAX_TS) {
-                            /* 2 columns: value with timestamp */
-                            cJSON *json_row_data_column_0 = cJSON_CreateObject();
-                            cJSON *json_row_data_column_1 = cJSON_CreateObject();
+                                // set row data column attributes
 
-                            // set row data column 0 attributes - value
+                                /* handle data-type */
+                                if(dt_column->data_type == DATATABLE_COLUMN_DATA_FLOAT) {
+                                    cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column->data.float_data.value);
+                                } else {
+                                    cJSON_AddNumberToObject(json_row_data_column, "value", dt_row_data_column->data.int16_data.value);
+                                }
 
-                            /* handle data-type for row data column 0 */
-                            if(dt_column->data_type == DATATABLE_COLUMN_DATA_FLOAT) {
-                                cJSON_AddNumberToObject(json_row_data_column_0, "value", dt_row_data_column->data.float_data.value);
-                            } else {
-                                cJSON_AddNumberToObject(json_row_data_column_0, "value", dt_row_data_column->data.int16_data.value);
-                            }
+                                // append rendered row data column to row data columns array
+                                cJSON_AddItemToArray(json_row_data_columns, json_row_data_column);
+                            } else if(dt_column->process_type == DATATABLE_COLUMN_PROCESS_MIN_TS || dt_column->process_type == DATATABLE_COLUMN_PROCESS_MAX_TS) {
+                                /* 2 columns: value with timestamp */
+                                cJSON *json_row_data_column_0 = cJSON_CreateObject();
+                                cJSON *json_row_data_column_1 = cJSON_CreateObject();
 
-                            // append rendered row data column 0 to row data columns array
-                            cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_0);
+                                // set row data column 0 attributes - value
 
-                            // set row data column 1 attributes - value
+                                /* handle data-type for row data column 0 */
+                                if(dt_column->data_type == DATATABLE_COLUMN_DATA_FLOAT) {
+                                    cJSON_AddNumberToObject(json_row_data_column_0, "value", dt_row_data_column->data.float_data.value);
+                                } else {
+                                    cJSON_AddNumberToObject(json_row_data_column_0, "value", dt_row_data_column->data.int16_data.value);
+                                }
 
-                            /* handle data-type for row data column 0 */
-                            if(dt_column->data_type == DATATABLE_COLUMN_DATA_FLOAT) {
-                                cJSON_AddNumberToObject(json_row_data_column_1, "value", dt_row_data_column->data.float_data.value_ts);
-                            } else {
-                                cJSON_AddNumberToObject(json_row_data_column_1, "value", dt_row_data_column->data.int16_data.value_ts);
-                            }
+                                // append rendered row data column 0 to row data columns array
+                                cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_0);
 
-                            // append rendered row data column 1 to row data columns array
-                            cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_1);
-                        } /* process-types */   
-                    } /* complex data-types */
-                } /* simple data-types */
+                                // set row data column 1 attributes - value
+
+                                /* handle data-type for row data column 0 */
+                                if(dt_column->data_type == DATATABLE_COLUMN_DATA_FLOAT) {
+                                    cJSON_AddNumberToObject(json_row_data_column_1, "value", dt_row_data_column->data.float_data.value_ts);
+                                } else {
+                                    cJSON_AddNumberToObject(json_row_data_column_1, "value", dt_row_data_column->data.int16_data.value_ts);
+                                }
+
+                                // append rendered row data column 1 to row data columns array
+                                cJSON_AddItemToArray(json_row_data_columns, json_row_data_column_1);
+                            } /* process-types */ 
+                        } /* complex data-types */
+                    } /* simple data-types */
+                } /* row-data-column null check */
             } // for-each row-data-column
 
             // append rendered row data columns array to row 

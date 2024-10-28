@@ -63,22 +63,21 @@ static const char *TAG = "system-table";
  * @return char* Serialized system-table column data-type as a textual string.
  */
 static inline const char* systemtable_json_serialize_column_data_type(const systemtable_column_data_types_t data_type) {
-    static char data[8] = "-";
-
     /* normalize  */
     switch(data_type) {
         case SYSTEMTABLE_COLUMN_DATA_ID:
-            strcpy(data, "id");
+            return "id";
             break;
         case SYSTEMTABLE_COLUMN_DATA_TS:
-            strcpy(data, "ts");
+            return "ts";
             break;
         case SYSTEMTABLE_COLUMN_DATA_MSG:
-            strcpy(data, "msg");
+            return "msg";
+            break;
+        default:
+            return "-";
             break;
     }
-
-    return data;
 }
 
 
@@ -95,7 +94,7 @@ static inline esp_err_t systemtable_column_exist(systemtable_handle_t systemtabl
     ESP_ARG_CHECK( systemtable_handle );
 
     /* validate index */
-    ESP_RETURN_ON_FALSE((index < systemtable_handle->columns_size), ESP_ERR_INVALID_ARG, TAG, "index is out of range, get column failed");
+    ESP_RETURN_ON_FALSE((index < systemtable_handle->columns_count), ESP_ERR_INVALID_ARG, TAG, "index is out of range, get column failed");
 
     return ESP_OK;
 }
@@ -122,6 +121,20 @@ static inline esp_err_t systemtable_is_full(systemtable_handle_t systemtable_han
 }
 
 /**
+ * @brief Frees a system-table row entity.
+ * 
+ * @param row System-table row entity to free.
+ */
+static inline void systemtable_free_row(systemtable_row_t* row) {
+    for(uint8_t c = 0; c < row->data_columns_size; c++) {
+        systemtable_row_data_column_t* data_column = row->data_columns[c];
+        if(data_column != NULL) free(data_column);
+    }
+    if(row->data_columns != NULL) free(row->data_columns);
+    free(row);
+}
+
+/**
  * @brief Pops the top system-table row and shifts the index of remaining rows up by one i.e. first-in-first-out (FIFO) principal.
  * 
  * @param systemtable_handle System-table handle.
@@ -132,8 +145,8 @@ static inline esp_err_t systemtable_fifo_rows(systemtable_handle_t systemtable_h
     ESP_ARG_CHECK( systemtable_handle );
 
     /* copy working rows to tmp rows, skip the first row */
-    for(int r = 1; r < systemtable_handle->rows_count; r++) {
-        systemtable_handle->rows[r - 1] = systemtable_handle->rows[r];
+    for(int r = 0; r < systemtable_handle->rows_count - 1; r++) {
+        memcpy(&systemtable_handle->rows[r], &systemtable_handle->rows[r + 1], sizeof(systemtable_handle->rows[r + 1]));
     }
 
     return ESP_OK;
@@ -150,18 +163,15 @@ static inline esp_err_t systemtable_reset_rows(systemtable_handle_t systemtable_
     ESP_ARG_CHECK( systemtable_handle );
 
     /* reset row attributes */
-    systemtable_handle->rows_index = 0;
     systemtable_handle->rows_count = 0;
 
     /* set all rows to null */
     for(uint16_t r = 0; r < systemtable_handle->rows_size; r++) {
-        systemtable_handle->rows[r] = NULL;
+        if(systemtable_handle->rows[r] != NULL) systemtable_free_row(systemtable_handle->rows[r]);
     }
 
     return ESP_OK;
 }
-
-
 
 
 
@@ -174,10 +184,9 @@ esp_err_t systemtable_init(systemtable_handle_t *systemtable_handle) {
     ESP_GOTO_ON_FALSE( out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for system-table handle, system-table handle initialization failed" );
 
     /* initialize system-table state object */
-    strcpy(out_handle->name, "system_tbl");
-    out_handle->columns_index   = 0;
+    out_handle->name            = SYSTEMTABLE_NAME;
+    out_handle->columns_count   = 0;
     out_handle->columns_size    = SYSTEMTABLE_COLUMNS_MAX;
-    out_handle->rows_index      = 0;
     out_handle->rows_count      = 0;
     out_handle->rows_size       = SYSTEMTABLE_ROWS_MAX;
     out_handle->event_id        = 0;
@@ -185,29 +194,23 @@ esp_err_t systemtable_init(systemtable_handle_t *systemtable_handle) {
     /* define default event identifier system-table column */
     systemtable_column_t* st_id_column = (systemtable_column_t*)calloc(1, sizeof(systemtable_column_t));
     ESP_GOTO_ON_FALSE( st_id_column, ESP_ERR_NO_MEM, err_out_handle, TAG, "no memory for system-table id column, system-table handle initialization failed" );
-    st_id_column->index                  = out_handle->columns_index;
-    st_id_column->data_type              = SYSTEMTABLE_COLUMN_DATA_ID;
-    strcpy(st_id_column->name, "Event ID");
-
-    /* increment column index */
-    out_handle->columns_index   += 1;
+    out_handle->columns_count  += 1;
+    st_id_column->data_type     = SYSTEMTABLE_COLUMN_DATA_ID;
+    st_id_column->name          = SYSTEMTABLE_COLUMN_ID_NAME;
 
     /* define default event timestamp system-table column */
     systemtable_column_t* st_ts_column = (systemtable_column_t*)calloc(1, sizeof(systemtable_column_t));
     ESP_GOTO_ON_FALSE( st_ts_column, ESP_ERR_NO_MEM, err_out_handle, TAG, "no memory for system-table timestamp column, system-table handle initialization failed" );
-    st_ts_column->index                  = out_handle->columns_index;
-    st_ts_column->data_type              = SYSTEMTABLE_COLUMN_DATA_TS;
-    strcpy(st_ts_column->name, "Event TS");
-
-    /* increment column index */
-    out_handle->columns_index   += 1;
+    out_handle->columns_count  += 1;
+    st_ts_column->data_type     = SYSTEMTABLE_COLUMN_DATA_TS;
+    st_ts_column->name          = SYSTEMTABLE_COLUMN_TS_NAME;
 
     /* define default event message system-table column */
     systemtable_column_t* st_msg_column = (systemtable_column_t*)calloc(1, sizeof(systemtable_column_t));
     ESP_GOTO_ON_FALSE( st_msg_column, ESP_ERR_NO_MEM, err_out_handle, TAG, "no memory for system-table message column, system-table handle initialization failed" );
-    st_msg_column->index                  = out_handle->columns_index;
-    st_msg_column->data_type              = SYSTEMTABLE_COLUMN_DATA_MSG;
-    strcpy(st_msg_column->name, "Event MSG");
+    out_handle->columns_count  += 1;
+    st_msg_column->data_type    = SYSTEMTABLE_COLUMN_DATA_MSG;
+    st_msg_column->name         = SYSTEMTABLE_COLUMN_MSG_NAME;
 
     /* validate memory availability for default system-table columns */
     out_handle->columns = (systemtable_column_t**)calloc(out_handle->columns_size, sizeof(systemtable_column_t*));
@@ -238,7 +241,7 @@ esp_err_t systemtable_get_columns_count(systemtable_handle_t systemtable_handle,
     ESP_ARG_CHECK( systemtable_handle );
 
     /* set output parameter */
-    *count = systemtable_handle->columns_index + 1;
+    *count = systemtable_handle->columns_count;
 
     return ESP_OK;
 }
@@ -248,7 +251,7 @@ esp_err_t systemtable_get_rows_count(systemtable_handle_t systemtable_handle, ui
     ESP_ARG_CHECK( systemtable_handle );
 
     /* set output parameter */
-    *count = systemtable_handle->rows_index + 1;
+    *count = systemtable_handle->rows_count;
 
     return ESP_OK;
 }
@@ -272,26 +275,23 @@ esp_err_t systemtable_push_event_msg(systemtable_handle_t systemtable_handle, co
         ESP_RETURN_ON_ERROR( systemtable_fifo_rows(systemtable_handle), TAG, "unable to fifo system-table rows, system-table handle push event message failed" );
     }
 
-    /* handle system-table row count and index */
+    /* handle system-table row count */
     if(systemtable_handle->rows_count == 0) {
-        /* initialize system-table row count and index */
+        /* initialize system-table row count */
         systemtable_handle->rows_count = 1;
-        systemtable_handle->rows_index = 0;
     } else {
-        /* increment system-table row count and index */
+        /* increment system-table row count */
         systemtable_handle->rows_count += 1;
-        systemtable_handle->rows_index += 1;
 
-        /* if the system-table is full, decrement row count and index */
+        /* if the system-table is full, decrement row count */
         if(systemtable_handle->rows_count > systemtable_handle->rows_size) {
             systemtable_handle->rows_count -= 1;
-            systemtable_handle->rows_index -= 1;
         }
     }
 
     /* validate memory availability for default system-table rows */
-    systemtable_handle->rows[systemtable_handle->rows_index]->data_columns = (systemtable_row_data_column_t**)calloc(systemtable_handle->columns_size, sizeof(systemtable_row_data_column_t*));
-    ESP_RETURN_ON_FALSE( systemtable_handle->rows[systemtable_handle->rows_index]->data_columns, ESP_ERR_NO_MEM, TAG, "no memory for system-table row data columns, system-table handle push event message failed" );
+    systemtable_handle->rows[systemtable_handle->rows_count - 1]->data_columns = (systemtable_row_data_column_t**)calloc(systemtable_handle->columns_size, sizeof(systemtable_row_data_column_t*));
+    ESP_RETURN_ON_FALSE( systemtable_handle->rows[systemtable_handle->rows_count - 1]->data_columns, ESP_ERR_NO_MEM, TAG, "no memory for system-table row data columns, system-table handle push event message failed" );
 
     /* validate memory availability for default system-table row data column */
     systemtable_row_data_column_t* dt_id_data_column = (systemtable_row_data_column_t*)calloc(1, sizeof(systemtable_row_data_column_t));
@@ -306,32 +306,25 @@ esp_err_t systemtable_push_event_msg(systemtable_handle_t systemtable_handle, co
     ESP_RETURN_ON_FALSE( dt_msg_data_column, ESP_ERR_NO_MEM, TAG, "no memory for system-table row message data column, system-table handle push event message failed" );
 
 
-    /* set system-table row data-column size and row index */
-    systemtable_handle->rows[systemtable_handle->rows_index]->data_columns_size = SYSTEMTABLE_COLUMNS_MAX;
-    systemtable_handle->rows[systemtable_handle->rows_index]->index             = systemtable_handle->rows_index;
+    /* set system-table row data-column size */
+    systemtable_handle->rows[systemtable_handle->rows_count - 1]->data_columns_size = SYSTEMTABLE_COLUMNS_MAX;
 
     /* set system-table row data-column event identifier */
-    dt_id_data_column->column_index   = 0;
-    dt_id_data_column->row_index      = systemtable_handle->rows_index;
     dt_id_data_column->data_type      = SYSTEMTABLE_COLUMN_DATA_ID;
     dt_id_data_column->data.id.value  = systemtable_handle->event_id++;
 
     /* set system-table row data-column event timestamp (utc) */
-    dt_ts_data_column->column_index   = 1;
-    dt_ts_data_column->row_index      = systemtable_handle->rows_index;
     dt_ts_data_column->data_type      = SYSTEMTABLE_COLUMN_DATA_TS;
     dt_ts_data_column->data.ts.value  = datalogger_get_epoch_timestamp();
 
     /* set system-table row data-column event message */
-    dt_msg_data_column->column_index   = 2;
-    dt_msg_data_column->row_index      = systemtable_handle->rows_index;
     dt_msg_data_column->data_type      = SYSTEMTABLE_COLUMN_DATA_MSG;
-    strcpy(dt_msg_data_column->data.msg.value, message);
+    dt_msg_data_column->data.msg.value = message;
 
     /* set system-table row data columns */
-    systemtable_handle->rows[systemtable_handle->rows_index]->data_columns[0] = dt_id_data_column;
-    systemtable_handle->rows[systemtable_handle->rows_index]->data_columns[1] = dt_ts_data_column;
-    systemtable_handle->rows[systemtable_handle->rows_index]->data_columns[2] = dt_msg_data_column;
+    systemtable_handle->rows[systemtable_handle->rows_count - 1]->data_columns[0] = dt_id_data_column;
+    systemtable_handle->rows[systemtable_handle->rows_count - 1]->data_columns[1] = dt_ts_data_column;
+    systemtable_handle->rows[systemtable_handle->rows_count - 1]->data_columns[2] = dt_msg_data_column;
 
     return ESP_OK;
 }
@@ -361,7 +354,7 @@ esp_err_t systemtable_to_json(systemtable_handle_t systemtable_handle, cJSON **s
 
     // render each system-table column to json column object
     uint8_t col_index = 0;
-    for(uint8_t ci = 0; ci <= systemtable_handle->columns_index; ci++) {
+    for(uint8_t ci = 0; ci < systemtable_handle->columns_count; ci++) {
         systemtable_column_t* dt_column = systemtable_handle->columns[ci];
         
         /* handle basic and complex data-types */
@@ -386,7 +379,7 @@ esp_err_t systemtable_to_json(systemtable_handle_t systemtable_handle, cJSON **s
         cJSON *json_rows = cJSON_CreateArray();
 
         // render each system-table row to json row object
-        for(uint16_t ri = 0; ri <= systemtable_handle->rows_index; ri++) {
+        for(uint16_t ri = 0; ri < systemtable_handle->rows_count; ri++) {
             systemtable_row_t* dt_row = systemtable_handle->rows[ri];
             cJSON *json_row = cJSON_CreateObject();
 
@@ -398,7 +391,7 @@ esp_err_t systemtable_to_json(systemtable_handle_t systemtable_handle, cJSON **s
 
             // render each system-table row data column
             col_index = 0;
-            for(uint8_t ci = 0; ci <= systemtable_handle->columns_index; ci++) {
+            for(uint8_t ci = 0; ci < systemtable_handle->columns_count; ci++) {
                 systemtable_column_t* dt_column = systemtable_handle->columns[ci];
                 systemtable_row_data_column_t* dt_row_data_column = dt_row->data_columns[ci];
 
