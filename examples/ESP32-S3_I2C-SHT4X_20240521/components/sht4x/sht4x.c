@@ -25,6 +25,8 @@
  * @file sht4x.c
  *
  * ESP-IDF driver for SHT4x air temperature and relative humidity sensor
+ * 
+ * https://github.com/Sensirion/embedded-sht/releases
  *
  * Ported from esp-open-rtos
  *
@@ -229,14 +231,18 @@ static inline esp_err_t i2c_sht4x_get_serial_number(i2c_sht4x_handle_t sht4x_han
 }
 
 esp_err_t i2c_sht4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sht4x_config_t *sht4x_config, i2c_sht4x_handle_t *sht4x_handle) {
-    esp_err_t           ret = ESP_OK;
-    i2c_sht4x_handle_t  out_handle;
-
     /* validate arguments */
     ESP_ARG_CHECK( bus_handle && sht4x_config );
 
-    /* valudate sht4 handle */
-    out_handle = (i2c_sht4x_handle_t)calloc(1, sizeof(i2c_sht4x_t));
+    /* power-up delay */
+    vTaskDelay(pdMS_TO_TICKS(I2C_SHT4X_POWERUP_DELAY_MS));
+
+    /* validate device exists on the master bus */
+    esp_err_t ret = i2c_master_probe(bus_handle, sht4x_config->dev_config.device_address, I2C_XFR_TIMEOUT_MS);
+    ESP_GOTO_ON_ERROR(ret, err, TAG, "device does not exist at address 0x%02x, sht4x device handle initialization failed", sht4x_config->dev_config.device_address);
+
+    /* validate sht4x handle instance */
+    i2c_sht4x_handle_t out_handle = (i2c_sht4x_handle_t)calloc(1, sizeof(i2c_sht4x_t));
     ESP_GOTO_ON_FALSE(out_handle, ESP_ERR_NO_MEM, err, TAG, "no memory for device, sht4x device handle initialization failed");
 
     /* set i2c device configuration */
@@ -248,18 +254,15 @@ esp_err_t i2c_sht4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sht4x_con
 
     /* validate i2c device handle instance */
     if (out_handle->i2c_dev_handle == NULL) {
-        ESP_GOTO_ON_ERROR(i2c_master_bus_add_device(bus_handle, &i2c_dev_conf, &out_handle->i2c_dev_handle), err, TAG, "unable to add device to master bus, sht4x device handle initialization failed");
+        ESP_GOTO_ON_ERROR(i2c_master_bus_add_device(bus_handle, &i2c_dev_conf, &out_handle->i2c_dev_handle), err_handle, TAG, "unable to add device to master bus, sht4x device handle initialization failed");
     }
-
-    /* power-up delay */
-    vTaskDelay(pdMS_TO_TICKS(I2C_SHT4X_POWERUP_DELAY_MS));
 
     /* copy configuration */
     out_handle->heater        = sht4x_config->heater;
     out_handle->repeatability = sht4x_config->repeatability;
 
     /* sht4x attempt to reset the device */
-    ESP_GOTO_ON_ERROR(i2c_sht4x_reset(out_handle), err, TAG, "unable to soft-reset device, sht4x device handle initialization failed");
+    ESP_GOTO_ON_ERROR(i2c_sht4x_reset(out_handle), err_handle, TAG, "unable to soft-reset device, sht4x device handle initialization failed");
 
     /* application start delay */
     vTaskDelay(pdMS_TO_TICKS(I2C_SHT4X_APPSTART_DELAY_MS));
@@ -269,11 +272,12 @@ esp_err_t i2c_sht4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sht4x_con
 
     return ESP_OK;
 
-    err:
+    err_handle:
         if (out_handle && out_handle->i2c_dev_handle) {
             i2c_master_bus_rm_device(out_handle->i2c_dev_handle);
         }
         free(out_handle);
+    err:
         return ret;
 }
 

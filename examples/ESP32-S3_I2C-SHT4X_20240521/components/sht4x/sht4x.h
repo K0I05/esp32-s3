@@ -91,7 +91,6 @@ typedef enum {
     I2C_SHT4X_REPEAT_LOW                        /*!< low repeatability */
 } i2c_sht4x_repeat_modes_t;
 
-
 /**
  * @brief SHT4X I2C device configuration structure.
  */
@@ -115,6 +114,7 @@ struct i2c_sht4x_t {
  * @brief SHT4X I2C device structure definition.
  */
 typedef struct i2c_sht4x_t i2c_sht4x_t;
+
 /**
  * @brief SHT4X I2C device handle structure.
  */
@@ -140,7 +140,7 @@ esp_err_t i2c_sht4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sht4x_con
 esp_err_t i2c_sht4x_reset(i2c_sht4x_handle_t sht4x_handle);
 
 /**
- * @brief Read high-level measurements from SHT4X.
+ * @brief Read high-level measurements from SHT4X.  This is a blocking function.
  *
  * @note The function delays the calling task up to 1.1 s to wait for
  *       the measurement results. This might lead to problems when the function

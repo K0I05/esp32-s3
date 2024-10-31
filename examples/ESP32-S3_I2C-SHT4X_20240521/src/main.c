@@ -112,11 +112,11 @@ static void i2c_0_task( void *pvParameters ) {
         //
         //
         // pause the task per defined wait period
-        vTaskDelaySecUntil( &xLastWakeTime, 5 );
+        vTaskDelaySecUntil( &xLastWakeTime, 10 );
     }
     //
     // free resources
-    i2c_sht4x_del( sht4x_dev_hdl );     // delete sht4x device from master i2c bus and free handles
+    i2c_sht4x_del( sht4x_dev_hdl );     // delete sht4x device from master i2c bus and free handle
     i2c_del_master_bus( i2c0_bus_hdl ); // delete master i2c bus and free handle
     vTaskDelete( NULL );                // delete task
 }
