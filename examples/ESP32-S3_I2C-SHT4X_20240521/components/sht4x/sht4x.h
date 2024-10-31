@@ -47,28 +47,10 @@ extern "C" {
 /*
  * SHT4X definitions
 */
-#define I2C_SHT4X_CRC8_G_POLYNOM        UINT8_C(0x31)   //!< sht4x I2C CRC8 polynomial
-#define I2C_SHT4X_DATA_RATE_HZ          (100000)        //!< sht4x I2C default clock frequency (100KHz)
+#define I2C_SHT4X_SCL_SPEED_HZ          UINT32_C(100000)    //!< sht4x I2C default clock frequency (100KHz)
 
-#define I2C_SHT4X_ADDR_LO               UINT8_C(0x44)   //!< sht4x I2C address when ADDR pin floating/low
-#define I2C_SHT4X_ADDR_HI               UINT8_C(0x45)   //!< sht4x I2C address when ADDR pin high
-
-#define I2C_SHT4X_CMD_RESET             UINT8_C(0x94)   //!< sht4x I2C soft-reset command 
-#define I2C_SHT4X_CMD_SERIAL            UINT8_C(0x89)   //!< sht4x I2C serial number request command
-#define I2C_SHT4X_CMD_MEAS_HIGH         UINT8_C(0xFD)   //!< sht4x I2C high resolution measurement command
-#define I2C_SHT4X_CMD_MEAS_MED          UINT8_C(0xF6)   //!< sht4x I2C medium resolution measurement command
-#define I2C_SHT4X_CMD_MEAS_LOW          UINT8_C(0xE0)   //!< sht4x I2C low resolution measurement command
-#define I2C_SHT4X_CMD_MEAS_H_HIGH_LONG  UINT8_C(0x39)   //!< sht4x I2C high resolution measurement command with heater enabled long pulse
-#define I2C_SHT4X_CMD_MEAS_H_HIGH_SHORT UINT8_C(0x32)   //!< sht4x I2C high resolution measurement command with heater enabled short pulse
-#define I2C_SHT4X_CMD_MEAS_H_MED_LONG   UINT8_C(0x2F)   //!< sht4x I2C medium resolution measurement command with heater enabled long pulse
-#define I2C_SHT4X_CMD_MEAS_H_MED_SHORT  UINT8_C(0x24)   //!< sht4x I2C medium resolution measurement command with heater enabled short pulse
-#define I2C_SHT4X_CMD_MEAS_H_LOW_LONG   UINT8_C(0x1E)   //!< sht4x I2C low resolution measurement command with heater enabled long pulse
-#define I2C_SHT4X_CMD_MEAS_H_LOW_SHORT  UINT8_C(0x15)   //!< sht4x I2C low resolution measurement command with heater enabled short pulse
-
-#define I2C_SHT4X_RESET_DELAY_MS        (10)
-#define I2C_SHT4X_CMD_DELAY_MS          (20)
-#define I2C_SHT4X_TX_RX_DELAY_MS        (10)
-
+#define I2C_SHT4X_DEV_ADDR_LO           UINT8_C(0x44)       //!< sht4x I2C address when ADDR pin floating/low
+#define I2C_SHT4X_DEV_ADDR_HI           UINT8_C(0x45)       //!< sht4x I2C address when ADDR pin high
 
 /*
  * SHT4X macro definitions
@@ -78,7 +60,8 @@ extern "C" {
  * @brief Macro that initializes `i2c_sht4x_config_t` to default configuration settings.
  */
 #define I2C_SHT4X_CONFIG_DEFAULT {                                      \
-        .dev_config.device_address     = I2C_SHT4X_ADDR_LO,             \
+        .dev_config.device_address     = I2C_SHT4X_DEV_ADDR_LO,         \
+        .dev_config.scl_speed_hz       = I2C_SHT4X_SCL_SPEED_HZ,        \
         .heater                        = I2C_SHT4X_HEATER_OFF,          \
         .repeatability                 = I2C_SHT4X_REPEAT_HIGH, }
 
@@ -188,6 +171,14 @@ esp_err_t i2c_sht4x_get_measurements(i2c_sht4x_handle_t sht4x_handle, float *tem
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sht4x_rm(i2c_sht4x_handle_t sht4x_handle);
+
+/**
+ * @brief Removes an SHT4X device from master I2C bus and delete the handle.
+ * 
+ * @param sht4x_handle SHT4X device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_sht4x_del(i2c_sht4x_handle_t sht4x_handle);
 
 
 #ifdef __cplusplus

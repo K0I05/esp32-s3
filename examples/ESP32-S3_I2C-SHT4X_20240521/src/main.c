@@ -65,11 +65,8 @@ static inline void vTaskDelaySecUntil(TickType_t *previousWakeTime, const uint s
 }
 
 static void i2c_0_task( void *pvParameters ) {
-    TickType_t                          xLastWakeTime;
-    //
-    //
     // initialize the xLastWakeTime variable with the current time.
-    xLastWakeTime               = xTaskGetTickCount ();
+    TickType_t xLastWakeTime  = xTaskGetTickCount ();
     //
     // initialize master i2c 0 bus configuration
     i2c_master_bus_config_t     i2c0_master_cfg = CONFIG_I2C_0_MASTER_DEFAULT;
@@ -115,13 +112,13 @@ static void i2c_0_task( void *pvParameters ) {
         //
         //
         // pause the task per defined wait period
-        vTaskDelaySecUntil( &xLastWakeTime, 10 );
+        vTaskDelaySecUntil( &xLastWakeTime, 5 );
     }
     //
-    // free up task resources and remove task from stack
-    i2c_sht4x_rm( sht4x_dev_hdl );      //remove sht4x device from master i2c bus
-    i2c_del_master_bus( i2c0_bus_hdl ); //delete master i2c bus
-    vTaskDelete( NULL );
+    // free resources
+    i2c_sht4x_del( sht4x_dev_hdl );     // delete sht4x device from master i2c bus and free handles
+    i2c_del_master_bus( i2c0_bus_hdl ); // delete master i2c bus and free handle
+    vTaskDelete( NULL );                // delete task
 }
 
 
