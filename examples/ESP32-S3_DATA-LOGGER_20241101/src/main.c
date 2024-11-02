@@ -66,6 +66,10 @@
 //#define CONFIG_WIFI_SSID                "YOUR SSID"
 //#define CONFIG_WIFI_PASSWORD            "SSID KEY"
 
+//#define CONFIG_WIFI_SSID                "NOKIA-8764"
+//#define CONFIG_WIFI_PASSWORD            "qpLQaC.pbk"
+#define CONFIG_WIFI_SSID                "APOLLO"
+#define CONFIG_WIFI_PASSWORD            "41F43DA524D6"
 
 #define CONFIG_I2C_0_PORT               I2C_NUM_0
 #define CONFIG_I2C_0_SDA_IO             (gpio_num_t)(45) // blue
@@ -471,9 +475,9 @@ static void dt_1min_smp_task( void *pvParameters ) {
     time_into_interval_handle_t dt_1min_tii_5min_hdl;
     time_into_interval_config_t dt_1min_tii_5min_cfg = {
         .name               = "tii_5min",
-        .interval_type      = DATALOGGER_TIME_INTERVAL_MIN,
-        .interval_period    = 5,
-        .interval_offset    = 0
+        .interval_type      = DATALOGGER_TIME_INTERVAL_SEC,
+        .interval_period    = 5 * 60,
+        .interval_offset    = 10
     };
 
     uint32_t free_heap_size_start = 0;
@@ -548,6 +552,7 @@ static void dt_1min_smp_task( void *pvParameters ) {
         5-minutes (i.e. 12:00:00, 12:05:00, 12:10:00, etc.) */
         // omit for now - memory leak hunting...
         if(time_into_interval(dt_1min_tii_5min_hdl)) {
+            
             // create root object for data-table
             cJSON *dt_1min_json = cJSON_CreateObject();
 
@@ -561,6 +566,8 @@ static void dt_1min_smp_task( void *pvParameters ) {
             // free-up json resources
             cJSON_Delete(dt_1min_json);
             cJSON_free(dt_1min_json_str);
+            
+           ESP_LOGI(APP_TAG, "JSON Data-Table Output....");
         }
         
 
@@ -586,7 +593,7 @@ static void dt_1min_smp_task( void *pvParameters ) {
     vTaskDelete( NULL );
 }
 
-void nvs( void ) {
+static inline void nvs( void ) {
     nvs_handle_t nvs_handle;
     esp_err_t err = nvs_open("storage", NVS_READWRITE, &nvs_handle);
     if (err != ESP_OK) {
@@ -737,6 +744,7 @@ void app_main( void ) {
     // free-up json resources
     cJSON_Delete(dt_1min_json);
     cJSON_free(dt_1min_json_str);
+    
 
 
     // create a task that is pinned to core 1 for data-table sampling and processing

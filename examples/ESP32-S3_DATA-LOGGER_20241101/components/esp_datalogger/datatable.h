@@ -52,6 +52,7 @@
 {
   "data": {
     "columns": ["name", "time", "value"],
+    "types": [string, time, float]
     "rows": [
       [ "wave.pi", 1687481466000000000, 1.2345],
       [ "wave.pi", 1687481467000000000, 3.1415]
@@ -168,7 +169,9 @@ typedef struct datatable_int16_column_data_type_tag {
     time_t                              value_ts;   // timestamp of value, used for time of max or min   
 } datatable_int16_column_data_type_t;
 
-
+/**
+ * @brief Data-table column name structure.
+ */
 typedef struct datatable_column_name_tag {
     const char*                         name;      // data-table column name, maximum 15 characters.
 } datatable_column_name_t;
@@ -180,32 +183,40 @@ typedef struct datatable_column_name_tag {
  */
 typedef struct datatable_column_tag {
     datatable_column_name_t             names[3];           // data-table column names, index 0 and 1 for vector data-type or index 0, 1, and 2 for max and min with timestamp process-types, and index 0 for all other scenarios.
+    datatable_column_data_types_t       data_type;          // data-table column data-type, automatically populated when row is created.
+} datatable_column_t;
+
+/**
+ * @brief Data-table process structure.
+ */
+typedef struct datatable_process_tag {
     uint16_t                            samples_size;       // data-table size of data buffer samples, automatically populated when column is created
     uint16_t                            samples_count;      // data-table number of samples in the data buffer, automatically populated when data-table is processed
-    datatable_column_data_types_t       data_type;          // data-table column data buffer data-type, automatically populated when column is created
-    union buffer_tag {
-        datatable_vector_column_data_type_t** vector_samples;     // data-table vector samples data buffer, automatic array sizing when column is created based configured column data-type
-        datatable_bool_column_data_type_t**   bool_samples;       // data-table boolean samples data buffer, automatic array sizing when column is created based configured column data-type
-        datatable_float_column_data_type_t**  float_samples;      // data-table float samples data buffer, automatic array sizing when column is created based configured column data-type
-        datatable_int16_column_data_type_t**  int16_samples;      // data-table int16 samples data buffer, automatic array sizing when column is created based configured column data-type
-    } buffer;
     datatable_column_process_types_t    process_type;       // data-table statistical data processing type setting.
-} datatable_column_t;
+} datatable_process_t;
+
+/**
+ * @brief Data-table buffer union structure.
+ */
+typedef union datatable_buffer_tag {
+    datatable_vector_column_data_type_t** vector_samples;     // data-table vector samples data buffer, automatic array sizing when column is created based configured column data-type
+    datatable_bool_column_data_type_t**   bool_samples;       // data-table boolean samples data buffer, automatic array sizing when column is created based configured column data-type
+    datatable_float_column_data_type_t**  float_samples;      // data-table float samples data buffer, automatic array sizing when column is created based configured column data-type
+    datatable_int16_column_data_type_t**  int16_samples;      // data-table int16 samples data buffer, automatic array sizing when column is created based configured column data-type
+} datatable_buffer_t;
+
 
 /**
  * @brief Data-table row data column structure.  This structure is a data model that represents 
  * data storage of the record based on the data-table's column column data-type.
  */
-typedef struct datatable_row_data_column_tag {
-    datatable_column_data_types_t              data_type;          // data-table column data-type, automatically populated when row is created.
-    union column_data_tag {
-        datatable_id_column_data_type_t        id_data;            // data-table column record identifier data-type structure, automatically populated when row is created.
-        datatable_ts_column_data_type_t        ts_data;            // data-table column record timestamp data-type structure, automatically populated when row is created.
-        datatable_vector_column_data_type_t    vector_data;        // data-table column unit-vector data-type structure, automatically populated when row is created.
-        datatable_bool_column_data_type_t      bool_data;          // data-table column boolean data-type structure, automatically populated when row is created.
-        datatable_float_column_data_type_t     float_data;         // data-table column float data-type structure, automatically populated when row is created.
-        datatable_int16_column_data_type_t     int16_data;         // data-table column int16 data-type structure, automatically populated when row is created.
-    } data;                                                 // data-table row data column data union based on the configured column data-type, automatically populated when row is created.
+typedef union datatable_row_data_column_tag {
+     datatable_id_column_data_type_t        id_data;            // data-table column record identifier data-type structure, automatically populated when row is created.
+     datatable_ts_column_data_type_t        ts_data;            // data-table column record timestamp data-type structure, automatically populated when row is created.
+     datatable_vector_column_data_type_t    vector_data;        // data-table column unit-vector data-type structure, automatically populated when row is created.
+     datatable_bool_column_data_type_t      bool_data;          // data-table column boolean data-type structure, automatically populated when row is created.
+     datatable_float_column_data_type_t     float_data;         // data-table column float data-type structure, automatically populated when row is created.
+     datatable_int16_column_data_type_t     int16_data;         // data-table column int16 data-type structure, automatically populated when row is created.
 } datatable_row_data_column_t;
 
 /**
@@ -213,8 +224,7 @@ typedef struct datatable_row_data_column_tag {
  * data storage of record by data-table row and configured data-table columns.
  */
 typedef struct datatable_row_tag {
-    uint8_t                         data_columns_size;      // data-table size of row data columns, automatically populated when row is created.
-    datatable_row_data_column_t**   data_columns;           // data-table data columns of the record contained in the row, automatically populated when row is created.
+    datatable_row_data_column_t**   data_columns;       // data-table data for each column of the record contained in the row, automatically populated when row is created.
 } datatable_row_t;
 
 
@@ -238,7 +248,6 @@ typedef struct datatable_config_tag {
 struct datatable_t {
     const char*                         name;                       /*!< data-table textual name, maximum of 15 characters */
     datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, defines handling of records when the data-table is full, set when data-table is created */
-    //uint64_t                            sampling_ticks;             /*!< ticks since the last sampling to validate timeticks between samples */
     uint16_t                            sampling_count;             /*!< data-table data sampling count seed number */
     time_into_interval_handle_t         sampling_tii_handle;        /*!< data-table sampling time-into-interval handle */
     time_into_interval_handle_t         processing_tii_handle;      /*!< data-table processing time-into-interval handle */
@@ -246,10 +255,12 @@ struct datatable_t {
     uint8_t                             columns_count;              /*!< data-table column count seed number, this number should not exceed the column size*/
     uint8_t                             columns_size;               /*!< data-table column array size, static, set when data-table is created */
     datatable_column_t**                columns;                    /*!< array of data-table columns */
+    datatable_process_t**               processes;                  /*!< array of data-table column processes, same size as column array */
+    datatable_buffer_t**                buffers;                    /*!< array of data-table column buffers, same size as column array */
     uint16_t                            rows_count;                 /*!< data-table row count seed number, this number should not exceed the row size*/
     uint16_t                            rows_size;                  /*!< data-table row array size, static, set when data-table is created */
     datatable_row_t**                   rows;                       /*!< array of data-table rows */
-    uint16_t                            data_buffer_size;           /*!< data-table column data buffer size */
+    uint16_t                            samples_maximum_size;       /*!< data-table column samples size maximum, this is calculated from the sampling and processing intervals */
     uint16_t                            hash_code;                  /*!< hash-code of the data-table handle */
     SemaphoreHandle_t                   mutex_handle;
     datalogger_event                    event_handler;
@@ -619,145 +630,19 @@ esp_err_t datatable_del(datatable_handle_t datatable_handle);
  * 
  * `cJSON` data-table object output example;
  * 
- {
+{
         "name": "1min_tbl",
         "process-interval":     "minute",
         "process-period":       1,
-        "columns":      [{
-                        "index":        0,
-                        "name": "Record ID",
-                        "data-type":    "id",
-                        "process-type": "sample"
-                }, {
-                        "index":        1,
-                        "name": "TS",
-                        "data-type":    "ts",
-                        "process-type": "sample"
-                }, {
-                        "index":        2,
-                        "name": "Pa_1-Min_Avg",
-                        "data-type":    "float",
-                        "process-type": "average"
-                }, {
-                        "index":        3,
-                        "name": "Ta_1-Min_Avg",
-                        "data-type":    "float",
-                        "process-type": "average"
-                }, {
-                        "index":        4,
-                        "name": "Ta_1-Min_Min",
-                        "data-type":    "float",
-                        "process-type": "minimum"
-                }, {
-                        "index":        5,
-                        "name": "Ta_1-Min_Max",
-                        "data-type":    "float",
-                        "process-type": "maximum"
-                }, {
-                        "index":        6,
-                        "name": "Td_1-Min_Avg",
-                        "data-type":    "float",
-                        "process-type": "average"
-                }],
-        "rows": [{
-                        "index":        0,
-                        "columns":      [{
-                                        "index":        0,
-                                        "value":        1
-                                }, {
-                                        "index":        1,
-                                        "value":        61684380120
-                                }, {
-                                        "index":        2,
-                                        "value":        1001.3500366210938
-                                }, {
-                                        "index":        3,
-
-                                        "value":        22.350000381469727
-                                }, {
-                                        "index":        4,
-                                        "value":        22.340000152587891
-                                }, {
-                                        "index":        5,
-                                        "value":        22.360000610351562
-                                }, {
-                                        "index":        6,
-                                        "value":        20.350000381469727
-                                }]
-                }, {
-                        "index":        1,
-                        "columns":      [{
-                                        "index":        0,
-                                        "value":        2
-                                }, {
-                                        "index":        1,
-                                        "value":        61684380180
-                                }, {
-                                        "index":        2,
-                                        "value":        1001.3533325195312
-                                }, {
-                                        "index":        3,
-                                        "value":        22.35333251953125
-                                }, {
-                                        "index":        4,
-                                        "value":        22.340000152587891
-                                }, {
-                                        "index":        5,
-                                        "value":        22.360000610351562
-                                }, {
-                                        "index":        6,
-                                        "value":        20.353334426879883
-                                }]
-                }, {
-                        "index":        2,
-                        "columns":      [{
-                                        "index":        0,
-                                        "value":        3
-                                }, {
-                                        "index":        1,
-                                        "value":        61684380240
-                                }, {
-                                        "index":        2,
-                                        "value":        1001.3583374023438
-                                }, {
-                                        "index":        3,
-                                        "value":        22.358335494995117
-                                }, {
-                                        "index":        4,
-                                        "value":        22.350000381469727
-                                }, {
-                                        "index":        5,
-                                        "value":        22.3700008392334
-                                }, {
-                                        "index":        6,
-                                        "value":        20.358333587646484
-                                }]
-                }, {
-                        "index":        3,
-                        "columns":      [{
-                                        "index":        0,
-                                        "value":        4
-                                }, {
-                                        "index":        1,
-                                        "value":        61684380300
-                                }, {
-                                        "index":        2,
-                                        "value":        1001.3417358398438
-                                }, {
-                                        "index":        3,
-                                        "value":        22.341667175292969
-                                }, {
-                                        "index":        4,
-                                        "value":        22.329999923706055
-                                }, {
-                                        "index":        5,
-                                        "value":        22.350000381469727
-                                }, {
-                                        "index":        6,
-                                        "value":        20.341667175292969
-                                }]
-                }]
-} 
+        "columns":      ["Record ID", "TS", "Pa_1-Min_Avg", "Ta_1-Min_Avg", "Ta_1-Min_Min", "Ta_1-Min_Max", "Hr_1-Min_Avg", "Td_1-Min_Avg", "Wd_1-Min_Avg", "Ws_1-Min_Avg"],
+        "types":        ["id", "ts", "float", "float", "float", "float", "int16", "float", "float", "float"],
+        "processes":    ["sample", "sample", "average", "average", "minimum", "maximum", "average", "average", "average", "average"],
+        "rows": [
+		[1, 61684380120, 1001.3500366210938, 22.350000381469727, 22.340000152587891, 22.360000610351562, 51, 20.350000381469727, 210, 1.4500000476837158], 
+		[2, 61684380180, 1001.3533325195312, 22.35333251953125, 22.340000152587891, 22.360000610351562, 53, 20.353334426879883, 210, 1.4500000476837158], 
+		[3, 61684380240, 1001.3583374023438, 22.358335494995117, 22.350000381469727, 22.3700008392334, 55, 20.358333587646484, 210, 1.4500000476837158], 
+		[4, 61684380300, 1001.3417358398438, 22.341667175292969, 22.329999923706055, 22.350000381469727, 57, 20.341667175292969, 210, 1.4500000476837158]]
+}
  *
  * @param[in] datatable_handle Data-table handle.
  * @param[out] datatable Data-table as a `cJSON` object.

@@ -8,7 +8,7 @@ The ESP data-logger component includes the following common helper components:
 
 The working example included was developed in Visual Studio Code and requires an internet connection to synchronize the system clock using Simple Network Time Protocol (SNTP) over Wi-Fi.  Likewise, you can comment out the Wi-Fi connect and ntp start routines and enable the get and set time routines.  The set time routine provides a user configurable date and time structure to initliaze the system clock to a base date-time.  Otherwise, the included example may not run as expected.
 
-> Please keep in mind that this is still under development, there is a memory leak that is under investigation, but if you have any suggestions please contact me.
+> Please keep in mind that this is still under development but if you have any suggestions or would like to contribute please contact me.
 
 ## Data-Table Example
 Declare the data-table's handle, data-table configuration, and column indexes for columns that will be added.  A data-table will have one task-schedule handle declared for sampling purposes and one time-into-interval handle declared for processing purpose and referenced internally to manage temporal based sampling and processing within the data-table.
@@ -113,21 +113,37 @@ ESP_LOGI(APP_TAG, "JSON Data-Table:\n%s",dt_1min_json_str);
 cJSON_free(dt_1min_json_str);
 cJSON_Delete(dt_1min_json);
 ```
+Sample data-table in json format:
+```
+{
+        "name": "1min_tbl",
+        "process-interval":     "minute",
+        "process-period":       1,
+        "columns":      ["Record ID", "TS", "Pa_1-Min_Avg", "Ta_1-Min_Avg", "Ta_1-Min_Min", "Ta_1-Min_Max", "Hr_1-Min_Avg", "Td_1-Min_Avg", "Wd_1-Min_Avg", "Ws_1-Min_Avg"],
+        "types":        ["id", "ts", "float", "float", "float", "float", "int16", "float", "float", "float"],
+        "processes":    ["sample", "sample", "average", "average", "minimum", "maximum", "average", "average", "average", "average"],
+        "rows": [
+		[1, 61684380120, 1001.3500366210938, 22.350000381469727, 22.340000152587891, 22.360000610351562, 51, 20.350000381469727, 210, 1.4500000476837158], 
+		[2, 61684380180, 1001.3533325195312, 22.35333251953125, 22.340000152587891, 22.360000610351562, 53, 20.353334426879883, 210, 1.4500000476837158], 
+		[3, 61684380240, 1001.3583374023438, 22.358335494995117, 22.350000381469727, 22.3700008392334, 55, 20.358333587646484, 210, 1.4500000476837158], 
+		[4, 61684380300, 1001.3417358398438, 22.341667175292969, 22.329999923706055, 22.350000381469727, 57, 20.341667175292969, 210, 1.4500000476837158]]
+}
+```
 
 See data-table component and review documentation on features implemented to date.
 
 ## Time-Into-Interval Example
 Let's extend the **Data-Table Example**, declare a time-into-interval handle within the data-table sampling task sub-routine, and create a time-into-interval instance.  The time-into-interval instance interval is every 5-minutes with 0-minutes into the interval.
 
-The next step is declaring a conditional statement leveraging the `time_into_interval` function.  This function returns true when the configured interval condition is valid, otherwise, it returns false.  In this example, the time-into-interval function will output the data-table in json format every 5-minutes (i.e. 12:00:00, 12:05:00, 12:10:00, etc.).
+The next step is declaring a conditional statement leveraging the `time_into_interval` function.  This function returns true when the configured interval condition is valid, otherwise, it returns false.  In this example, the time-into-interval function will output the data-table in json format every 5-minutes with a 10-second offset into the interval (i.e. 12:00:10, 12:05:10, 12:10:10, etc.).
 
 ```
 static void dt_1min_smp_task( void *pvParameters ) {
     time_into_interval_handle_t dt_1min_tii_5min_hdl;
     time_into_interval_config_t dt_1min_tii_5min_cfg = {
-        .interval_type      = DATALOGGER_TIME_INTERVAL_MIN,
-        .interval_period    = 5,
-        .interval_offset    = 0
+        .interval_type      = DATALOGGER_TIME_INTERVAL_SEC,
+        .interval_period    = 5 * 60,
+        .interval_offset    = 10
     };
 
     // create a new time-into-interval handle - task system clock synchronization

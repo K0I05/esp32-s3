@@ -54,10 +54,10 @@ extern "C" {
  * ESP DATA-LOGGER COMMON macro definitions
  */
 
-#define SEC_TO_USEC(sec) { return (1000000U * sec); }
-#define SEC_TO_MSEC(sec) { return (1000U * sec); }
-#define SEC_TO_TICKS(sec) { return (SEC_TO_MS(sec) / portTICK_PERIOD_MS); }
-#define MSEC_TO_TICKS(ms) { return (ms / portTICK_PERIOD_MS); }
+#define SEC_TO_USEC(sec)    { return (1000000U * sec); }						/*!< converts seconds to micro-seconds */
+#define SEC_TO_MSEC(sec)    { return (1000U * sec); }							/*!< converts seconds to milli-seconds */
+#define SEC_TO_TICKS(sec)   { return (SEC_TO_MS(sec) / portTICK_PERIOD_MS); }	/*!< converts seconds to ticks */
+#define MSEC_TO_TICKS(msec) { return (msec / portTICK_PERIOD_MS); }				/*!< converts milli-seconds to ticks */
 
 /*
 * static constant declerations
