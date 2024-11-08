@@ -44,23 +44,8 @@
 #include <freertos/semphr.h>
 
 #include <cJSON.h>
-#include <datalogger_common.h>
 #include <time_into_interval.h>
 
-/*
-
-{
-  "data": {
-    "columns": ["name", "time", "value"],
-    "types": [string, time, float]
-    "rows": [
-      [ "wave.pi", 1687481466000000000, 1.2345],
-      [ "wave.pi", 1687481467000000000, 3.1415]
-    ]
-  }
-}
-
-*/
 
 #ifdef __cplusplus
 extern "C"
@@ -88,6 +73,19 @@ extern "C"
  * ESP DATA-TABLE enum and struct definitions
  */
 
+/**
+ * @brief Data-table event types enumerator.
+ */
+typedef enum datatable_event_types_tag {
+    DATATABLE_EVENT_INIT,               /*!< data-table initialized successfully */
+    DATATABLE_EVENT_RESET_ROWS,         /*!< data-table rows were reset */
+    DATATABLE_EVENT_RESET_SAMPLES,      /*!< data-table buffer samples were reset */
+    DATATABLE_EVENT_FIFO_ROWS,          /*!< data-table rows underwent a FIFO operation */
+    DATATABLE_EVENT_FIFO_SAMPLES,       /*!< data-table buffer samples underwent a FIFO operation */
+    DATATABLE_EVENT_SAMPLE_PUSHED,      /*!< data-table sample was pushed onto the buffer samples stack */
+    DATATABLE_EVENT_PROCESS,            /*!< data-table processed successfully */
+    DATATABLE_EVENT_PROCESS_ELAPSED,    /*!< data-table processing time-into-interval has elapsed */
+} datatable_event_types_t;
 
 /**
  * @brief Data-table data storage-types enumerator.
@@ -118,10 +116,26 @@ typedef enum datatable_column_data_types_tag {
     DATATABLE_COLUMN_DATA_TS,       /*!< record timestamp (date and time) column data type, system default, see `datatable_ts_data_type_t` for data-type structure. */
     DATATABLE_COLUMN_DATA_VECTOR,   /*!< vector (u and v components) column data type, user-defined, see `datatable_vector_data_type_t` for data-type structure. */
     DATATABLE_COLUMN_DATA_BOOL,     /*!< boolean column data type, user-defined, see `datatable_bool_data_type_t` for data-type structure. */
-    DATATABLE_COLUMN_DATA_FLOAT,    /*!< float column data type, user-defined, see `datatable_float_data_type_t` for data-type structure. */
+    DATATABLE_COLUMN_DATA_FLOAT,    /*!< float 32-bit column data type, user-defined, see `datatable_float_data_type_t` for data-type structure. */
+    //DATATABLE_COLUMN_DATA_FP16,     /*!< float 16-bit column data type, user-defined, see `datatable_fp16_data_type_t` for data-type structure. */
     DATATABLE_COLUMN_DATA_INT16     /*!< int16 column data type, user-defined, see `datatable_int16_data_type_t` for data-type structure. */
 } datatable_column_data_types_t;
 
+
+/**
+ * @brief Data-table event structure.
+ * 
+ */
+typedef struct datatable_event_tag {
+    datatable_event_types_t type;
+    const char*             message;
+} datatable_event_t;
+
+/**
+ * @brief Data-logger event.
+ * 
+ */
+typedef void (*datatable_event)(void *handle, datatable_event_t);
 
 /**
  * @brief Data-table record identifier column data-type structure.
@@ -157,9 +171,17 @@ typedef struct datatable_bool_column_data_type_tag {
  * @brief Data-table float data-type column structure.
  */
 typedef struct datatable_float_column_data_type_tag {
-    float                               value;      // float value
+    float                               value;      // float 32-bit value
     time_t                              value_ts;   // timestamp of value, used for time of max or min  
 } datatable_float_column_data_type_t;
+
+/**
+ * @brief Data-table float 16-bit data-type column structure.
+ */
+typedef struct datatable_fp16_column_data_type_tag {
+    uint16_t                            value;      // float 16-bit value (stored as a uint16_t)
+    time_t                              value_ts;   // timestamp of value, used for time of max or min  
+} datatable_fp16_column_data_type_t;
 
 /**
  * @brief Data-table int16 data-type column structure.
@@ -238,7 +260,7 @@ typedef struct datatable_config_tag {
     datatable_data_storage_types_t      data_storage_type;          /*!< data-table data storage type, defines handling of records when the data-table is full */
     time_into_interval_config_t         sampling_config;            /*!< data-table sampling time-into-interval configuration, configures the sampling interval  */
     time_into_interval_config_t         processing_config;          /*!< data-table processing time-into-interval configuration, configures the processing interval */
-    datalogger_event                    event_handler;
+    datatable_event                     event_handler;
 } datatable_config_t;
 
 /**
@@ -263,7 +285,7 @@ struct datatable_t {
     uint16_t                            samples_maximum_size;       /*!< data-table column samples size maximum, this is calculated from the sampling and processing intervals */
     uint16_t                            hash_code;                  /*!< hash-code of the data-table handle */
     SemaphoreHandle_t                   mutex_handle;
-    datalogger_event                    event_handler;
+    datatable_event                     event_handler;
 };
 
 /**

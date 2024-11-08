@@ -45,16 +45,21 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 
-#include <datalogger_common.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
-#define TIME_INTO_INTERVAL_NAME_MAX_SIZE         (25)        //!< 25-characters for user-defined time-into-interval name
-
 // TODO? - add multi-thread synch (i.e. mutex)??
+
+/**
+ * @brief Time into interval types enumerator.
+ */
+typedef enum time_into_interval_types_tag {
+    TIME_INTO_INTERVAL_SEC, /*!< Time-into-interval in seconds. */
+    TIME_INTO_INTERVAL_MIN, /*!< Time-into-interval in minutes. */
+    TIME_INTO_INTERVAL_HR   /*!< Time-into-interval in hours. */
+} time_into_interval_types_t;
 
 
 /**
@@ -63,7 +68,7 @@ extern "C" {
  */
 typedef struct time_into_interval_config_tag {
     const char*                      name;              /*!< time-into-interval, name, maximum of 25-characters */
-    datalogger_time_interval_types_t interval_type;     /*!< time-into-interval, interval type setting */ 
+    time_into_interval_types_t       interval_type;     /*!< time-into-interval, interval type setting */ 
     uint16_t                         interval_period;   /*!< time-into-interval, a non-zero interval period setting per interval type setting */ 
     uint16_t                         interval_offset;   /*!< time-into-interval, interval offset setting, per interval type setting, that must be less than the interval period */ 
 } time_into_interval_config_t;
@@ -75,7 +80,7 @@ typedef struct time_into_interval_config_tag {
 struct time_into_interval_t {
     const char*                      name;               /*!< time-into-interval, name, maximum of 25-characters */
     uint64_t                         epoch_timestamp;    /*!< time-into-interval, next event unix epoch timestamp (UTC) in milli-seconds */
-    datalogger_time_interval_types_t interval_type;      /*!< time-into-interval, interval type setting */
+    time_into_interval_types_t       interval_type;      /*!< time-into-interval, interval type setting */
     uint16_t                         interval_period;    /*!< time-into-interval, a non-zero interval period setting per interval type setting */
     uint16_t                         interval_offset;    /*!< time-into-interval, interval offset setting, per interval type setting, that must be less than the interval period */
     uint16_t                         hash_code;          /*!< hash-code of the time-into-interval handle */
@@ -92,6 +97,68 @@ typedef struct time_into_interval_t time_into_interval_t;
  */
 typedef struct time_into_interval_t *time_into_interval_handle_t;
 
+// https://lloydrochester.com/post/c/c-timestamp-epoch/
+
+/**
+ * @brief Normalizes time-into-interval period or offset to seconds.
+ * 
+ * @param[in] interval_type Time-into-interval type of interval period or offset.
+ * @param[in] interval Time-into-interval period or offset for interval type.
+ * @return uint64_t Normalized time-into-interval period or offset in seconds.
+ */
+uint64_t time_into_interval_normalize_interval_to_sec(const time_into_interval_types_t interval_type, const uint16_t interval);
+
+/**
+ * @brief Normalizes time-into-interval period or offset to milli-seconds.
+ * 
+ * @param[in] interval_type Time-into-interval type of interval period or offset.
+ * @param[in] interval Time-into-interval period or offset for interval type.
+ * @return uint64_t Normalized time-into-interval period or offset in milli-seconds.
+ */
+uint64_t time_into_interval_normalize_interval_to_msec(const time_into_interval_types_t interval_type, const uint16_t interval);
+
+/**
+ * @brief Gets unix epoch timestamp (UTC) in seconds from system clock.
+ * 
+ * @return uint64_t Unix epoch timestamp (UTC) in seconds or it will return 0-seconds 
+ * when there is an issue accessing the system clock.
+ */
+uint64_t time_into_interval_get_epoch_timestamp(void);
+
+/**
+ * @brief Gets unix epoch timestamp (UTC) in milli-seconds from system clock.
+ * 
+ * @return uint64_t Unix epoch timestamp (UTC) in milli-seconds or it will return 0-milli-seconds 
+ * when there is an issue accessing the system clock.
+ */
+uint64_t time_into_interval_get_epoch_timestamp_msec(void);
+
+/**
+ * @brief Gets unix epoch timestamp (UTC) in micro-seconds from system clock.
+ * 
+ * @return uint64_t Unix epoch timestamp (UTC) in micro-seconds or it will return 0-micro-seconds 
+ * when there is an issue accessing the system clock.
+ */
+uint64_t time_into_interval_get_epoch_timestamp_usec(void);
+
+/**
+ * @brief Sets the next epoch event timestamp in milli-seconds from system clock based on 
+ * the time interval type, period, and offset. 
+ * 
+ * The interval should be divisible by 60 i.e. no remainder if the interval type and period
+ * is every 10-seconds, the event will trigger on-time with the system clock i.e. 09:00:00, 
+ * 09:00:10, 09:00:20, etc.
+ * 
+ * The interval offset is used to offset the start of the interval period.  If the interval type
+ * and period is every 5-minutes with a 1-minute offset, the event will trigger on-time with the
+ * system clock i.e. 09:01:00, 09:06:00, 09:11:00, etc.
+ * 
+ * @param[in] interval_type Data-logger time interval type.
+ * @param[in] interval_period Data-logger time interval period for interval type.
+ * @param[in] interval_offset Data-logger time interval offset for interval type.
+ * @param[out] epoch_timestamp Unix epoch timestamp (UTC) of next event in milli-seconds.
+ */
+esp_err_t time_into_interval_set_epoch_timestamp_event(const time_into_interval_types_t interval_type, const uint16_t interval_period, const uint16_t interval_offset, uint64_t *epoch_timestamp);
 
 /**
  * @brief Initializes a time-into-interval handle.  A time-into-interval is used 

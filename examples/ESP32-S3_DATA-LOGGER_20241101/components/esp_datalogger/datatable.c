@@ -56,6 +56,128 @@
 static const char *TAG = "data-table";
 
 /**
+ * @brief Concatenates the `append` string to the `base` string.
+ * 
+ * @param base String base.
+ * @param append String to append to the base.
+ * @return const char* `append` string concatenated to the `base` string.
+ */
+static inline const char* datatable_concat(const char* base, const char* append) {
+    char *res = malloc(strlen(base) + strlen(append) + 1);
+    strcpy(res, base);
+    strcat(res, append);
+    return res;
+}
+
+/**
+ * @brief Gets a 16-bit hash-code utilizing epoch timestamp as the seed.
+ * 
+ * @return uint16_t 16-bit hash-code.
+ */
+static inline uint16_t datatable_get_hash_code(void) {
+    uint16_t seed_hash = (uint16_t)time_into_interval_get_epoch_timestamp();
+    return ((seed_hash>>16) ^ (seed_hash)) & 0xFFFF;
+}
+
+/**
+ * @brief Converts degrees to radians.
+ * 
+ * @param degree degrees to convert.
+ * @return double converted degrees to radians.
+ */
+static inline double datatable_degrees_to_radians(double degree) {
+    return degree * (M_PI / 180);
+}
+
+/**
+ * @brief Converts radians to degrees.
+ * 
+ * @param radian radian to convert.
+ * @return double converted radians to degrees.
+ */
+static inline double datatable_radians_to_degrees(double radian) {
+    return radian * (180 / M_PI);
+}
+
+//https://github.com/skeeto/scratch/blob/master/misc/float16.c
+/**
+ * @brief Encodes a double to an int16_t data-type.
+ * 
+ * @param value double value to encode.
+ * @return uint16_t encoded double value.
+ */
+static inline uint16_t datatable_encode_double(double f) {
+    uint64_t b;
+    memcpy(&b, &f, 8);
+    int s = (b>>48 & 0x8000);
+    int e = (b>>52 & 0x07ff) - 1023;
+    int m = (b>>42 & 0x03ff);
+    int t = !!(b && 0xffffffffffff);
+
+    if (e == -1023) {
+        // input is denormal, round to zero
+        e = m = 0;
+    } else if (e < -14) {
+        // convert to denormal
+        if (-14 - e > 10) {
+            m = 0;
+        } else {
+            m |= 0x400;
+            m >>= -14 - e - 1;
+            m = (m>>1) + (m&1);  // round
+        }
+        e = 0;
+    } else if (e > +16) {
+        // NaN / overflow to infinity
+        m &= t << 9;  // canonicalize to quiet NaN
+        e = 31;
+    } else {
+        e += 15;
+    }
+
+    return s | e<<10 | m;
+}
+
+/**
+ * @brief Decodes a uint16_t to a double data-type.
+ * 
+ * @param value uint16_t value to decode.
+ * @return double decoded uint16_t value.
+ */
+static inline double datatable_decode_uint16(uint16_t x) {
+    int s = (x     & 0x8000);
+    int e = (x>>10 & 0x001f) - 15;
+    int m = (x     & 0x03ff);
+
+    switch (e) {
+    case -15: if (!m) {
+                  e = 0;
+              } else {
+                  // convert from denormal
+                  e += 1023 + 1;
+                  while (!(m&0x400)) {
+                      e--;
+                      m <<= 1;
+                  }
+                  m &= 0x3ff;
+              }
+              break;
+    case +16: m = !!m << 9;  // canonicalize to quiet NaN
+              e = 2047;
+              break;
+    default:  e += 1023;
+    }
+
+    uint64_t b = (uint64_t)s<<48 |
+                 (uint64_t)e<<52 |
+                 (uint64_t)m<<42;
+    double f;
+    memcpy(&f, &b, 8);
+    return f;
+}
+
+
+/**
  * @brief Converts a data-table column process-type enumerator to a short abbreviated textual string.  The shortened and 
  * abbreviated textual string of the process-type uses a julian convention e.g. `DATATABLE_COLUMN_PROCESS_SMP` represents a 
  * data-table column process-type as a sample and will output `Smp` for the short abbreviated textual string.
@@ -77,9 +199,9 @@ static inline const char* datatable_process_type_to_short_string(const datatable
         case DATATABLE_COLUMN_PROCESS_MAX:
             return "Max";
         case DATATABLE_COLUMN_PROCESS_MIN_TS:
-            return "Min_TS";
+            return "Min-TS";
         case DATATABLE_COLUMN_PROCESS_MAX_TS:
-            return "Max_TS";
+            return "Max-TS";
         default:
             return "-";
     }
@@ -87,8 +209,8 @@ static inline const char* datatable_process_type_to_short_string(const datatable
 
 /**
  * @brief Converts a data-table column process-type enumerator to a textual string.  The textual string of the process-type 
- * uses a julian convention e.g. `DATATABLE_COLUMN_PROCESS_SMP` represents a data-table column process-type 
- * as a sample and will output `Sample` for the textual string.
+ * uses a julian convention e.g. `DATATABLE_COLUMN_PROCESS_MIN_TS` represents a data-table column process-type 
+ * as a sample and will output `Minimum-TimeStamp` for the textual string.
  * 
  * For a short abbreviated textual representation of the data-table column process-type, see `datatable_process_type_to_short_string` 
  * function.
@@ -108,9 +230,29 @@ static inline const char* datatable_process_type_to_string(const datatable_colum
         case DATATABLE_COLUMN_PROCESS_MAX:
             return "Maximum";
         case DATATABLE_COLUMN_PROCESS_MIN_TS:
-            return "Minimum_TimeStamp";
+            return "Minimum-TimeStamp";
         case DATATABLE_COLUMN_PROCESS_MAX_TS:
-            return "Maximum_TimeStamp";
+            return "Maximum-TimeStamp";
+        default:
+            return "-";
+    }
+}
+
+static inline const char* datatable_data_type_to_string(const datatable_column_data_types_t data_type) {
+    /* handle data-type to string  */
+    switch(data_type) {
+        case DATATABLE_COLUMN_DATA_ID:
+            return "ID";
+        case DATATABLE_COLUMN_DATA_TS:
+            return "TS";
+        case DATATABLE_COLUMN_DATA_VECTOR:
+            return "Vector";
+        case DATATABLE_COLUMN_DATA_BOOL:
+            return "Bool";
+        case DATATABLE_COLUMN_DATA_FLOAT:
+            return "Float";
+        case DATATABLE_COLUMN_DATA_INT16:
+            return "Int16";
         default:
             return "-";
     }
@@ -122,14 +264,14 @@ static inline const char* datatable_process_type_to_string(const datatable_colum
  * @param interval_type Data-logger time interval type enumerator to serialize.
  * @return char* Serialized data-logger time interval type as a textual string.
  */
-static inline const char* datatable_json_serialize_interval_type(const datalogger_time_interval_types_t interval_type) {
+static inline const char* datatable_json_serialize_interval_type(const time_into_interval_types_t interval_type) {
     /* normalize  */
     switch(interval_type) {
-        case DATALOGGER_TIME_INTERVAL_SEC:
+        case TIME_INTO_INTERVAL_SEC:
             return "second";
-        case DATALOGGER_TIME_INTERVAL_MIN:
+        case TIME_INTO_INTERVAL_MIN:
             return "minute";
-        case DATALOGGER_TIME_INTERVAL_HR:
+        case TIME_INTO_INTERVAL_HR:
             return "hour";
         default:
             return "-";
@@ -213,7 +355,7 @@ static inline const char* datatable_concat_column_name(const char* base_name, co
  * @param message Data-table event message.
  * @return esp_err_t ESP_OK on success.
  */
-static inline esp_err_t datatable_invoke_event(datatable_handle_t datatable_handle, datalogger_event_types_t event_type, const char* message) {
+static inline esp_err_t datatable_invoke_event(datatable_handle_t datatable_handle, const datatable_event_types_t event_type, const char* message) {
     /* validate arguments */
     ESP_ARG_CHECK( datatable_handle );
 
@@ -221,8 +363,7 @@ static inline esp_err_t datatable_invoke_event(datatable_handle_t datatable_hand
     if(!datatable_handle->event_handler) return ESP_ERR_INVALID_STATE;
 
     /* initialize event structure */
-    datalogger_event_t dt_event = {
-        .source  = DATALOGGER_EVENT_DT,
+    const datatable_event_t dt_event = {
         .type    = event_type,
         .message = message
     };
@@ -258,8 +399,8 @@ static inline esp_err_t datatable_get_column_samples_maximum_size(datatable_hand
     xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY); 
 
     /* normalize sampling and processing periods to seconds, and set delta interval */
-    uint64_t sampling_interval   = datalogger_normalize_interval_to_sec(datatable_handle->sampling_tii_handle->interval_type, datatable_handle->sampling_tii_handle->interval_period);
-    uint64_t processing_interval = datalogger_normalize_interval_to_sec(datatable_handle->processing_tii_handle->interval_type, datatable_handle->processing_tii_handle->interval_period);
+    uint64_t sampling_interval   = time_into_interval_normalize_interval_to_sec(datatable_handle->sampling_tii_handle->interval_type, datatable_handle->sampling_tii_handle->interval_period);
+    uint64_t processing_interval = time_into_interval_normalize_interval_to_sec(datatable_handle->processing_tii_handle->interval_type, datatable_handle->processing_tii_handle->interval_period);
     int64_t  interval_delta      = processing_interval - sampling_interval;
 
     //ESP_LOGD(TAG, "datatable_get_column_data_buffer_size (delta %lli): processing_interval(%llu) / sampling_interval(%llu)", interval_delta, processing_interval, sampling_interval);
@@ -499,6 +640,11 @@ static inline esp_err_t datatable_fifo_rows(datatable_handle_t datatable_handle)
     /* free temporary data-table rows */
     if(dt_rows != NULL) free(dt_rows);
 
+    /* invoke event handler */
+    if(datatable_handle->event_handler) {
+        datatable_invoke_event(datatable_handle, DATATABLE_EVENT_FIFO_ROWS, "rows FIFO operation was successful");
+    }
+
     /* unlock the mutex */
     xSemaphoreGive(datatable_handle->mutex_handle);
 
@@ -525,6 +671,11 @@ static inline esp_err_t datatable_reset_rows(datatable_handle_t datatable_handle
     /* free all rows */
     for(uint16_t r = 0; r < datatable_handle->rows_size; r++) {
         datatable_free_row(datatable_handle->rows[r], datatable_handle->columns_size);
+    }
+
+    /* invoke event handler */
+    if(datatable_handle->event_handler) {
+        datatable_invoke_event(datatable_handle, DATATABLE_EVENT_RESET_ROWS, "rows reset operation was successful");
     }
 
     /* unlock the mutex */
@@ -600,6 +751,11 @@ static inline esp_err_t datatable_reset_data_buffers(datatable_handle_t datatabl
 
     /* reset sampling count */
     datatable_handle->sampling_count = 0;
+
+    /* invoke event handler */
+    if(datatable_handle->event_handler) {
+        datatable_invoke_event(datatable_handle, DATATABLE_EVENT_RESET_SAMPLES, "buffer samples reset operation was successful");
+    }
 
     /* unlock the mutex */
     xSemaphoreGive(datatable_handle->mutex_handle);
@@ -810,6 +966,17 @@ static inline esp_err_t datatable_fifo_data_buffers(datatable_handle_t datatable
         ESP_RETURN_ON_ERROR( datatable_fifo_data_buffer(datatable_handle, ci),TAG, "fifo column data buffer for data-table fifo column data buffers failed" );
     }
 
+    /* lock the mutex */
+    xSemaphoreTake(datatable_handle->mutex_handle, portMAX_DELAY);
+
+    /* invoke event handler */
+    if(datatable_handle->event_handler) {
+        datatable_invoke_event(datatable_handle, DATATABLE_EVENT_FIFO_SAMPLES, "buffer samples FIFO operation was successful");
+    }
+
+    /* unlock the mutex */
+    xSemaphoreGive(datatable_handle->mutex_handle);
+
     return ESP_OK;
 }
 
@@ -867,11 +1034,11 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
             */
             for(uint16_t s = 0; s < datatable_handle->processes[index]->samples_count; s++) {
                 if(s == 0) {
-                    tmp_ew_vector = sin( datalogger_degrees_to_radians(datatable_handle->buffers[index]->vector_samples[s]->value_uc) ) * datatable_handle->buffers[index]->vector_samples[s]->value_vc;
-                    tmp_ns_vector = cos( datalogger_degrees_to_radians(datatable_handle->buffers[index]->vector_samples[s]->value_uc) ) * datatable_handle->buffers[index]->vector_samples[s]->value_vc;
+                    tmp_ew_vector = sin( datatable_degrees_to_radians(datatable_handle->buffers[index]->vector_samples[s]->value_uc) ) * datatable_handle->buffers[index]->vector_samples[s]->value_vc;
+                    tmp_ns_vector = cos( datatable_degrees_to_radians(datatable_handle->buffers[index]->vector_samples[s]->value_uc) ) * datatable_handle->buffers[index]->vector_samples[s]->value_vc;
                 } else {
-                    tmp_ew_vector += sin( datalogger_degrees_to_radians(datatable_handle->buffers[index]->vector_samples[s]->value_uc) ) * datatable_handle->buffers[index]->vector_samples[s]->value_vc;
-                    tmp_ns_vector += cos( datalogger_degrees_to_radians(datatable_handle->buffers[index]->vector_samples[s]->value_uc) ) * datatable_handle->buffers[index]->vector_samples[s]->value_vc;
+                    tmp_ew_vector += sin( datatable_degrees_to_radians(datatable_handle->buffers[index]->vector_samples[s]->value_uc) ) * datatable_handle->buffers[index]->vector_samples[s]->value_vc;
+                    tmp_ns_vector += cos( datatable_degrees_to_radians(datatable_handle->buffers[index]->vector_samples[s]->value_uc) ) * datatable_handle->buffers[index]->vector_samples[s]->value_vc;
                 }
             }
 
@@ -881,7 +1048,7 @@ static inline esp_err_t datatable_process_vector_data_buffer(datatable_handle_t 
 
             // average u-component in degrees
             tmp_atan2_uc = atan2(tmp_ew_avg, tmp_ns_avg);
-            tmp_uc_avg = datalogger_radians_to_degrees(tmp_atan2_uc);
+            tmp_uc_avg = datatable_radians_to_degrees(tmp_atan2_uc);
 
             // apply correction as specified in webmet.com webpage http://www.webmet.com/met_monitoring/622.html
             if(tmp_uc_avg > 180.0) {
@@ -1246,18 +1413,18 @@ esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_h
     ESP_GOTO_ON_FALSE( (datatable_config->processing_config.interval_period > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period cannot be 0, data-table handle initialization failed" );
 
     /* validate sampling and processing interval periods */
-    int64_t interval_delta = datalogger_normalize_interval_to_sec(datatable_config->processing_config.interval_type, datatable_config->processing_config.interval_period) - 
-                             datalogger_normalize_interval_to_sec(datatable_config->sampling_config.interval_type, datatable_config->sampling_config.interval_period); 
+    int64_t interval_delta = time_into_interval_normalize_interval_to_sec(datatable_config->processing_config.interval_type, datatable_config->processing_config.interval_period) - 
+                             time_into_interval_normalize_interval_to_sec(datatable_config->sampling_config.interval_type, datatable_config->sampling_config.interval_period); 
     ESP_GOTO_ON_FALSE((interval_delta > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period must be larger than the sampling interval period,  data-table handle initialization failed" );
 
     /* validate sampling period and offset intervals */
-    interval_delta = datalogger_normalize_interval_to_sec(datatable_config->sampling_config.interval_type, datatable_config->sampling_config.interval_period) - 
-                     datalogger_normalize_interval_to_sec(datatable_config->sampling_config.interval_type, datatable_config->sampling_config.interval_offset); 
+    interval_delta = time_into_interval_normalize_interval_to_sec(datatable_config->sampling_config.interval_type, datatable_config->sampling_config.interval_period) - 
+                     time_into_interval_normalize_interval_to_sec(datatable_config->sampling_config.interval_type, datatable_config->sampling_config.interval_offset); 
     ESP_GOTO_ON_FALSE((interval_delta > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period must be larger than the sampling interval offset, data-table handle initialization failed" );
     
     /* validate processing period and offset intervals */
-    interval_delta = datalogger_normalize_interval_to_sec(datatable_config->processing_config.interval_type, datatable_config->processing_config.interval_period) - 
-                     datalogger_normalize_interval_to_sec(datatable_config->processing_config.interval_type, datatable_config->processing_config.interval_offset); 
+    interval_delta = time_into_interval_normalize_interval_to_sec(datatable_config->processing_config.interval_type, datatable_config->processing_config.interval_period) - 
+                     time_into_interval_normalize_interval_to_sec(datatable_config->processing_config.interval_type, datatable_config->processing_config.interval_offset); 
     ESP_GOTO_ON_FALSE((interval_delta > 0), ESP_ERR_INVALID_ARG, err, TAG, "data-table processing interval period must be larger than the processing interval offset, data-table handle initialization failed" );
 
     /* validate memory availability for data-table handle */
@@ -1274,7 +1441,7 @@ esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_h
     out_handle->data_storage_type    = datatable_config->data_storage_type;
     out_handle->record_id            = 0;
     out_handle->event_handler        = datatable_config->event_handler;
-    out_handle->hash_code            = datalogger_get_hash_code();
+    out_handle->hash_code            = datatable_get_hash_code();
     out_handle->mutex_handle         = xSemaphoreCreateMutex();
 
     /* validate data-table mutex handle */
@@ -1310,7 +1477,7 @@ esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_h
 
     // initialize task-schedule configuration - data-table sampling task system clock synchronization
     const time_into_interval_config_t dt_sampling_tii_cfg = {
-        .name               = datalogger_concat(datatable_config->name, DATATABLE_COLUMN_TII_SMP_NAME),
+        .name               = datatable_concat(datatable_config->name, DATATABLE_COLUMN_TII_SMP_NAME),
         .interval_type      = datatable_config->sampling_config.interval_type,
         .interval_period    = datatable_config->sampling_config.interval_period,
         .interval_offset    = datatable_config->sampling_config.interval_offset
@@ -1322,7 +1489,7 @@ esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_h
 
     // initialize time-into-interval configuration - data-table column data buffer processing task system clock synchronization
     const time_into_interval_config_t dt_processing_tii_cfg = {
-        .name               = datalogger_concat(datatable_config->name, DATATABLE_COLUMN_TII_PRC_NAME),
+        .name               = datatable_concat(datatable_config->name, DATATABLE_COLUMN_TII_PRC_NAME),
         .interval_type      = datatable_config->processing_config.interval_type,
         .interval_period    = datatable_config->processing_config.interval_period,
         .interval_offset    = datatable_config->processing_config.interval_offset
@@ -1380,8 +1547,10 @@ esp_err_t datatable_init(const datatable_config_t *datatable_config, datatable_h
         out_handle->rows[i] = NULL;
     }
 
-    /* invoke data-logger event */
-    datatable_invoke_event(out_handle, DATALOGGER_EVENT_DT_INIT, "data-table initialized successfully");
+    /* invoke event handler */
+    if(out_handle->event_handler) {
+        datatable_invoke_event(out_handle, DATATABLE_EVENT_INIT, "initialized successfully");
+    }
 
     /* set output handle */
     *datatable_handle = out_handle;
@@ -2053,7 +2222,7 @@ esp_err_t datatable_push_vector_sample(datatable_handle_t datatable_handle, cons
     /* handle column process-type */
     if(datatable_handle->processes[index]->process_type == DATATABLE_COLUMN_PROCESS_SMP) {
         datatable_handle->processes[index]->samples_count = 1;
-        dt_column_data->value_ts = datalogger_get_epoch_timestamp();
+        dt_column_data->value_ts = time_into_interval_get_epoch_timestamp();
         dt_column_data->value_uc = value_uc;
         dt_column_data->value_vc = value_vc;
     } else {
@@ -2063,19 +2232,24 @@ esp_err_t datatable_push_vector_sample(datatable_handle_t datatable_handle, cons
             ESP_RETURN_ON_ERROR( datatable_fifo_data_buffer(datatable_handle, index), TAG, "unable to fifo column data buffer, push vector sample failed" );
 
             // samples count remains the same but append sample to column data buffer
-            dt_column_data->value_ts = datalogger_get_epoch_timestamp();
+            dt_column_data->value_ts = time_into_interval_get_epoch_timestamp();
             dt_column_data->value_uc = value_uc;
             dt_column_data->value_vc = value_vc;
         } else {
             // increment samples count and append sample to column data buffer
             datatable_handle->processes[index]->samples_count += 1;
-            dt_column_data->value_ts = datalogger_get_epoch_timestamp();
+            dt_column_data->value_ts = time_into_interval_get_epoch_timestamp();
             dt_column_data->value_uc = value_uc;
             dt_column_data->value_vc = value_vc;
         }
     }
 
     datatable_handle->buffers[index]->vector_samples[datatable_handle->processes[index]->samples_count-1] = dt_column_data;
+
+    /* invoke event handler */
+    if(datatable_handle->event_handler) {
+        datatable_invoke_event(datatable_handle, DATATABLE_EVENT_SAMPLE_PUSHED, "vector sample push onto the buffer samples stack successfull");
+    }
 
     return ESP_OK;
 }
@@ -2105,6 +2279,11 @@ esp_err_t datatable_push_bool_sample(datatable_handle_t datatable_handle, const 
 
     ESP_LOGW(TAG, "datatable_push_bool_sample(column-index: %u) buffer-data(%d) %d", index, datatable_handle->processes[index]->samples_count, datatable_handle->buffers[index]->bool_samples[datatable_handle->processes[index]->samples_count-1]->value);
 
+    /* invoke event handler */
+    if(datatable_handle->event_handler) {
+        datatable_invoke_event(datatable_handle, DATATABLE_EVENT_SAMPLE_PUSHED, "bool sample push onto the buffer samples stack successfull");
+    }
+
     return ESP_OK;
 }
 
@@ -2124,7 +2303,7 @@ esp_err_t datatable_push_float_sample(datatable_handle_t datatable_handle, const
     /* handle column process-type */
     if(datatable_handle->processes[index]->process_type == DATATABLE_COLUMN_PROCESS_SMP) {
         datatable_handle->processes[index]->samples_count = 1;
-        dt_column_data->value_ts = datalogger_get_epoch_timestamp();
+        dt_column_data->value_ts = time_into_interval_get_epoch_timestamp();
         dt_column_data->value    = value;
     } else {
         // validate data buffer samples index
@@ -2133,12 +2312,12 @@ esp_err_t datatable_push_float_sample(datatable_handle_t datatable_handle, const
             ESP_RETURN_ON_ERROR( datatable_fifo_data_buffer(datatable_handle, index), TAG, "unable to fifo column data buffer, push float sample failed" );
 
             // samples count remains the same and append sample to column data buffer
-            dt_column_data->value_ts  = datalogger_get_epoch_timestamp();
+            dt_column_data->value_ts  = time_into_interval_get_epoch_timestamp();
             dt_column_data->value     = value;
         } else {
             // increment samples count and append sample to column data buffer
             datatable_handle->processes[index]->samples_count += 1;
-            dt_column_data->value_ts  = datalogger_get_epoch_timestamp();
+            dt_column_data->value_ts  = time_into_interval_get_epoch_timestamp();
             dt_column_data->value     = value;
         }
     }
@@ -2146,6 +2325,11 @@ esp_err_t datatable_push_float_sample(datatable_handle_t datatable_handle, const
     datatable_handle->buffers[index]->float_samples[datatable_handle->processes[index]->samples_count-1] = dt_column_data;
 
     ESP_LOGW(TAG, "datatable_push_float_sample(column-index: %u) buffer-data(%d) %.2f", index, datatable_handle->processes[index]->samples_count, datatable_handle->buffers[index]->float_samples[datatable_handle->processes[index]->samples_count-1]->value);
+
+    /* invoke event handler */
+    if(datatable_handle->event_handler) {
+        datatable_invoke_event(datatable_handle, DATATABLE_EVENT_SAMPLE_PUSHED, "float sample push onto the buffer samples stack was successfull");
+    }
 
     return ESP_OK;
 }
@@ -2166,7 +2350,7 @@ esp_err_t datatable_push_int16_sample(datatable_handle_t datatable_handle, const
     /* handle column process-type */
     if(datatable_handle->processes[index]->process_type == DATATABLE_COLUMN_PROCESS_SMP) {
         datatable_handle->processes[index]->samples_count = 1;
-        dt_column_data->value_ts = datalogger_get_epoch_timestamp();
+        dt_column_data->value_ts = time_into_interval_get_epoch_timestamp();
         dt_column_data->value    = value;
     } else {
         // validate data buffer samples index
@@ -2175,12 +2359,12 @@ esp_err_t datatable_push_int16_sample(datatable_handle_t datatable_handle, const
             ESP_RETURN_ON_ERROR( datatable_fifo_data_buffer(datatable_handle, index), TAG, "unable to fifo column data buffer, push int16 sample failed" );
 
             // samples count remains the same but append sample to column data buffer
-            dt_column_data->value_ts  = datalogger_get_epoch_timestamp();
+            dt_column_data->value_ts  = time_into_interval_get_epoch_timestamp();
             dt_column_data->value     = value;
         } else {
             // increment samples count and append sample to column data buffer
             datatable_handle->processes[index]->samples_count += 1;
-            dt_column_data->value_ts  = datalogger_get_epoch_timestamp();
+            dt_column_data->value_ts  = time_into_interval_get_epoch_timestamp();
             dt_column_data->value     = value;
         }
     }
@@ -2188,6 +2372,11 @@ esp_err_t datatable_push_int16_sample(datatable_handle_t datatable_handle, const
     datatable_handle->buffers[index]->int16_samples[datatable_handle->processes[index]->samples_count-1] = dt_column_data;
 
     ESP_LOGW(TAG, "datatable_push_int16_sample(column-index: %u) buffer-data(%d) %u", index, datatable_handle->processes[index]->samples_count, datatable_handle->buffers[index]->int16_samples[datatable_handle->processes[index]->samples_count-1]->value);
+
+    /* invoke event handler */
+    if(datatable_handle->event_handler) {
+        datatable_invoke_event(datatable_handle, DATATABLE_EVENT_SAMPLE_PUSHED, "int16 sample push onto the buffer samples stack successfull");
+    }
 
     return ESP_OK;
 }
@@ -2197,10 +2386,7 @@ esp_err_t datatable_sampling_task_delay(datatable_handle_t datatable_handle) {
     ESP_ARG_CHECK( datatable_handle );
 
     /* delay data-table sampling task per sampling task-schedule handle */
-    ESP_RETURN_ON_ERROR( time_into_interval_delay(datatable_handle->sampling_tii_handle), TAG, "unable to delay time-into-interval, data-table sampling time-into-interval delay failed." );
-
-    /* invoke data-logger event */
-    datatable_invoke_event(datatable_handle, DATALOGGER_EVENT_TII_ELAPSED, "data-table time-into-interval task delay has elapsed");
+    ESP_RETURN_ON_ERROR( time_into_interval_delay(datatable_handle->sampling_tii_handle), TAG, "unable to delay time-into-interval, data-table sampling time-into-interval delay failed" );
     
     return ESP_OK;
 }
@@ -2220,7 +2406,7 @@ esp_err_t datatable_process_samples(datatable_handle_t datatable_handle) {
 
     /* invoke event handler */
     if(datatable_handle->event_handler) {
-        datatable_invoke_event(datatable_handle, DATALOGGER_EVENT_TII_ELAPSED, "data-table process samples time-into-interval has elapsed");
+        datatable_invoke_event(datatable_handle, DATATABLE_EVENT_PROCESS_ELAPSED, "process samples time-into-interval has elapsed");
     }
 
     /* validate data buffer samples processing condition */
@@ -2293,7 +2479,7 @@ esp_err_t datatable_process_samples(datatable_handle_t datatable_handle) {
                 dt_data->id_data.value = datatable_handle->record_id;
                 break;
             case DATATABLE_COLUMN_DATA_TS:
-                dt_data->ts_data.value = datalogger_get_epoch_timestamp(); // unix epoch timestamp in seconds
+                dt_data->ts_data.value = time_into_interval_get_epoch_timestamp(); // unix epoch timestamp in seconds
                 break;
             case DATATABLE_COLUMN_DATA_VECTOR:
                 ESP_RETURN_ON_ERROR( datatable_process_vector_data_buffer(datatable_handle, i, 
@@ -2334,7 +2520,7 @@ esp_err_t datatable_process_samples(datatable_handle_t datatable_handle) {
     datatable_handle->rows[datatable_handle->rows_count - 1] = dt_row;
 
     /* invoke data-logger event */
-    datatable_invoke_event(datatable_handle, DATALOGGER_EVENT_DT_PRCS, "data-table samples processed successfully");
+    datatable_invoke_event(datatable_handle, DATATABLE_EVENT_PROCESS, "samples processed successfully");
 
     return ESP_OK;
 }

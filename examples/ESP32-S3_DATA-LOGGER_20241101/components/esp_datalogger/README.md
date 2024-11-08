@@ -22,12 +22,12 @@ static datatable_config_t       dt_1min_cfg = {       /* example data-table conf
     .columns_size               = 5,
     .rows_size                  = 10,
     .sampling_config            = {
-        .interval_type          = DATALOGGER_TIME_INTERVAL_SEC,
+        .interval_type          = TIME_INTO_INTERVAL_SEC,
         .interval_period        = 10,
         .interval_offset        = 0
     },
     .processing_config          = {
-        .interval_type          = DATALOGGER_TIME_INTERVAL_MIN,
+        .interval_type          = TIME_INTO_INTERVAL_MIN,
         .interval_period        = 1,
         .interval_offset        = 0
     }
@@ -141,7 +141,7 @@ The next step is declaring a conditional statement leveraging the `time_into_int
 static void dt_1min_smp_task( void *pvParameters ) {
     time_into_interval_handle_t dt_1min_tii_5min_hdl;
     time_into_interval_config_t dt_1min_tii_5min_cfg = {
-        .interval_type      = DATALOGGER_TIME_INTERVAL_SEC,
+        .interval_type      = TIME_INTO_INTERVAL_SEC,
         .interval_period    = 5 * 60,
         .interval_offset    = 10
     };
