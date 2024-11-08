@@ -47,61 +47,29 @@ extern "C" {
 /*
  * BMP280 definitions
 */
-#define I2C_BMP280_DATA_RATE_HZ               (100000)          //!< bmp280 I2C default clock frequency (100KHz)
+#define I2C_BMP280_SCL_SPEED_HZ     UINT32_C(100000)          //!< bmp280 I2C default clock frequency (100KHz)
+
+/*
+ * supported device addresses
+*/
+#define I2C_BMP280_DEV_ADDR_LO      0x76 //!< bmp280 I2C address when ADDR pin floating/low
+#define I2C_BMP280_DEV_ADDR_HI      0x77 //!< bmp280 I2C address when ADDR pin high
 
 /*
  * BMP280 macros
 */
-#define I2C_BMP280_CONFIG_DEFAULT {                                     \
-        .dev_config.device_address  = I2C_BMP280_ADDR_HI,               \
+#define I2C_BMP280_CONFIG_DEFAULT {                                              \
+        .dev_config.device_address  = I2C_BMP280_DEV_ADDR_HI,                    \
+        .dev_config.scl_speed_hz    = I2C_BMP280_SCL_SPEED_HZ,                   \
         .power_mode                 = I2C_BMP280_POWER_MODE_NORMAL,              \
         .iir_filter                 = I2C_BMP280_IIR_FILTER_OFF,                 \
         .pressure_oversampling      = I2C_BMP280_PRESSURE_OVERSAMPLING_4X,       \
         .temperature_oversampling   = I2C_BMP280_TEMPERATURE_OVERSAMPLING_1X,    \
         .standby_time               = I2C_BMP280_STANDBY_TIME_250MS }
 
-
 /*
  * BMP280 enumerator and sructure declerations
 */
-
-/*
- * supported device addresses
-*/
-#define I2C_BMP280_ADDR_LO          0x76 //!< bmp280 I2C address when ADDR pin floating/low
-#define I2C_BMP280_ADDR_HI          0x77 //!< bmp280 I2C address when ADDR pin high
-
-/**
- * possible BMP280 registers
- */
-#define I2C_BMP280_REG_TEMP_XLSB    0xFC /* bits: 7-4 */
-#define I2C_BMP280_REG_TEMP_LSB     0xFB
-#define I2C_BMP280_REG_TEMP_MSB     0xFA
-#define I2C_BMP280_REG_TEMP         (I2C_BMP280_REG_TEMP_MSB)
-#define I2C_BMP280_REG_PRESS_XLSB   0xF9 /* bits: 7-4 */
-#define I2C_BMP280_REG_PRESS_LSB    0xF8
-#define I2C_BMP280_REG_PRESS_MSB    0xF7
-#define I2C_BMP280_REG_PRESSURE     (I2C_BMP280_REG_PRESS_MSB)
-#define I2C_BMP280_REG_CONFIG       0xF5 /* bits: 7-5 t_sb; 4-2 filter; 0 spi3w_en */
-#define I2C_BMP280_REG_CTRL         0xF4 /* bits: 7-5 osrs_t; 4-2 osrs_p; 1-0 mode */
-#define I2C_BMP280_REG_STATUS       0xF3 /* bits: 3 measuring; 0 im_update */
-#define I2C_BMP280_REG_CTRL_HUM     0xF2 /* bits: 2-0 osrs_h; */
-#define I2C_BMP280_REG_RESET        0xE0
-#define I2C_BMP280_REG_ID           0xD0
-#define I2C_BMP280_REG_CALIB        0x88
-#define I2C_BMP280_REG_HUM_CALIB    0x88
-#define I2C_BMP280_RESET_VALUE      0xB6
-
-#define I2C_BMP280_TYPE_BMP280      0x58  //!< BMP280
-#define I2C_BMP280_TYPE_BME280      0x60  //!< BME280
-
-#define I2C_BMP280_DATA_POLL_TIMEOUT_MS  (250) // ? see datasheet tables 13 and 14, standby-time could be 2-seconds (2000ms)
-#define I2C_BMP280_DATA_READY_DELAY_MS   (1)
-#define I2C_BMP280_POWERUP_DELAY_MS      (25)  // start-up time is 2-ms
-#define I2C_BMP280_APPSTART_DELAY_MS     (25)
-#define I2C_BMP280_RESET_DELAY_MS        (25)
-
-
 
 /**
  * @brief BMP280 I2C IIR filters coefficient enumerator.

@@ -47,8 +47,8 @@
 /**
  * @brief WIFI and network definitions
  */
-#define WIFI_STA_SSID                           ""        /* home internet */
-#define WIFI_STA_PASSWORD                       ""  /* home internet */
+#define WIFI_STA_SSID                           "APOLLO"        /* home internet */
+#define WIFI_STA_PASSWORD                       "41F43DA524D6"  /* home internet */
 #define WIFI_CONNECT_MAXIMUM_RETRY              (10)
 #define INET4_IP_FORMAT_BUFFER_SIZE             (15) // (255.255.255.255)
 #define SNTP_CONFIG_DEFAULT                     ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org")
