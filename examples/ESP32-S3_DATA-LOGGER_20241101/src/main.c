@@ -2,19 +2,6 @@
  * @file main.c
  * @brief ESP Data-Logger Component
  *
- * i2c sensors: AHT20 + BMP280 
- * 
- * This example takes the parameters 
- *
- *  Sensor Board AHT20 + BMP280 Wiring
- *  VIN -> MCU VDD 3.3V Pin
- *  GNG -> MCU GND Pin
- *  SCL -> MCU SCL Pin
- *  SDA -> MCU SDA Pin
- *  
- *  BMP280 I2C Address: 0x77
- *  AHT20  I2C Address: 0x38
- *  
  * 
  * CTRL + SHIFT + P
  * pio run -t menufconfig
@@ -63,32 +50,15 @@
 #define SNTP_TIME_SYNC_MAX_RETRY        (10)
 #define INET4_ADDRSTRLEN                (15) // (255.255.255.255)
 
-//#define CONFIG_WIFI_SSID                "YOUR SSID"
-//#define CONFIG_WIFI_PASSWORD            "SSID KEY"
+#define CONFIG_WIFI_SSID                "YOUR SSID"
+#define CONFIG_WIFI_PASSWORD            "SSID KEY"
 
-//#define CONFIG_WIFI_SSID                "NOKIA-8764"
-//#define CONFIG_WIFI_PASSWORD            "qpLQaC.pbk"
-#define CONFIG_WIFI_SSID                "APOLLO"
-#define CONFIG_WIFI_PASSWORD            "41F43DA524D6"
-
-#define CONFIG_I2C_0_PORT               I2C_NUM_0
-#define CONFIG_I2C_0_SDA_IO             (gpio_num_t)(45) // blue
-#define CONFIG_I2C_0_SCL_IO             (gpio_num_t)(48) // yellow
 
 #define CONFIG_I2C_0_TASK_NAME          "dt_1min_smp_tsk"
 #define CONFIG_I2C_0_TASK_STACK_SIZE    (configMINIMAL_STACK_SIZE * 5)
 #define CONFIG_I2C_0_TASK_PRIORITY      (tskIDLE_PRIORITY + 2)
 
 #define APP_TAG                         "DATA-LOGGER [APP]"
-
-// macros
-#define CONFIG_I2C_0_MASTER_DEFAULT {                               \
-        .clk_source                     = I2C_CLK_SRC_DEFAULT,      \
-        .i2c_port                       = CONFIG_I2C_0_PORT,        \
-        .scl_io_num                     = CONFIG_I2C_0_SCL_IO,      \
-        .sda_io_num                     = CONFIG_I2C_0_SDA_IO,      \
-        .glitch_ignore_cnt              = 7,                        \
-        .flags.enable_internal_pullup   = true, }
 
 /* function and subroutine definitions */
 static inline void set_time(void);
