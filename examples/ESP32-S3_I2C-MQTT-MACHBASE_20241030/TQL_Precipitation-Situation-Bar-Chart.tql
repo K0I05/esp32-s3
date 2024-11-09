@@ -1,0 +1,130 @@
+SQL( `SELECT
+    DATE_TRUNC('MINUTE', TIMESTAMP, 1) AS TIMESTAMP,
+    (CASE WHEN VALUE = 1 THEN 1 ELSE 0 END) AS OTHER,
+    (CASE WHEN VALUE = 2 THEN 1 ELSE 0 END) AS UNKNOWN,
+    (CASE WHEN VALUE = 3 THEN 1 ELSE 0 END) AS NO_PRECIP,
+    (CASE WHEN VALUE = 4 THEN 1 ELSE 0 END) AS UNIDENT_SLIGHT,
+    (CASE WHEN VALUE = 5 THEN 1 ELSE 0 END) AS UNIDENT_MODERATE,
+    (CASE WHEN VALUE = 6 THEN 1 ELSE 0 END) AS UNIDENT_HEAVY,
+    (CASE WHEN VALUE = 7 THEN 1 ELSE 0 END) AS SNOW_SLIGHT,
+    (CASE WHEN VALUE = 8 THEN 1 ELSE 0 END) AS SNOW_MODERATE,
+    (CASE WHEN VALUE = 9 THEN 1 ELSE 0 END) AS SNOW_HEAVY,
+    (CASE WHEN VALUE = 10 THEN 1 ELSE 0 END) AS RAIN_SLIGHT,
+    (CASE WHEN VALUE = 11 THEN 1 ELSE 0 END) AS RAIN_MODERATE,
+    (CASE WHEN VALUE = 12 THEN 1 ELSE 0 END) AS RAIN_HEAVY,
+    (CASE WHEN VALUE = 13 THEN 1 ELSE 0 END) AS FROZ_PRECIP_SLIGHT,
+    (CASE WHEN VALUE = 14 THEN 1 ELSE 0 END) AS FROZ_PRECIP_MODERATE,
+    (CASE WHEN VALUE = 15 THEN 1 ELSE 0 END) AS FROZ_PRECIP_HEAVY
+FROM
+    ENVIRONMENTAL
+WHERE
+    NAME = ? AND TIMESTAMP BETWEEN TO_DATE(?) AND TO_DATE(?)
+ORDER BY TIMESTAMP ASC`,
+param('name') ?? 'CA.NB.AWS.02-1000.Precipitation-Situation',
+param('from') ?? '2024-11-07 19:00:00', 
+param('to') ?? '2024-11-09 09:59:59' )
+GROUP(
+    by(value(0)),
+    last(value(1)),
+    last(value(2)),
+    last(value(3)),
+    last(value(4)),
+    last(value(5)),
+    last(value(6)),
+    last(value(7)),
+    last(value(8)),
+    last(value(9)),
+    last(value(10)),
+    last(value(11)),
+    last(value(12)),
+    last(value(13)),
+    last(value(14)),
+    last(value(15))
+)
+MAPVALUE(16, list(value(0), value(1)))
+MAPVALUE(17, list(value(0), value(2)))
+MAPVALUE(18, list(value(0), value(3)))
+MAPVALUE(19, list(value(0), value(4)))
+MAPVALUE(20, list(value(0), value(5)))
+MAPVALUE(21, list(value(0), value(6)))
+MAPVALUE(22, list(value(0), value(7)))
+MAPVALUE(23, list(value(0), value(8)))
+MAPVALUE(24, list(value(0), value(9)))
+MAPVALUE(25, list(value(0), value(10)))
+MAPVALUE(26, list(value(0), value(11)))
+MAPVALUE(27, list(value(0), value(12)))
+MAPVALUE(28, list(value(0), value(13)))
+MAPVALUE(29, list(value(0), value(14)))
+MAPVALUE(30, list(value(0), value(15)))
+POPVALUE(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
+CHART(
+    theme('dark'),
+    size('800px', '200px'),
+    chartOption({
+        title: {
+            text: "Precipitation Situation",
+            left: 10
+        },
+        grid: {
+            left: '35',
+            right: '35',
+            top: '50',
+            height: '30'
+        },
+        legend: { 
+            show: true,
+            top: 'bottom',
+		    left: 'center',
+		    orient: 'horizontal'
+        },
+        stack: 'total',
+        xAxis: {
+            type : 'time',
+            silent: false,
+            axisTick: {
+                alignWithLabel: false,
+                show: true,
+                interval: 'auto'
+            },
+            axisLabel: {
+                formatter: {
+                    day: '{dayStyle|{d}}'
+                },
+                rich: {
+                    dayStyle: {
+                        fontWeight: 'bold'
+                    }
+                }
+            },
+            splitLine: {
+                show: false
+            },
+            splitArea: {
+                show: false
+            }
+        },
+        yAxis: {
+            show: false,
+            splitArea: {
+                show: false
+            }
+        },
+        series: [
+            {type: 'bar', barCategoryGap: 0, data: column(0), name: "Other", large: true, color: 'red'},
+            {type: 'bar', barCategoryGap: 0, data: column(1), name: "Unknown", large: true, color: '#f57542'},
+            {type: 'bar', barCategoryGap: 0, data: column(2), name: "No-Precipitation", large: true, color: '#f0f2f2'},
+            {type: 'bar', barCategoryGap: 0, data: column(3), name: "Unidentified-Slight", large: true, color: '#f5cb42'},
+            {type: 'bar', barCategoryGap: 0, data: column(4), name: "Unidentified-Moderate", large: true, color: '#6e4e24'},
+            {type: 'bar', barCategoryGap: 0, data: column(5), name: "Unidentified-Heavy", large: true, color: '#f59542'},
+            {type: 'bar', barCategoryGap: 0, data: column(6), name: "Snow-Slight", large: true, color: '#9bddeb'},
+            {type: 'bar', barCategoryGap: 0, data: column(7), name: "Snow-Moderate", large: true, color: '#0cd8eb'},
+            {type: 'bar', barCategoryGap: 0, data: column(8), name: "Snow-Heavy", large: true, color: '#0cc2f0'},
+            {type: 'bar', barCategoryGap: 0, data: column(9), name: "Rain-Slight", large: true, color: '#429ef5'},
+            {type: 'bar', barCategoryGap: 0, data: column(10), name: "Rain-Moderate", large: true, color: '#429ef5'},
+            {type: 'bar', barCategoryGap: 0, data: column(11), name: "Rain-Heavy", large: true, color: '#4278f5'},
+            {type: 'bar', barCategoryGap: 0, data: column(12), name: "Frozen-Precipitation-Slight", large: true, color: '#c7ccf0'},
+            {type: 'bar', barCategoryGap: 0, data: column(13), name: "Frozen-Precipitation-Moderate", large: true, color: '#8a92e3'},
+            {type: 'bar', barCategoryGap: 0, data: column(14), name: "Frozen-Precipitation-Heavy", large: true, color: '#6342f5'}
+        ]
+    })
+)

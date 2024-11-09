@@ -1,0 +1,82 @@
+SQL( `SELECT
+    DATE_TRUNC('MIN', TIMESTAMP, 1) AS TIMESTAMP,
+    (CASE WHEN VALUE = 1 THEN 1 ELSE 0 END) AS PRECIP,
+    (CASE WHEN VALUE = 2 THEN 1 ELSE 0 END) AS NO_PRECIP,
+    (CASE WHEN VALUE = 3 THEN 1 ELSE 0 END) AS PRECIP_ERROR
+FROM
+    ENVIRONMENTAL
+WHERE
+    NAME = ? AND TIMESTAMP BETWEEN TO_DATE(?) AND TO_DATE(?)
+ORDER BY TIMESTAMP ASC`, 
+param('name') ?? 'CA.NB.AWS.02-1000.Precipitation-State',
+param('from') ?? '2024-11-06 19:00:00', 
+param('to') ?? '2024-11-07 09:59:59' )
+GROUP(
+    by(value(0)),
+    last(value(1)),
+    last(value(2)),
+    last(value(3))
+)
+MAPVALUE(4, list(value(0), value(1)))
+MAPVALUE(5, list(value(0), value(2)))
+MAPVALUE(6, list(value(0), value(3)))
+POPVALUE(0, 1, 2, 3)
+CHART(
+    theme('dark'),
+    size('800px', '150px'),
+    chartOption({
+        title: {
+            text: "Precipitation State",
+            left: 10
+        },
+        grid: {
+            left: '35',
+            right: '35',
+            top: '50',
+            height: '30'
+        },
+        legend: { 
+            show: true,
+            top: 'bottom',
+		    left: 'center',
+		    orient: 'horizontal'
+        },
+        stack: 'total',
+        xAxis: {
+            type: 'time',
+            silent: true,
+            axisTick: {
+                alignWithLabel: false,
+                show: true,
+                interval: '0'
+            },
+            axisLabel: {
+                formatter: {
+                    day: '{dayStyle|{d}}'
+                },
+                rich: {
+                    dayStyle: {
+                        fontWeight: 'bold'
+                    }
+                }
+            },
+            splitLine: {
+                show: false
+            },
+            splitArea: {
+                show: false
+            }
+        },
+        yAxis: {
+            show: false,
+            splitArea: {
+                show: false
+            }
+        },
+        series: [
+            {type: 'bar', barCategoryGap: 0, data: column(0), name: "Precipitation", large: true, color: '#429ef5'},
+            {type: 'bar', barCategoryGap: 0, data: column(1), name: "No-Precipitation", large: true, color: '#f0f2f2'},
+            {type: 'bar', barCategoryGap: 0, data: column(2), name: "Error", large: true, color: 'red'},
+        ]
+    })
+)

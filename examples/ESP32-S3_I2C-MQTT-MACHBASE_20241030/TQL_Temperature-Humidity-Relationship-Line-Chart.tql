@@ -1,0 +1,91 @@
+SQL( `SELECT
+    PARAMETER,
+    DATE_TRUNC('MIN', TIMESTAMP, 1) AS TIMESTAMP,
+    VALUE
+FROM
+    ENVIRONMENTAL
+WHERE 
+    NAME IN ( ?, ?, ? )
+    AND TIMESTAMP BETWEEN TO_DATE(?) AND TO_DATE(?)
+ORDER BY TIMESTAMP ASC`,
+param('name_ta') ?? 'CA.NB.AWS.02-1000.Air-Temperature',
+param('name_td') ?? 'CA.NB.AWS.02-1000.Dewpoint-Temperature',
+param('name_rh') ?? 'CA.NB.AWS.02-1000.Relative-Humidity', 
+param('from') ?? '2024-11-07 19:00:00', 
+param('to') ?? '2024-11-08 09:59:59' )
+GROUP(
+    by(value(1)),
+    avg(value(2), where( value(0) == "Air-Temperature" )),
+    avg(value(2), where( value(0) == "Dewpoint-Temperature" )),
+    avg(value(2), where( value(0) == "Relative-Humidity" ))
+)
+MAPVALUE(4, list(value(0), value(1)))
+MAPVALUE(5, list(value(0), value(2)))
+MAPVALUE(6, list(value(0), value(3)))
+POPVALUE(0, 1, 2, 3)
+CHART(
+    theme('dark'),
+    size('800px', '300px'),
+    chartOption({
+        title: {
+            text: "Temperature & Humidity Relationship",
+            left: 'center'
+        },
+        grid: {
+            left: '50',
+            right: '50',
+            top: '50'
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'line',
+                animation: false,
+                label: {
+                    backgroundColor: '#505765'
+                }
+            }
+        },
+        legend: { 
+            show: true,
+            top: 'bottom',
+		    left: 'center',
+		    orient: 'horizontal'
+        },
+        xAxis: {
+            type : 'time',
+            silent: false,
+            axisTick: {
+                alignWithLabel: false,
+                show: true,
+                interval: 'auto'
+            },
+            axisLabel: {
+                formatter: {
+                    day: '{dayStyle|{d}}'
+                },
+                rich: {
+                    dayStyle: {
+                        fontWeight: 'bold'
+                    }
+                }
+            },
+        },
+        yAxis: [
+            {
+                name: "Temperature(°C)",
+                type: 'value'
+            },
+            {
+                name: "Humidity(%)",
+                alignTicks: true,
+                type: 'value'
+            }
+        ],
+        series: [
+            {type: 'line', data: column(0), name: "Air", large: true, color: 'red', symbol: 'none'},
+            {type: 'line', data: column(1), name: "Dewpoint", large: true, color: 'orange', symbol: 'none'},
+            {type: 'line', data: column(2), name: "Humidity", large: true, color: 'aqua', yAxisIndex: 1, areaStyle: { opacity: 0.2 }, symbol: 'none' }
+        ]
+    })
+)
