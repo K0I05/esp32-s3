@@ -2,7 +2,7 @@
 Thanks for visiting and hope you find something useful.  The code base is maintained as well as one person can manage in their spare time. The development environment is under Visual Studio Code with the PlatformIO (6.1.16) and ESP-IDF (v5.3.1) extensions.  There is always room for improvement to optimize the code base and open to suggestions.
 
 # esp32-s3
-Peripheral device drivers with examples for the ESP32-S3 chipset.  This is a revised release utilizing esp-idf suggested design patterns through `handles` and using `i2c_master.h` for I2C transactions.  The drivers are organized in the components folder within the PlatformIO environment.
+Peripheral device drivers with examples for the ESP32-S3 chipset.  This is a revised release utilizing esp-idf suggested design patterns through `handles` and using `i2c_master.h` for I2C transactions.  The drivers are organized in the components folder within the Visual Studio Code and PlatformIO environment.
 
 The folder structure for drivers, and its associated example, are outlined as follows:
 ```
@@ -60,7 +60,7 @@ void app_main( void ) {
     //i2c0_component_example_start(I2C_COMPONENT_VEML7700);
 }
 ```
-Once these initial steps are done, compile and upload the program, assuming you development board is equivalent to the `esp32s3box`.  Otherwise, you will have to configure the environment for your development board and recompile before uploading the program.
+Once these initial steps are done, compile and upload the program, assuming your development board is equivalent to the `esp32s3box`.  Otherwise, you will have to configure the environment for your development board and recompile before uploading the program.
 
 # Peripheral Drivers
 Supported drivers include the following device peripherals:
@@ -86,10 +86,11 @@ Supported drivers include the following device peripherals:
  - I2C: Vishay VEML7700
  - SPI: Analog Devices MAX31865 - Work in Progress
  
-Above peripheral drivers have been tested, validated with a logic analyzer where applicable, and still under development. With every ESP-IDF release there are bound to be quirks with the code base, a major one was with the release of ESP-IDF (v5.3.1), the i2c_master.h has introduced timing issues and above drivers did require some maintenance.  If any problems arise please feel free to log an issue and if you would to contribute please contact me.
+Above peripheral drivers have been tested, validated with a logic analyzer where applicable, and still under development. With every ESP-IDF release there are bound to be quirks with the code base, a major one was with the release of ESP-IDF (v5.3.1), the i2c_master.h introduced timing issues and above drivers did require some maintenance.  If any problems arise please feel free to log an issue and if you would to contribute please contact me.
 
 # ESP Data-Logger (WORK IN PROGRESS)
 A user friendly table based data logging for measurement and control use-cases.  See Data-Logger examples for more details, see readme file in the component folder.
+
 
 
 
