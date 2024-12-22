@@ -88,7 +88,7 @@ Supported drivers include the following device peripherals:
  
 Above peripheral drivers have been tested, validated with a logic analyzer where applicable, and still under development. With every ESP-IDF release there are bound to be quirks with the code base, a major one was with the release of ESP-IDF (v5.3.1), the i2c_master.h has introduced timing issues and above drivers did require some maintenance.  If any problems arise please feel free to log an issue and if you would to contribute please contact me.
 
-# ESP Data-Logger
+# ESP Data-Logger (WORK IN PROGRESS)
 A user friendly table based data logging for measurement and control use-cases.  See Data-Logger examples for more details, see readme file in the component folder.
 
 
