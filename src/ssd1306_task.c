@@ -407,6 +407,6 @@ void i2c0_ssd1306_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_ssd1306_del( dev_hdl );
+    i2c_ssd1306_delete( dev_hdl );
     vTaskDelete( NULL );
 }

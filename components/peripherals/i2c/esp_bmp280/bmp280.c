@@ -47,34 +47,34 @@
 /**
  * possible BMP280 registers
  */
-#define I2C_BMP280_REG_TEMP_XLSB    0xFC /* bits: 7-4 */
-#define I2C_BMP280_REG_TEMP_LSB     0xFB
-#define I2C_BMP280_REG_TEMP_MSB     0xFA
-#define I2C_BMP280_REG_TEMP         (I2C_BMP280_REG_TEMP_MSB)
-#define I2C_BMP280_REG_PRESS_XLSB   0xF9 /* bits: 7-4 */
-#define I2C_BMP280_REG_PRESS_LSB    0xF8
-#define I2C_BMP280_REG_PRESS_MSB    0xF7
-#define I2C_BMP280_REG_PRESSURE     (I2C_BMP280_REG_PRESS_MSB)
-#define I2C_BMP280_REG_CONFIG       0xF5 /* bits: 7-5 t_sb; 4-2 filter; 0 spi3w_en */
-#define I2C_BMP280_REG_CTRL         0xF4 /* bits: 7-5 osrs_t; 4-2 osrs_p; 1-0 mode */
-#define I2C_BMP280_REG_STATUS       0xF3 /* bits: 3 measuring; 0 im_update */
-#define I2C_BMP280_REG_CTRL_HUM     0xF2 /* bits: 2-0 osrs_h; */
-#define I2C_BMP280_REG_RESET        0xE0
-#define I2C_BMP280_REG_ID           0xD0
-#define I2C_BMP280_REG_CALIB        0x88
-#define I2C_BMP280_REG_HUM_CALIB    0x88
-#define I2C_BMP280_RESET_VALUE      0xB6
+#define I2C_BMP280_REG_TEMP_XLSB            UINT8_C(0xFC)
+#define I2C_BMP280_REG_TEMP_LSB             UINT8_C(0xFB)
+#define I2C_BMP280_REG_TEMP_MSB             UINT8_C(0xFA)
+#define I2C_BMP280_REG_TEMP                 (I2C_BMP280_REG_TEMP_MSB)
+#define I2C_BMP280_REG_PRESS_XLSB           UINT8_C(0xF9) 
+#define I2C_BMP280_REG_PRESS_LSB            UINT8_C(0xF8)
+#define I2C_BMP280_REG_PRESS_MSB            UINT8_C(0xF7)
+#define I2C_BMP280_REG_PRESSURE             (I2C_BMP280_REG_PRESS_MSB)
+#define I2C_BMP280_REG_CONFIG               UINT8_C(0xF5) 
+#define I2C_BMP280_REG_CTRL                 UINT8_C(0xF4)
+#define I2C_BMP280_REG_STATUS               UINT8_C(0xF3)
+#define I2C_BMP280_REG_CTRL_HUM             UINT8_C(0xF2)
+#define I2C_BMP280_REG_RESET                UINT8_C(0xE0)
+#define I2C_BMP280_REG_ID                   UINT8_C(0xD0)
+#define I2C_BMP280_REG_CALIB                UINT8_C(0x88)
+#define I2C_BMP280_REG_HUM_CALIB            UINT8_C(0x88)
+#define I2C_BMP280_RESET_VALUE              UINT8_C(0xB6)
 
-#define I2C_BMP280_TYPE_BMP280      0x58  //!< BMP280
-#define I2C_BMP280_TYPE_BME280      0x60  //!< BME280
+#define I2C_BMP280_TYPE_BMP280              UINT8_C(0x58)  //!< BMP280
+#define I2C_BMP280_TYPE_BME280              UINT8_C(0x60)  //!< BME280
 
-#define I2C_BMP280_DATA_POLL_TIMEOUT_MS  UINT16_C(250) // ? see datasheet tables 13 and 14, standby-time could be 2-seconds (2000ms)
-#define I2C_BMP280_DATA_READY_DELAY_MS   UINT16_C(1)
-#define I2C_BMP280_POWERUP_DELAY_MS      UINT16_C(25)  // start-up time is 2-ms
-#define I2C_BMP280_APPSTART_DELAY_MS     UINT16_C(25)
-#define I2C_BMP280_RESET_DELAY_MS        UINT16_C(25)
-#define I2C_BMP280_CMD_DELAY_MS          UINT16_C(5)
-#define I2C_BMP280_TX_RX_DELAY_MS        UINT16_C(10)
+#define I2C_BMP280_DATA_POLL_TIMEOUT_MS     UINT16_C(250) // ? see datasheet tables 13 and 14, standby-time could be 2-seconds (2000ms)
+#define I2C_BMP280_DATA_READY_DELAY_MS      UINT16_C(1)
+#define I2C_BMP280_POWERUP_DELAY_MS         UINT16_C(25)  // start-up time is 2-ms
+#define I2C_BMP280_APPSTART_DELAY_MS        UINT16_C(25)
+#define I2C_BMP280_RESET_DELAY_MS           UINT16_C(25)
+#define I2C_BMP280_CMD_DELAY_MS             UINT16_C(5)
+#define I2C_BMP280_TX_RX_DELAY_MS           UINT16_C(10)
 
 /*
  * macro definitions
@@ -731,19 +731,19 @@ esp_err_t i2c_bmp280_reset(i2c_bmp280_handle_t bmp280_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_bmp280_rm(i2c_bmp280_handle_t bmp280_handle) {
+esp_err_t i2c_bmp280_remove(i2c_bmp280_handle_t bmp280_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( bmp280_handle );
 
     return i2c_master_bus_rm_device(bmp280_handle->i2c_dev_handle);
 }
 
-esp_err_t i2c_bmp280_del(i2c_bmp280_handle_t bmp280_handle){
+esp_err_t i2c_bmp280_delete(i2c_bmp280_handle_t bmp280_handle){
     /* validate arguments */
     ESP_ARG_CHECK( bmp280_handle );
 
     /* remove device from master bus */
-    ESP_RETURN_ON_ERROR( i2c_bmp280_rm(bmp280_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
+    ESP_RETURN_ON_ERROR( i2c_bmp280_remove(bmp280_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
 
     /* validate handle instance and free handles */
     if(bmp280_handle->i2c_dev_handle) {

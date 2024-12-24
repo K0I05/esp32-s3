@@ -723,19 +723,19 @@ esp_err_t i2c_veml7700_wakeup(i2c_veml7700_handle_t veml7700_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_veml7700_rm(i2c_veml7700_handle_t veml7700_handle) {
+esp_err_t i2c_veml7700_remove(i2c_veml7700_handle_t veml7700_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( veml7700_handle );
 
     return i2c_master_bus_rm_device(veml7700_handle->i2c_dev_handle);
 }
 
-esp_err_t i2c_veml7700_del(i2c_veml7700_handle_t veml7700_handle) {
+esp_err_t i2c_veml7700_delete(i2c_veml7700_handle_t veml7700_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( veml7700_handle );
 
     /* remove device from master bus */
-    ESP_RETURN_ON_ERROR( i2c_veml7700_rm(veml7700_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
+    ESP_RETURN_ON_ERROR( i2c_veml7700_remove(veml7700_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
 
     /* validate handle instance and free handles */
     if(veml7700_handle->i2c_dev_handle) {

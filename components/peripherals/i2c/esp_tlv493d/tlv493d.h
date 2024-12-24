@@ -304,7 +304,7 @@ esp_err_t i2c_tlv493d_reset(i2c_tlv493d_handle_t tlv493d_handle);
  * @param[in] tlv493d_handle TLV493D device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_tlv493d_rm(i2c_tlv493d_handle_t tlv493d_handle);
+esp_err_t i2c_tlv493d_remove(i2c_tlv493d_handle_t tlv493d_handle);
 
 /**
  * @brief Removes an TLV493D device from master bus and frees handle.
@@ -312,7 +312,7 @@ esp_err_t i2c_tlv493d_rm(i2c_tlv493d_handle_t tlv493d_handle);
  * @param tlv493d_handle TLV493D device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_tlv493d_del(i2c_tlv493d_handle_t tlv493d_handle);
+esp_err_t i2c_tlv493d_delete(i2c_tlv493d_handle_t tlv493d_handle);
 
 
 #ifdef __cplusplus

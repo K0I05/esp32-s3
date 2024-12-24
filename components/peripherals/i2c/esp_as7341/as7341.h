@@ -55,12 +55,12 @@ extern "C" {
 /*
  * AS7341 macro definitions
 */
-#define I2C_AS7341_CONFIG_DEFAULT {                         \
-    .dev_config.device_address = I2C_AS7341_DEV_ADDR,       \
-    .dev_config.scl_speed_hz = I2C_AS7341_SCL_SPEED_HZ,     \
-    .spectral_gain = I2C_AS7341_SPECTRAL_GAIN_32X,          \
-    .atime = 29,                                            \
-    .astep = 599 }
+#define I2C_AS7341_CONFIG_DEFAULT {                             \
+    .dev_config.device_address = I2C_AS7341_DEV_ADDR,           \
+    .dev_config.scl_speed_hz   = I2C_AS7341_SCL_SPEED_HZ,       \
+    .spectral_gain             = I2C_AS7341_SPECTRAL_GAIN_32X,  \
+    .atime                     = 29,                            \
+    .astep                     = 599 }
 
 /*
  * AS7341 enumerator and sructure declerations
@@ -68,7 +68,6 @@ extern "C" {
 
 /**
  * @brief AS7341 I2C ambient light sensing mode enumerator.
- * 
  */
 typedef enum {
     I2C_AS7341_ALS_SPM_MODE         = (0), /*!< as7341 spectral measurement, normal mode */
@@ -79,7 +78,6 @@ typedef enum {
 
 /**
  * @brief AS7341 I2C led driving strengths enumerator.
- * 
  */
 typedef enum {
     I2C_AS7341_LED_DRIVE_STRENGTH_4MA         = (0b0000000), /*!< as7341  */
@@ -139,7 +137,6 @@ typedef enum {
 
 /**
  * @brief AS7341 I2C available SMUX commands enumerator.
- *
  */
 typedef enum {
     I2C_AS7341_SMUX_CMD_ROM_RESET = 0,  ///< ROM code initialization of SMUX
@@ -183,7 +180,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C configuration register (0x70) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -197,7 +193,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C flicker detection time 1 register (0xD8) structure.  THIS ISN'T NEEDED
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -208,7 +203,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C flicker detection time 2 register (0xDA) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -220,7 +214,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C gpio1 register (0x73) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -233,7 +226,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C gpio2 register (0xbe) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -248,7 +240,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C led register (0x74) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -260,7 +251,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C interrupt enable register (0xf9) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -274,10 +264,8 @@ typedef union __attribute__((packed)) {
     uint8_t reg;
 } i2c_as7341_interrupt_enable_register_t;
 
-
 /**
  * @brief AS7341 I2C interrupt status register (0x93) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -291,10 +279,8 @@ typedef union __attribute__((packed)) {
     uint8_t reg;
 } i2c_as7341_interrupt_status_register_t;
 
-
 /**
  * @brief AS7341 I2C device status register (0x71) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -307,7 +293,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C astatus register (0x94) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -320,7 +305,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C status 2 register (0xa3) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -338,7 +322,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C status 3 register (0xa4) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -352,7 +335,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C status 5 register (0xa6) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -367,7 +349,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C status 6 register (0xa7) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -385,7 +366,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C flicker detection status register (0xdb) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -403,7 +383,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C auxiliary identifier register (0x90) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -415,7 +394,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C revision number identifier register (0x91) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -427,7 +405,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C part number identifier register (0x92) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -440,7 +417,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C configuration 0 register (0xa9) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -456,7 +432,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C configuration 1 register (0xaa) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -468,7 +443,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief AS7341 I2C configuration 6 register (0xaf) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -480,31 +454,36 @@ typedef union __attribute__((packed)) {
 } i2c_as7341_config6_register_t;
 
 
-
+/**
+ * @brief AS7341 I2C channels basic counts data structure.
+ */
 typedef struct {
-    float f1;
-    float f2;
-    float f3;
-    float f4;
-    float f5;
-    float f6;
-    float f7;
-    float f8;
-    float clear;
-    float nir;
+    float f1;       /*!< 405 to 425 nm */
+    float f2;       /*!< 435 to 455 nm */
+    float f3;       /*!< 470 to 490 nm */
+    float f4;       /*!< 505 to 525 nm */
+    float f5;       /*!< 545 to 565 nm */
+    float f6;       /*!< 580 to 600 nm */
+    float f7;       /*!< 620 to 640 nm */
+    float f8;       /*!< 670 to 690 nm */
+    float clear;    /*!< */
+    float nir;      /*!< */
 } i2c_as7341_channels_basic_counts_data_t;
 
+/**
+ * @brief AS7341 I2C channels spectral data structure.
+ */
 typedef struct {
-    uint16_t f1; /*!< 405 to 425 nm */
-    uint16_t f2; /*!< 435 to 455 nm */
-    uint16_t f3; /*!< 470 to 490 nm */
-    uint16_t f4; /*!< 505 to 525 nm */
-    uint16_t f5; /*!< 545 to 565 nm */
-    uint16_t f6; /*!< 580 to 600 nm */
-    uint16_t f7; /*!< 620 to 640 nm */
-    uint16_t f8; /*!< 670 to 690 nm */
-    uint16_t clear;
-    uint16_t nir;
+    uint16_t f1;    /*!< 405 to 425 nm */
+    uint16_t f2;    /*!< 435 to 455 nm */
+    uint16_t f3;    /*!< 470 to 490 nm */
+    uint16_t f4;    /*!< 505 to 525 nm */
+    uint16_t f5;    /*!< 545 to 565 nm */
+    uint16_t f6;    /*!< 580 to 600 nm */
+    uint16_t f7;    /*!< 620 to 640 nm */
+    uint16_t f8;    /*!< 670 to 690 nm */
+    uint16_t clear; /*!< */
+    uint16_t nir;   /*!< */
 } i2c_as7341_channels_spectral_data_t;
 
 /**
@@ -522,28 +501,28 @@ typedef struct {
  * @brief AS7341 I2C device structure.
  */
 struct i2c_as7341_t {
-    i2c_master_dev_handle_t i2c_dev_handle;  /*!< I2C device handle */
-    uint8_t                             atime_reg;
-    uint16_t                            astep_reg;
-    i2c_as7341_led_register_t           led_reg;
-    i2c_as7341_enable_register_t        enable_reg;
-    //i2c_as7341_device_status_register_t dev_status_reg;          /*!< status register */
-    i2c_as7341_astatus_register_t       astatus_reg;
-    i2c_as7341_status2_register_t       status2_reg;
-    i2c_as7341_auxiliary_id_register_t  aux_id_reg;
-    i2c_as7341_revision_id_register_t   revision_id_reg;
-    i2c_as7341_part_id_register_t       part_id_reg;
-    i2c_as7341_config_register_t        config_reg;
-    i2c_as7341_config0_register_t       config0_reg;
-    i2c_as7341_config1_register_t       config1_reg;
-    i2c_as7341_config6_register_t       config6_reg;
-    i2c_as7341_flicker_detection_status_register_t fd_status_reg;
+    i2c_master_dev_handle_t                         i2c_dev_handle;  /*!< I2C device handle */
+    i2c_as7341_part_id_register_t                   part_id_reg;
+    i2c_as7341_revision_id_register_t               revision_id_reg;
+    i2c_as7341_auxiliary_id_register_t              aux_id_reg;
+    uint8_t                                         atime_reg;
+    uint16_t                                        astep_reg;
+    i2c_as7341_led_register_t                       led_reg;
+    i2c_as7341_enable_register_t                    enable_reg;
+    i2c_as7341_config_register_t                    config_reg;
+    i2c_as7341_config0_register_t                   config0_reg;
+    i2c_as7341_config1_register_t                   config1_reg;
+    i2c_as7341_config6_register_t                   config6_reg;
+    i2c_as7341_astatus_register_t                   astatus_reg;
+    i2c_as7341_status2_register_t                   status2_reg;
+    i2c_as7341_flicker_detection_status_register_t  fd_status_reg;
 };
 
 /**
  * @brief AS7341 I2C device structure definitions.
  */
 typedef struct i2c_as7341_t i2c_as7341_t;
+
 /**
  * @brief AS7341 I2C device handle definition.
  */
@@ -554,7 +533,7 @@ typedef struct i2c_as7341_t *i2c_as7341_handle_t;
 /**
  * @brief Reads LED register (0x74) from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success. 
  */
 esp_err_t i2c_as7341_get_led_register(i2c_as7341_handle_t as7341_handle);
@@ -562,24 +541,16 @@ esp_err_t i2c_as7341_get_led_register(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Writes LED register (0x74) to AS7341
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @param led_reg LED register structure.
  * @return esp_err_t ESP_OK on success. 
  */
 esp_err_t i2c_as7341_set_led_register(i2c_as7341_handle_t as7341_handle, const i2c_as7341_led_register_t led_reg);
 
 /**
- * @brief Reads device status register (0x93) from AS7341.
- * 
- * @param as7341_handle AS7341 device handle.
- * @return esp_err_t ESP_OK on success. 
- */
-//esp_err_t i2c_as7341_get_device_status_register(i2c_as7341_handle_t as7341_handle);
-
-/**
  * @brief Reads ASTATUS register (0x94) from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_astatus_register(i2c_as7341_handle_t as7341_handle);
@@ -587,7 +558,7 @@ esp_err_t i2c_as7341_get_astatus_register(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Reads status 2 register (0xA3) from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_status2_register(i2c_as7341_handle_t as7341_handle);
@@ -595,7 +566,7 @@ esp_err_t i2c_as7341_get_status2_register(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Disables spectral readings, flicker detection, power, etc.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_disable_enable_register(i2c_as7341_handle_t as7341_handle);
@@ -603,7 +574,7 @@ esp_err_t i2c_as7341_disable_enable_register(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Reads enable register (0x80) from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_enable_register(i2c_as7341_handle_t as7341_handle);
@@ -611,8 +582,8 @@ esp_err_t i2c_as7341_get_enable_register(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Writes enable register (0x80) to AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
- * @param enable_reg Enable register structure.
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] enable_reg Enable register structure.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_set_enable_register(i2c_as7341_handle_t as7341_handle, const i2c_as7341_enable_register_t enable_reg);
@@ -620,7 +591,7 @@ esp_err_t i2c_as7341_set_enable_register(i2c_as7341_handle_t as7341_handle, cons
 /**
  * @brief Reads auxiliary id register (0x90) from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_auxiliary_id_register(i2c_as7341_handle_t as7341_handle);
@@ -628,7 +599,7 @@ esp_err_t i2c_as7341_get_auxiliary_id_register(i2c_as7341_handle_t as7341_handle
 /**
  * @brief Reads revision id register (0x91) from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_revision_id_register(i2c_as7341_handle_t as7341_handle);
@@ -636,7 +607,7 @@ esp_err_t i2c_as7341_get_revision_id_register(i2c_as7341_handle_t as7341_handle)
 /**
  * @brief Reads part id register (0x92) from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_part_id_register(i2c_as7341_handle_t as7341_handle);
@@ -644,7 +615,7 @@ esp_err_t i2c_as7341_get_part_id_register(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Reads configuration register (0x70) from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_config_register(i2c_as7341_handle_t as7341_handle);
@@ -652,8 +623,8 @@ esp_err_t i2c_as7341_get_config_register(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Writes configuration register (0x70) from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
- * @param config_reg Configuration register structure.
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] config_reg Configuration register structure.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_set_config_register(i2c_as7341_handle_t as7341_handle, const i2c_as7341_config_register_t config_reg);
@@ -661,7 +632,7 @@ esp_err_t i2c_as7341_set_config_register(i2c_as7341_handle_t as7341_handle, cons
 /**
  * @brief Reads configuration 0 register (0xA9) from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_config0_register(i2c_as7341_handle_t as7341_handle);
@@ -669,8 +640,8 @@ esp_err_t i2c_as7341_get_config0_register(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Writes configuration 0 register (0xA9) from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
- * @param config0_reg Configuration register structure.
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] config0_reg Configuration register structure.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_set_config0_register(i2c_as7341_handle_t as7341_handle, const i2c_as7341_config0_register_t config0_reg);
@@ -678,7 +649,7 @@ esp_err_t i2c_as7341_set_config0_register(i2c_as7341_handle_t as7341_handle, con
 /**
  * @brief Reads configuration 1 (0xAA) register from AS7341.  This register configures the 6 integrated ADC (CH0 to CH5).
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_config1_register(i2c_as7341_handle_t as7341_handle);
@@ -686,8 +657,8 @@ esp_err_t i2c_as7341_get_config1_register(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Writes configuration 1 (0xAA) register to AS7341.  This register configures the 6 integrated ADC (CH0 to CH5).
  * 
- * @param as7341_handle AS7341 device handle.
- * @param config1_reg Configuration 1 register structure.
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] config1_reg Configuration 1 register structure.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_set_config1_register(i2c_as7341_handle_t as7341_handle, const i2c_as7341_config1_register_t config1_reg);
@@ -695,7 +666,7 @@ esp_err_t i2c_as7341_set_config1_register(i2c_as7341_handle_t as7341_handle, con
 /**
  * @brief Reads configuration 6 register (0xAF) from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_config6_register(i2c_as7341_handle_t as7341_handle);
@@ -703,8 +674,8 @@ esp_err_t i2c_as7341_get_config6_register(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Writes configuration 6 register (0xAF) to AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
- * @param config6_reg Configuration 6 register structure.
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] config6_reg Configuration 6 register structure.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_set_config6_register(i2c_as7341_handle_t as7341_handle, const i2c_as7341_config6_register_t config6_reg);
@@ -712,7 +683,7 @@ esp_err_t i2c_as7341_set_config6_register(i2c_as7341_handle_t as7341_handle, con
 /**
  * @brief Reads ATIME (0x81) register from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_atime_register(i2c_as7341_handle_t as7341_handle);
@@ -720,8 +691,8 @@ esp_err_t i2c_as7341_get_atime_register(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Writes ATIME (0x81) register to AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
- * @param atime_reg Number of integration steps from 1 to 256, a value of 29 is recommended as a starting point, 50ms integration time.  ATIME and ASTEP cannot both be zero.
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] atime_reg Number of integration steps from 1 to 256, a value of 29 is recommended as a starting point, 50ms integration time.  ATIME and ASTEP cannot both be zero.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_set_atime_register(i2c_as7341_handle_t as7341_handle, const uint8_t atime_reg);
@@ -729,7 +700,7 @@ esp_err_t i2c_as7341_set_atime_register(i2c_as7341_handle_t as7341_handle, const
 /**
  * @brief Reads ASTEP (0xCA, 0xCB) register from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_astep_register(i2c_as7341_handle_t as7341_handle);
@@ -737,8 +708,8 @@ esp_err_t i2c_as7341_get_astep_register(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Writes ASTEP (0xCA, 0xCB) register to AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
- * @param astep_reg Integration time step size.  Integration time step increment of 2.78us, a value of 599 is recommended as a starting poing, 50ms integration time.  ATIME and ASTEP cannot both be zero.
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] astep_reg Integration time step size.  Integration time step increment of 2.78us, a value of 599 is recommended as a starting poing, 50ms integration time.  ATIME and ASTEP cannot both be zero.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_set_astep_register(i2c_as7341_handle_t as7341_handle, const uint16_t astep_reg);
@@ -746,7 +717,7 @@ esp_err_t i2c_as7341_set_astep_register(i2c_as7341_handle_t as7341_handle, const
 /**
  * @brief Reads flicker detection status (0xDB) register from AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_get_flicker_detection_status_register(i2c_as7341_handle_t as7341_handle);
@@ -754,8 +725,8 @@ esp_err_t i2c_as7341_get_flicker_detection_status_register(i2c_as7341_handle_t a
 /**
  * @brief Writes flicker detection status (0xDB) register to AS7341.
  * 
- * @param as7341_handle AS7341 device handle.
- * @param flicker_detection_status_reg Flicker detection status register structure.
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] flicker_detection_status_reg Flicker detection status register structure.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_set_flicker_detection_status_register(i2c_as7341_handle_t as7341_handle, const i2c_as7341_flicker_detection_status_register_t flicker_detection_status_reg);
@@ -769,117 +740,9 @@ esp_err_t i2c_as7341_set_flicker_detection_status_register(i2c_as7341_handle_t a
 esp_err_t i2c_as7341_clear_flicker_detection_status_register(i2c_as7341_handle_t as7341_handle);
 
 /**
- * @brief Writes SMUX command to AS7341.
- * 
- * @param as7341_handle AS7341 device handle.
- * @param command SMUX command.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_set_smux_command(i2c_as7341_handle_t as7341_handle, const i2c_as7341_smux_commands_t command);
-
-/**
- * @brief Configures the number of integration steps for the AS7341 ADC integration time.
- * 
- * @param as7341_handle AS7341 device handle.
- * @param atime Number of integration steps from 1 to 256, a value of 29 is recommended as a starting point, 50ms integration time.  ATIME and ASTEP cannot both be zero.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_set_atime(i2c_as7341_handle_t as7341_handle, const uint8_t atime);
-
-/**
- * @brief Configures the number of integration time steps for the AS7341 ADC integration time.
- * 
- * @param as7341_handle AS7341 device handle.
- * @param astep Integration time step size.  Integration time step increment of 2.78us, a value of 599 is recommended as a starting point, 50ms integration time.  ATIME and ASTEP cannot both be zero.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_set_astep(i2c_as7341_handle_t as7341_handle, const uint16_t astep);
-
-/**
- * @brief Configures the spectral gain for the AS7341 ADC.
- * 
- * @param as7341_handle AS7341 device handle.
- * @param gain Spectral gain.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_set_spectral_gain(i2c_as7341_handle_t as7341_handle, const i2c_as7341_spectral_gains_t gain);
-
-/**
- * @brief Enables AS7341 flicker detection.
- * 
- * @param as7341_handle AS7341 device handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_enable_flicker_detection(i2c_as7341_handle_t as7341_handle);
-
-/**
- * @brief Disables AS7341 flicker detection.
- * 
- * @param as7341_handle AS7341 device handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_disable_flicker_detection(i2c_as7341_handle_t as7341_handle);
-
-/**
- * @brief Enables AS7341 supper multiplier (SMUX) special interrupt.
- * 
- * @param as7341_handle AS7341 device handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_enable_smux(i2c_as7341_handle_t as7341_handle);
-
-/**
- * @brief Enables AS7341 wait time between two consecutive spectral measurements.
- * 
- * @param as7341_handle AS7341 device handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_enable_wait_time(i2c_as7341_handle_t as7341_handle);
-
-/**
- * @brief Disables AS7341 wait time between two consecutive spectral measurements.
- * 
- * @param as7341_handle AS7341 device handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_disable_wait_time(i2c_as7341_handle_t as7341_handle);
-
-/**
- * @brief Enables AS7341 spectral measurement.
- * 
- * @param as7341_handle AS7341 device handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_enable_spectral_measurement(i2c_as7341_handle_t as7341_handle);
-
-/**
- * @brief Disables AS7341 spectral measurement.
- * 
- * @param as7341_handle AS7341 device handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_disable_spectral_measurement(i2c_as7341_handle_t as7341_handle);
-
-/**
- * @brief Enables AS7341 power.
- * 
- * @param as7341_handle AS7341 device handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_enable_power(i2c_as7341_handle_t as7341_handle);
-
-/**
- * @brief Disables AS7341 power.
- * 
- * @param as7341_handle AS7341 device handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_disable_power(i2c_as7341_handle_t as7341_handle);
-
-/**
  * @brief Enables access to the AS7341 high register bank (0x80 to 0xFF).
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_enable_hi_register_bank(i2c_as7341_handle_t as7341_handle);
@@ -887,15 +750,215 @@ esp_err_t i2c_as7341_enable_hi_register_bank(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Enables access to the AS7341 low register bank (0x60 to 0x74).
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_enable_lo_register_bank(i2c_as7341_handle_t as7341_handle);
 
 /**
+ * @brief Writes SMUX command to AS7341.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] command SMUX command.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_set_smux_command(i2c_as7341_handle_t as7341_handle, const i2c_as7341_smux_commands_t command);
+
+/**
+ * @brief Initializes an AS7341 device onto the I2C master bus.
+ *
+ * @param[in] bus_handle I2C master bus handle.
+ * @param[in] as7341_config Configuration of AS7341 device.
+ * @param[out] as7341_handle AS7341 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_init(i2c_master_bus_handle_t bus_handle, const i2c_as7341_config_t *as7341_config, i2c_as7341_handle_t *as7341_handle);
+
+/**
+ * @brief Reads spectral sensors measurements, F1 to F8, Clear and NIR, from AS7341.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[out] spectral_data Spectral sensors data from AS7341.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_get_spectral_measurements(i2c_as7341_handle_t as7341_handle, i2c_as7341_channels_spectral_data_t *spectral_data);
+
+/**
+ * @brief Converts AS7341 spectral sensors measurements to basic counts.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] spectral_data Spectral sensors data from AS7341.
+ * @param[out] basic_counts_data Converted basic counts data from spectral sensors data.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_get_basic_counts(i2c_as7341_handle_t as7341_handle, i2c_as7341_channels_spectral_data_t spectral_data, i2c_as7341_channels_basic_counts_data_t *basic_counts_data);
+
+/**
+ * @brief Reads flicker detection status from AS7341.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[out] state Flicker detection state, 100Hz, 120Hz or flicker saturation was detected.
+ * @return esp_err_t ESP_OK on success, ESP_ERR_TIMEOUT if operation timed out.
+ */
+esp_err_t i2c_as7341_get_flicker_detection_status(i2c_as7341_handle_t as7341_handle, i2c_as7341_flicker_detection_states_t *state);
+
+/**
+ * @brief Reads data status from AS7341.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[out] ready Data is ready when asserted to true.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_get_data_status(i2c_as7341_handle_t as7341_handle, bool *ready);
+
+/**
+ * @brief Reads the number of integration steps for the ADC integration time from AS7341.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[out] atime Number of integration steps from 1 to 256, a value of 29 is recommended as a starting point, 50ms integration time.  ATIME and ASTEP cannot both be zero.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_get_atime(i2c_as7341_handle_t as7341_handle, uint8_t *const atime);
+
+/**
+ * @brief Writes the number of integration steps for the ADC integration time to AS7341.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] atime Number of integration steps from 1 to 256, a value of 29 is recommended as a starting point, 50ms integration time.  ATIME and ASTEP cannot both be zero.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_set_atime(i2c_as7341_handle_t as7341_handle, const uint8_t atime);
+
+/**
+ * @brief Reads the number of integration time steps for the ADC integration time from AS7341.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[out] astep Integration time step size.  Integration time step increment of 2.78us, a value of 599 is recommended as a starting point, 50ms integration time.  ATIME and ASTEP cannot both be zero.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_get_astep(i2c_as7341_handle_t as7341_handle, uint16_t *const astep);
+
+/**
+ * @brief Writes the number of integration time steps for the ADC integration time to AS7341.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] astep Integration time step size.  Integration time step increment of 2.78us, a value of 599 is recommended as a starting point, 50ms integration time.  ATIME and ASTEP cannot both be zero.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_set_astep(i2c_as7341_handle_t as7341_handle, const uint16_t astep);
+
+/**
+ * @brief Reads spectral gain setting from AS7341.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[out] gain AS7341 spectral gain setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_get_spectral_gain(i2c_as7341_handle_t as7341_handle, i2c_as7341_spectral_gains_t *const gain);
+
+/**
+ * @brief Writes spectral gain setting to AS7341.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] gain AS7341 spectral gain setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_set_spectral_gain(i2c_as7341_handle_t as7341_handle, const i2c_as7341_spectral_gains_t gain);
+
+/**
+ * @brief Reads ambient light sensing mode from AS7341.  SPM mode (spectral measurement), normal mode, is configured by default.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[out] mode AS7341 ambient light sensing mode setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_get_ambient_light_sensing_mode(i2c_as7341_handle_t as7341_handle, i2c_as7341_als_modes_t *const mode);
+
+/**
+ * @brief Writes ambient light sensing mode to AS7341.  SPM mode (spectral measurement), normal mode, is configured by default.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @param[in] mode AS7341 ambient light sensing mode setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_set_ambient_light_sensing_mode(i2c_as7341_handle_t as7341_handle, const i2c_as7341_als_modes_t mode);
+
+/**
+ * @brief Enables AS7341 flicker detection.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_enable_flicker_detection(i2c_as7341_handle_t as7341_handle);
+
+/**
+ * @brief Disables AS7341 flicker detection.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_disable_flicker_detection(i2c_as7341_handle_t as7341_handle);
+
+/**
+ * @brief Enables AS7341 supper multiplier (SMUX) special interrupt.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_enable_smux(i2c_as7341_handle_t as7341_handle);
+
+/**
+ * @brief Enables AS7341 wait time between two consecutive spectral measurements.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_enable_wait_time(i2c_as7341_handle_t as7341_handle);
+
+/**
+ * @brief Disables AS7341 wait time between two consecutive spectral measurements.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_disable_wait_time(i2c_as7341_handle_t as7341_handle);
+
+/**
+ * @brief Enables AS7341 spectral measurement.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_enable_spectral_measurement(i2c_as7341_handle_t as7341_handle);
+
+/**
+ * @brief Disables AS7341 spectral measurement.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_disable_spectral_measurement(i2c_as7341_handle_t as7341_handle);
+
+/**
+ * @brief Enables AS7341 power.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_enable_power(i2c_as7341_handle_t as7341_handle);
+
+/**
+ * @brief Disables AS7341 power.
+ * 
+ * @param[in] as7341_handle AS7341 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_as7341_disable_power(i2c_as7341_handle_t as7341_handle);
+
+/**
  * @brief Enables AS7341 onboard LED.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_enable_led(i2c_as7341_handle_t as7341_handle);
@@ -903,58 +966,10 @@ esp_err_t i2c_as7341_enable_led(i2c_as7341_handle_t as7341_handle);
 /**
  * @brief Disables AS7341 onboard LED.
  * 
- * @param as7341_handle AS7341 device handle.
+ * @param[in] as7341_handle AS7341 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_as7341_disable_led(i2c_as7341_handle_t as7341_handle);
-
-/**
- * @brief Configures AS7341 ambient light sensing mode.  SPM mode (spectral measurement), normal mode, is configured by default.
- * 
- * @param as7341_handle AS7341 device handle.
- * @param mode Ambient light sensing mode.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_set_ambient_light_sensing_mode(i2c_as7341_handle_t as7341_handle, const i2c_as7341_als_modes_t mode);
-
-/**
- * @brief Initializes an AS7341 device onto the I2C master bus.
- *
- * @param[in] bus_handle I2C master bus handle.
- * @param[in] as7341_config configuration of AS7341 device.
- * @param[out] as7341_handle AS7341 device handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_init(i2c_master_bus_handle_t bus_handle, const i2c_as7341_config_t *as7341_config, i2c_as7341_handle_t *as7341_handle);
-
-/**
- * @brief Measures spectral sensors, F1 to F8, Clear and NIR, from AS7341.
- * 
- * @param as7341_handle AS7341 device handle.
- * @param adc_spectral_data ADC spectral data structure.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_get_spectral_measurements(i2c_as7341_handle_t as7341_handle, i2c_as7341_channels_spectral_data_t *spectral_data);
-
-/**
- * @brief Reads data status of AS7341.
- * 
- * @param as7341_handle AS7341 device handle.
- * @param ready Data is ready when asserted to true.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_as7341_get_data_status(i2c_as7341_handle_t as7341_handle, bool *ready);
-
-esp_err_t i2c_as7341_get_basic_counts(i2c_as7341_handle_t as7341_handle, i2c_as7341_channels_spectral_data_t spectral_data, i2c_as7341_channels_basic_counts_data_t *basic_counts_data);
-
-/**
- * @brief Reads flicker detection status from AS7341.
- * 
- * @param as7341_handle AS7341 device handle.
- * @param state Flicker detection state, 100Hz, 120Hz or flicker saturation was detected.
- * @return esp_err_t ESP_OK on success, ESP_ERR_TIMEOUT if operation timed out.
- */
-esp_err_t i2c_as7341_get_flicker_detection_status(i2c_as7341_handle_t as7341_handle, i2c_as7341_flicker_detection_states_t *state);
 
 /**
  * @brief Removes an AS7341 device from master bus.
@@ -962,15 +977,15 @@ esp_err_t i2c_as7341_get_flicker_detection_status(i2c_as7341_handle_t as7341_han
  * @param[in] as7341_handle AS7341 device handle
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_as7341_rm(i2c_as7341_handle_t as7341_handle);
+esp_err_t i2c_as7341_remove(i2c_as7341_handle_t as7341_handle);
 
 /**
  * @brief Removes an AS7341 device from master bus and frees handle.
  * 
- * @param as7341_handle AS7341 device handle
+ * @param[in] as7341_handle AS7341 device handle
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_as7341_del(i2c_as7341_handle_t as7341_handle);
+esp_err_t i2c_as7341_delete(i2c_as7341_handle_t as7341_handle);
 
 
 #ifdef __cplusplus

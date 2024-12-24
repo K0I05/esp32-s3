@@ -815,19 +815,19 @@ esp_err_t i2c_bme680_reset(i2c_bme680_handle_t bme680_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_bme680_rm(i2c_bme680_handle_t bme680_handle) {
+esp_err_t i2c_bme680_remove(i2c_bme680_handle_t bme680_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( bme680_handle );
 
     return i2c_master_bus_rm_device(bme680_handle->i2c_dev_handle);
 }
 
-esp_err_t i2c_bme680_del(i2c_bme680_handle_t bme680_handle){
+esp_err_t i2c_bme680_delete(i2c_bme680_handle_t bme680_handle){
     /* validate arguments */
     ESP_ARG_CHECK( bme680_handle );
 
     /* remove device from master bus */
-    ESP_RETURN_ON_ERROR( i2c_bme680_rm(bme680_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
+    ESP_RETURN_ON_ERROR( i2c_bme680_remove(bme680_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
 
     /* validate handle instance and free handles */
     if(bme680_handle->i2c_dev_handle) {

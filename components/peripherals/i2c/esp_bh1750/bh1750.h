@@ -114,6 +114,26 @@ typedef struct i2c_bh1750_t i2c_bh1750_t;
 typedef struct i2c_bh1750_t *i2c_bh1750_handle_t;
 
 
+
+/**
+ * @brief initializes an BH1750 device onto the I2C master bus.
+ *
+ * @param[in] bus_handle I2C master bus handle
+ * @param[in] bh1750_config configuration of BH1750 device
+ * @param[out] bh1750_handle BH1750 device handle
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_bh1750_init(i2c_master_bus_handle_t bus_handle, const i2c_bh1750_config_t *bh1750_config, i2c_bh1750_handle_t *bh1750_handle);
+
+/**
+ * @brief measure BH1750 illuminance.  BH1750 goes into power-down mode after measurement when one-time measurements are configured.
+ *
+ * @param[in] bh1750_handle BH1750 device handle
+ * @param[out] lux BH1750 illuminance measurement
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_bh1750_get_ambient_light(i2c_bh1750_handle_t bh1750_handle, float *const lux);
+
 /**
  * @brief Writes measurement mode to bh1750.
  *
@@ -133,14 +153,20 @@ esp_err_t i2c_bh1750_set_measurement_mode(i2c_bh1750_handle_t bh1750_handle, con
 esp_err_t i2c_bh1750_set_measurement_time(i2c_bh1750_handle_t bh1750_handle, const uint8_t timespan);
 
 /**
- * @brief initializes an BH1750 device onto the I2C master bus.
+ * @brief power-up BH1750 sensor.
  *
- * @param[in] bus_handle I2C master bus handle
- * @param[in] bh1750_config configuration of BH1750 device
- * @param[out] bh1750_handle BH1750 device handle
+ * @param[in] bh1750_handle BH1750 device handle
+ * @return esp_err_t  ESP_OK on success.
+ */
+esp_err_t i2c_bh1750_enable_power(i2c_bh1750_handle_t bh1750_handle);
+
+/**
+ * @brief power-down BH1750 sensor.
+ *
+ * @param[in] bh1750_handle BH1750 device handle
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bh1750_init(i2c_master_bus_handle_t bus_handle, const i2c_bh1750_config_t *bh1750_config, i2c_bh1750_handle_t *bh1750_handle);
+esp_err_t i2c_bh1750_disable_power(i2c_bh1750_handle_t bh1750_handle);
 
 /**
  * @brief soft-reset BH1750 sensor. Reset command is not acceptable in power-down mode.
@@ -151,37 +177,12 @@ esp_err_t i2c_bh1750_init(i2c_master_bus_handle_t bus_handle, const i2c_bh1750_c
 esp_err_t i2c_bh1750_reset(i2c_bh1750_handle_t bh1750_handle);
 
 /**
- * @brief power-up BH1750 sensor.
- *
- * @param[in] bh1750_handle BH1750 device handle
- * @return esp_err_t  ESP_OK on success.
- */
-esp_err_t i2c_bh1750_power_up(i2c_bh1750_handle_t bh1750_handle);
-
-/**
- * @brief power-down BH1750 sensor.
- *
- * @param[in] bh1750_handle BH1750 device handle
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_bh1750_power_down(i2c_bh1750_handle_t bh1750_handle);
-
-/**
- * @brief measure BH1750 illuminance.  BH1750 goes into power-down mode after measurement when one-time measurements are configured.
- *
- * @param[in] bh1750_handle BH1750 device handle
- * @param[out] lux BH1750 illuminance measurement
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t i2c_bh1750_get_ambient_light(i2c_bh1750_handle_t bh1750_handle, float *const lux);
-
-/**
  * @brief removes an BH1750 device from master bus.
  *
  * @param[in] bh1750_handle BH1750 device handle
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bh1750_rm(i2c_bh1750_handle_t bh1750_handle);
+esp_err_t i2c_bh1750_remove(i2c_bh1750_handle_t bh1750_handle);
 
 /**
  * @brief removes an BH1750 device from master bus and frees handle.
@@ -189,7 +190,7 @@ esp_err_t i2c_bh1750_rm(i2c_bh1750_handle_t bh1750_handle);
  * @param[in] bh1750_handle BH1750 device handle
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bh1750_del(i2c_bh1750_handle_t bh1750_handle);
+esp_err_t i2c_bh1750_delete(i2c_bh1750_handle_t bh1750_handle);
 
 
 

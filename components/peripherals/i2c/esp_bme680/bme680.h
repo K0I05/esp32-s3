@@ -276,6 +276,9 @@ typedef struct {
     int8_t                  range_switching_error;
 } i2c_bme680_cal_factors_t;
 
+/**
+ * @brief BME680 I2C device configuration structure.
+ */
 typedef struct {
     i2c_device_config_t                         dev_config;                 /*!< I2C configuration for bmp280 device */
     i2c_bme680_power_modes_t                    power_mode;                 /*!< bme680 power mode */
@@ -292,6 +295,9 @@ typedef struct {
     uint16_t                                    heater_shared_duration;     /*!< bme680 heating duration for parallel mode in milli-seconds */
 } i2c_bme680_config_t;
 
+/**
+ * @brief BME680 I2C device structure.
+ */
 struct i2c_bme680_t {
     i2c_master_dev_handle_t                     i2c_dev_handle;     /*!< I2C device handle */
     i2c_bme680_cal_factors_t                   *dev_cal_factors;    /*!< bme680 device calibration factors */
@@ -305,190 +311,210 @@ struct i2c_bme680_t {
     uint16_t                                    ambient_temperature;
 };
 
+/**
+ * @brief BME680 I2C device definition.
+ */
 typedef struct i2c_bme680_t i2c_bme680_t;
+
+/**
+ * @brief BME680 I2C device handle definition.
+ */
 typedef struct i2c_bme680_t *i2c_bme680_handle_t;
 
 
 
 /**
- * @brief reads chip indentification register from bmp280.
+ * @brief Reads chip indentification register from BME680.
  * 
- * @param[in] bme680_handle bmp280 device handle.
+ * @param[in] bme680_handle BME680 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_get_chip_id_register(i2c_bme680_handle_t bme680_handle);
 
 /**
- * @brief reads status register from bmp280.
+ * @brief Reads status register from BME680.
  * 
- * @param[in] bme680_handle bmp280 device handle.
+ * @param[in] bme680_handle BME680 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_get_status0_register(i2c_bme680_handle_t bme680_handle);
 
 /**
- * @brief reads control measurement register from bmp280.
+ * @brief Reads control measurement register from BME680.
  * 
- * @param[in] bme680_handle bmp280 device handle.
+ * @param[in] bme680_handle BME680 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_get_control_measurement_register(i2c_bme680_handle_t bme680_handle);
 
 /**
- * @brief writes control measurement register to bmp280. 
+ * @brief Writes control measurement register to BME680. 
  * 
- * @param[in] bme680_handle bmp280 device handle.
- * @param[in] ctrl_meas_reg control measurement register.
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[in] ctrl_meas_reg Control measurement register.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_set_control_measurement_register(i2c_bme680_handle_t bme680_handle, const i2c_bme680_control_measurement_register_t ctrl_meas_reg);
 
 /**
- * @brief reads configuration register from bmp280.
+ * @brief Reads configuration register from BME680.
  * 
- * @param[in] bme680_handle bmp280 device handle
+ * @param[in] bme680_handle BME680 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_get_configuration_register(i2c_bme680_handle_t bme680_handle);
 
 /**
- * @brief writes configuration register to bmp280. 
+ * @brief Writes configuration register to BME680. 
  * 
- * @param[in] bme680_handle bmp280 device handle.
- * @param[in] config_reg configuration register.
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[in] config_reg Configuration register.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_set_configuration_register(i2c_bme680_handle_t bme680_handle, const i2c_bme680_configuration_register_t config_reg);
 
 /**
- * @brief initializes an bmp280 device onto the master bus.
+ * @brief Initializes an BME680 device onto the master bus.
  *
- * @param[in] bus_handle I2C master bus handle
- * @param[in] bme680_config configuration of sht4x device
- * @param[out] bme680_handle bmp280 device handle
+ * @param[in] bus_handle I2C master bus handle.
+ * @param[in] bme680_config Configuration of BME680 device.
+ * @param[out] bme680_handle BME680 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_init(i2c_master_bus_handle_t bus_handle, const i2c_bme680_config_t *bme680_config, i2c_bme680_handle_t *bme680_handle);
 
 /**
- * @brief high-level measurement (temperature & pressure) function for bmp280
+ * @brief Reads temperature and pressure measurements from BME680
  *
- * @param[in] bme680_handle bmp280 device handle.
- * @param[out] temperature temperature in degree Celsius
- * @param[out] pressure pressure in pascal
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[out] temperature Temperature in degree Celsius.
+ * @param[out] pressure Pressure in pascal.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_get_measurements(i2c_bme680_handle_t bme680_handle, float *const temperature, float *const pressure);
 
 /**
- * @brief reads data status of the bmp280.
+ * @brief Reads data status of the BME680.
  * 
- * @param[in] bme680_handle bmp280 device handle.
- * @param[out] ready data is ready when asserted to true.
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[out] ready Data is ready when asserted to true.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_get_data_status(i2c_bme680_handle_t bme680_handle, bool *const ready);
 
 /**
- * @brief reads power mode setting from the bmp280.
+ * @brief Reads power mode setting from the BME680.
  * 
- * @param[in] bme680_handle bmp280 device handle.
- * @param[out] power_mode power mode setting.
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[out] power_mode BME680 power mode setting.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_get_power_mode(i2c_bme680_handle_t bme680_handle, i2c_bme680_power_modes_t *const power_mode);
 
 /**
- * @brief writes power mode setting to the bmp280.  See datasheet, section 3.6, table 10.
+ * @brief Writes power mode setting to BME680.  See datasheet, section 3.6, table 10.
  * 
- * @param[in] bme680_handle bmp280 device handle.
- * @param[in] power_mode power mode setting.
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[in] power_mode BME680 power mode setting.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_set_power_mode(i2c_bme680_handle_t bme680_handle, const i2c_bme680_power_modes_t power_mode);
 
 /**
- * @brief reads pressure oversampling setting from bmp280.
+ * @brief Reads pressure oversampling setting from BME680.
  * 
- * @param[in] bme680_handle bmp280 device handle.
- * @param[out] oversampling pressure oversampling setting.
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[out] oversampling BME680 pressure oversampling setting.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_get_pressure_oversampling(i2c_bme680_handle_t bme680_handle, i2c_bme680_pressure_oversampling_t *const oversampling);
 
 /**
- * @brief writes pressure oversampling setting to bmp280.  See datasheet, section 3.3.1, table 4.
+ * @brief Writes pressure oversampling setting to BME680.  See datasheet, section 3.3.1, table 4.
  * 
- * @param[in] bme680_handle bmp280 device handle.
- * @param[in] oversampling pressure oversampling setting.
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[in] oversampling BME680 pressure oversampling setting.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_set_pressure_oversampling(i2c_bme680_handle_t bme680_handle, const i2c_bme680_pressure_oversampling_t oversampling);
 
 /**
- * @brief reads temperature oversampling setting from bmp280.
+ * @brief Reads temperature oversampling setting from BME680.
  * 
- * @param[in] bme680_handle bmp280 device handle.
- * @param[out] oversampling temperature oversampling setting.
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[out] oversampling BME680 temperature oversampling setting.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_get_temperature_oversampling(i2c_bme680_handle_t bme680_handle, i2c_bme680_temperature_oversampling_t *const oversampling);
 
 /**
- * @brief writes temperature oversampling setting to bmp280.  See datasheet, section 3.3.1, table 4.
+ * @brief Writes temperature oversampling setting to BME680.  See datasheet, section 3.3.1, table 4.
  * 
- * @param[in] bme680_handle bmp280 device handle.
- * @param[in] oversampling temperature oversampling setting.
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[in] oversampling BME680 temperature oversampling setting.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_set_temperature_oversampling(i2c_bme680_handle_t bme680_handle, const i2c_bme680_temperature_oversampling_t oversampling);
 
-
+/**
+ * @brief Reads humidity oversampling setting from BME680.
+ * 
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[out] oversampling BME680 humidity oversampling setting.
+ * @return esp_err_t ESP_OK on success.
+ */
 esp_err_t i2c_bme680_get_humidity_oversampling(i2c_bme680_handle_t bme680_handle, i2c_bme680_humidity_oversampling_t *const oversampling);
-esp_err_t i2c_bme680_set_humidity_oversampling(i2c_bme680_handle_t bme680_handle, const i2c_bme680_humidity_oversampling_t oversampling);
-
 
 /**
- * @brief reads IIR filter setting to bmp280.
+ * @brief Writes humidity oversampling setting to BME680.  See datasheet, section 3.3.1, table 4.
  * 
- * @param[in] bme680_handle bmp280 device handle.
- * @param[out] iir_filter IIR filter setting.
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[in] oversampling BME680 humidity oversampling setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_bme680_set_humidity_oversampling(i2c_bme680_handle_t bme680_handle, const i2c_bme680_humidity_oversampling_t oversampling);
+
+/**
+ * @brief Reads IIR filter setting from BME680.
+ * 
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[out] iir_filter BME680 IIR filter setting.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_get_iir_filter(i2c_bme680_handle_t bme680_handle, i2c_bme680_iir_filters_t *const iir_filter);
 
 /**
- * @brief writes IIR filter setting from bmp280.  See datasheet, section 3.4, table 7.
+ * @brief Writes IIR filter setting to BME680.  See datasheet, section 3.4, table 7.
  * 
- * @param[in] bme680_handle bmp280 device handle.
- * @param[in] iir_filter IIR filter setting.
+ * @param[in] bme680_handle BME680 device handle.
+ * @param[in] iir_filter BME680 IIR filter setting.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_set_iir_filter(i2c_bme680_handle_t bme680_handle, const i2c_bme680_iir_filters_t iir_filter);
 
 /**
- * @brief issues soft-reset sensor and initializes registers for bmp280.
+ * @brief Issues soft-reset sensor and initializes registers for BME680.
  *
- * @param[in] bme680_handle bmp280 device handle.
+ * @param[in] bme680_handle BME680 device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_bme680_reset(i2c_bme680_handle_t bme680_handle);
 
 /**
- * @brief removes an bmp280 device from master bus.
+ * @brief Removes an BME680 device from master bus.
  *
- * @param[in] bme680_handle bmp280 device handle
+ * @param[in] bme680_handle BME680 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bme680_rm(i2c_bme680_handle_t bme680_handle);
+esp_err_t i2c_bme680_remove(i2c_bme680_handle_t bme680_handle);
 
 /**
- * @brief removes an bme680 device from master bus and frees handle.
+ * @brief Removes an BME680 device from master bus and frees handle.
  *
- * @param[in] bme680_handle bme680 device handle
+ * @param[in] bme680_handle BME680 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bme680_del(i2c_bme680_handle_t bme680_handle);
+esp_err_t i2c_bme680_delete(i2c_bme680_handle_t bme680_handle);
 
 
 #ifdef __cplusplus

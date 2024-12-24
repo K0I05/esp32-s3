@@ -77,6 +77,6 @@ void i2c0_bmp280_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_bmp280_del( dev_hdl );
+    i2c_bmp280_delete( dev_hdl );
     vTaskDelete( NULL );
 }

@@ -52,8 +52,8 @@ extern "C" {
 /*
  * supported device addresses
 */
-#define I2C_BMP280_DEV_ADDR_LO      0x76 //!< bmp280 I2C address when ADDR pin floating/low
-#define I2C_BMP280_DEV_ADDR_HI      0x77 //!< bmp280 I2C address when ADDR pin high
+#define I2C_BMP280_DEV_ADDR_LO      UINT8_C(0x76) //!< bmp280 I2C address when ADDR pin floating/low
+#define I2C_BMP280_DEV_ADDR_HI      UINT8_C(0x77) //!< bmp280 I2C address when ADDR pin high
 
 /*
  * BMP280 macros
@@ -179,7 +179,6 @@ typedef union __attribute__((packed)) {
 } i2c_bmp280_configuration_register_t;
 
 
-
 /**
  * @brief BMP280 temperature and pressure calibration factors structure.
  */
@@ -199,27 +198,39 @@ typedef struct {
     int16_t                 dig_P9;
 } i2c_bmp280_cal_factors_t;
 
+/**
+ * @brief BMP280 I2C device configuration structure.
+ */
 typedef struct {
-    i2c_device_config_t                         dev_config;         /*!< I2C configuration for bmp280 device */
-    i2c_bmp280_power_modes_t                    power_mode;
-    i2c_bmp280_iir_filters_t                    iir_filter;
-    i2c_bmp280_pressure_oversampling_t          pressure_oversampling;
-    i2c_bmp280_temperature_oversampling_t       temperature_oversampling;
-    i2c_bmp280_standby_times_t                  standby_time;
+    i2c_device_config_t                         dev_config;                 /*!< I2C configuration for bmp280 device */
+    i2c_bmp280_power_modes_t                    power_mode;                 /*!< bmp280 power mode setting */
+    i2c_bmp280_iir_filters_t                    iir_filter;                 /*!< bmp280 IIR filter setting */
+    i2c_bmp280_pressure_oversampling_t          pressure_oversampling;      /*!< bmp280 pressure oversampling setting */
+    i2c_bmp280_temperature_oversampling_t       temperature_oversampling;   /*!< bmp280 temperature oversampling setting */
+    i2c_bmp280_standby_times_t                  standby_time;               /*!< bmp280 stand-by time setting */
 } i2c_bmp280_config_t;
 
+/**
+ * @brief BMP280 I2C device structure.
+ */
 struct i2c_bmp280_t {
     i2c_master_dev_handle_t                     i2c_dev_handle;    /*!< I2C device handle */
-    i2c_bmp280_cal_factors_t                   *dev_cal_factors;  /*!< bmp280 device calibration factors */
+    i2c_bmp280_cal_factors_t                   *dev_cal_factors;    /*!< bmp280 device calibration factors */
     uint8_t                                     dev_type;           /*!< device type, should be bmp280 */
     i2c_bmp280_status_register_t                status_reg;         /*!< bmp280 status register */
     i2c_bmp280_control_measurement_register_t   ctrl_meas_reg;      /*!< bmp280 control measurement register */
     i2c_bmp280_configuration_register_t         config_reg;         /*!< bmp280 configuration register */
 };
 
+/**
+ * @brief BMP280 I2C device structure definition.
+ */
 typedef struct i2c_bmp280_t i2c_bmp280_t;
-typedef struct i2c_bmp280_t *i2c_bmp280_handle_t;
 
+/**
+ * @brief BMP280 I2C device handle definition.
+ */
+typedef struct i2c_bmp280_t *i2c_bmp280_handle_t;
 
 
 /**
@@ -276,7 +287,7 @@ esp_err_t i2c_bmp280_set_configuration_register(i2c_bmp280_handle_t bmp280_handl
  * @brief initializes an bmp280 device onto the master bus.
  *
  * @param[in] bus_handle I2C master bus handle
- * @param[in] bmp280_config configuration of sht4x device
+ * @param[in] bmp280_config configuration of bmp280 device
  * @param[out] bmp280_handle bmp280 device handle
  * @return esp_err_t ESP_OK on success.
  */
@@ -423,7 +434,7 @@ esp_err_t i2c_bmp280_reset(i2c_bmp280_handle_t bmp280_handle);
  * @param[in] bmp280_handle bmp280 device handle
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_rm(i2c_bmp280_handle_t bmp280_handle);
+esp_err_t i2c_bmp280_remove(i2c_bmp280_handle_t bmp280_handle);
 
 /**
  * @brief removes an bmp280 device from master bus and frees handle.
@@ -431,7 +442,7 @@ esp_err_t i2c_bmp280_rm(i2c_bmp280_handle_t bmp280_handle);
  * @param[in] bmp280_handle bmp280 device handle
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bmp280_del(i2c_bmp280_handle_t bmp280_handle);
+esp_err_t i2c_bmp280_delete(i2c_bmp280_handle_t bmp280_handle);
 
 
 

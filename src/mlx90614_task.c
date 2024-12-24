@@ -53,7 +53,12 @@ void i2c0_mlx90614_task( void *pvParameters ) {
         ESP_LOGE(APP_TAG, "mlx90614 handle init failed");
         assert(dev_hdl);
     }
-    //
+
+    // show registers
+    ESP_LOGI(APP_TAG, "Config Register:      0x%04x (%s)", dev_hdl->config_reg.reg,  uint16_to_binary(dev_hdl->config_reg.reg));
+    ESP_LOGI(APP_TAG, "PWN Control Register: 0x%04x (%s)", dev_hdl->pwmctrl_reg.reg, uint16_to_binary(dev_hdl->pwmctrl_reg.reg));
+    ESP_LOGI(APP_TAG, "Flags Register:       0x%04x (%s)", dev_hdl->flags_reg.reg,   uint16_to_binary(dev_hdl->flags_reg.reg));
+    
     // task loop entry point
     for ( ;; ) {
         ESP_LOGI(APP_TAG, "######################## MLX90614 - START #########################");
@@ -77,6 +82,6 @@ void i2c0_mlx90614_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_mlx90614_del( dev_hdl );
+    i2c_mlx90614_delete( dev_hdl );
     vTaskDelete( NULL );
 }

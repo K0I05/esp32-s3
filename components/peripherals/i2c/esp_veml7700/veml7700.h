@@ -213,7 +213,7 @@ typedef struct {
 } i2c_veml7700_config_t;
 
 /**
- * @brief VEML7700 I2C device handle structure.
+ * @brief VEML7700 I2C device structure.
  */
 struct i2c_veml7700_t {
     i2c_master_dev_handle_t                     i2c_dev_handle;  /*!< I2C device handle */
@@ -229,9 +229,13 @@ struct i2c_veml7700_t {
 };
 
 /**
- * @brief VEML7700 IC2 handle structure definitions.
+ * @brief VEML7700 IC2 device structure definition.
  */
 typedef struct i2c_veml7700_t i2c_veml7700_t;
+
+/**
+ * @brief VEML7700 IC2 device handle definition.
+ */
 typedef struct i2c_veml7700_t *i2c_veml7700_handle_t;
 
 /**
@@ -388,7 +392,7 @@ esp_err_t i2c_veml7700_wakeup(i2c_veml7700_handle_t veml7700_handle);
  * @param[in] veml7700_handle VEML7700 device handle.
  * @return ESP_OK on success.
  */
-esp_err_t i2c_veml7700_rm(i2c_veml7700_handle_t veml7700_handle);
+esp_err_t i2c_veml7700_remove(i2c_veml7700_handle_t veml7700_handle);
 
 /**
  * @brief Removes an VEML7700 device from master I2C bus and delete the handle.
@@ -396,7 +400,7 @@ esp_err_t i2c_veml7700_rm(i2c_veml7700_handle_t veml7700_handle);
  * @param veml7700_handle VEML7700 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_veml7700_del(i2c_veml7700_handle_t veml7700_handle);
+esp_err_t i2c_veml7700_delete(i2c_veml7700_handle_t veml7700_handle);
 
 
 

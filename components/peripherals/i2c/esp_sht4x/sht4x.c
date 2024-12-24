@@ -47,6 +47,7 @@
 /*
  * SHT4X definitions
 */
+
 #define I2C_SHT4X_CRC8_G_POLYNOM        UINT8_C(0x31)   //!< sht4x I2C CRC8 polynomial
 
 #define I2C_SHT4X_CMD_RESET             UINT8_C(0x94)   //!< sht4x I2C soft-reset command 
@@ -61,9 +62,14 @@
 #define I2C_SHT4X_CMD_MEAS_H_LOW_LONG   UINT8_C(0x1E)   //!< sht4x I2C low resolution measurement command with heater enabled long pulse
 #define I2C_SHT4X_CMD_MEAS_H_LOW_SHORT  UINT8_C(0x15)   //!< sht4x I2C low resolution measurement command with heater enabled short pulse
 
+#define I2C_SHT4X_TEMPERATURE_MAX       (float)(125.0)  //!< sht4x maximum temperature range
+#define I2C_SHT4X_TEMPERATURE_MIN       (float)(-40.0)  //!< sht4x minimum temperature range
+#define I2C_SHT4X_HUMIDITY_MAX          (float)(100.0)  //!< sht4x maximum humidity range
+#define I2C_SHT4X_HUMIDITY_MIN          (float)(0.0)    //!< sht4x minimum humidity range
+
 #define I2C_SHT4X_POWERUP_DELAY_MS      UINT16_C(5)     /*!< sht4x delay on power-up before attempting I2C transactions */
 #define I2C_SHT4X_APPSTART_DELAY_MS     UINT16_C(10)    /*!< sht4x delay after initialization before application start-up */
-#define I2C_SHT4X_RESET_DELAY_MS        UINT16_C(15)    /*!< sht4x delay before attempting I2C transactions after a reset is issued */
+#define I2C_SHT4X_RESET_DELAY_MS        UINT16_C(25)    /*!< sht4x delay before attempting I2C transactions after a reset is issued */
 #define I2C_SHT4X_CMD_DELAY_MS          UINT16_C(5)     /*!< sht4x delay before attempting I2C transactions after a command is issued */
 #define I2C_SHT4X_RETRY_DELAY_MS        UINT16_C(2)     /*!< sht4x delay between an I2C receive transaction retry */
 #define I2C_SHT4X_TX_RX_DELAY_MS        UINT16_C(10)    /*!< sht4x delay after attempting an I2C transmit transaction and attempting an I2C receive transaction */
@@ -85,9 +91,9 @@ static const char *TAG = "sht4x";
 /**
  * @brief Calculates SHT4X crc8 value.  See datasheet for details.
  *
- * @param[in] data[] data buffer to perform crc8 check against.
- * @param[in] len length of `data` buffer.
- * @return crc8 value.
+ * @param[in] data[] Data buffer to perform crc8 check against.
+ * @param[in] len Length of `data` buffer.
+ * @return uint8_t Caculated crc8 value.
  */
 static inline uint8_t i2c_sht4x_crc8(const uint8_t data[], const size_t len) {
     uint8_t crc = 0xff;
@@ -103,12 +109,12 @@ static inline uint8_t i2c_sht4x_crc8(const uint8_t data[], const size_t len) {
  * @brief Gets SHT4X measurement duration in milli-seconds from device handle.  See datasheet for details.
  *
  * @param[in] sht4x_handle SHT4X device handle.
- * @return duration in milliseconds.
+ * @return size_t Measurement duration in milliseconds.
  */
 static inline size_t i2c_sht4x_get_duration_ms(i2c_sht4x_handle_t sht4x_handle) {
     /* validate arguments */
     if (!sht4x_handle) return 2;
-    switch (sht4x_handle->heater) {
+    switch (sht4x_handle->heater_mode) {
         case I2C_SHT4X_HEATER_HIGH_LONG:
         case I2C_SHT4X_HEATER_MEDIUM_LONG:
         case I2C_SHT4X_HEATER_LOW_LONG:
@@ -118,7 +124,7 @@ static inline size_t i2c_sht4x_get_duration_ms(i2c_sht4x_handle_t sht4x_handle) 
         case I2C_SHT4X_HEATER_LOW_SHORT:
             return 110;
         default:
-            switch (sht4x_handle->repeatability) {
+            switch (sht4x_handle->repeat_mode) {
                 case I2C_SHT4X_REPEAT_HIGH:
                     return 10;
                 case I2C_SHT4X_REPEAT_MEDIUM:
@@ -133,7 +139,7 @@ static inline size_t i2c_sht4x_get_duration_ms(i2c_sht4x_handle_t sht4x_handle) 
  * @brief Gets SHT4X measurement tick duration from device handle.
  *
  * @param[in] sht4x_handle SHT4X device handle.
- * @return duration in ticks.
+ * @return size_t Measurement duration in ticks.
  */
 static inline size_t i2c_sht4x_get_tick_duration(i2c_sht4x_handle_t sht4x_handle) {
     /* validate arguments */
@@ -146,12 +152,12 @@ static inline size_t i2c_sht4x_get_tick_duration(i2c_sht4x_handle_t sht4x_handle
  * @brief Gets SHT4X measurement command from device handle parameters.  See datasheet for details.
  *
  * @param[in] sht4x_handle SHT4X device handle.
- * @return command value.
+ * @return uint8_t SHT4X command value.
  */
 static inline uint8_t i2c_sht4x_get_command(i2c_sht4x_handle_t sht4x_handle) {
     /* validate arguments */
     if (!sht4x_handle) return I2C_SHT4X_CMD_MEAS_LOW;
-    switch (sht4x_handle->heater) {
+    switch (sht4x_handle->heater_mode) {
         case I2C_SHT4X_HEATER_HIGH_LONG:
             return I2C_SHT4X_CMD_MEAS_H_HIGH_LONG;
         case I2C_SHT4X_HEATER_HIGH_SHORT:
@@ -165,7 +171,7 @@ static inline uint8_t i2c_sht4x_get_command(i2c_sht4x_handle_t sht4x_handle) {
         case I2C_SHT4X_HEATER_LOW_SHORT:
             return I2C_SHT4X_CMD_MEAS_H_LOW_SHORT;
         default:
-            switch (sht4x_handle->repeatability) {
+            switch (sht4x_handle->repeat_mode) {
                 case I2C_SHT4X_REPEAT_HIGH:
                     return I2C_SHT4X_CMD_MEAS_HIGH;
                 case I2C_SHT4X_REPEAT_MEDIUM:
@@ -188,9 +194,15 @@ static inline esp_err_t i2c_sht4x_calculate_dewpoint(const float temperature, co
     /* validate arguments */
     ESP_ARG_CHECK(temperature && humidity && dewpoint);
 
-    // validate range of parameters
-    if(temperature > 80 || temperature < -40) return ESP_ERR_INVALID_ARG;
-    if(humidity > 100 || humidity < 0) return ESP_ERR_INVALID_ARG;
+    // validate range of temperature parameter
+    if(temperature > I2C_SHT4X_TEMPERATURE_MAX || temperature < I2C_SHT4X_TEMPERATURE_MIN) {
+        ESP_RETURN_ON_FALSE( false, ESP_ERR_INVALID_ARG, TAG, "temperature is out of range, calculate dewpoint failed");
+    }
+
+    // validate range of humidity parameter
+    if(humidity > I2C_SHT4X_HUMIDITY_MAX || humidity < I2C_SHT4X_HUMIDITY_MIN) {
+        ESP_RETURN_ON_FALSE( false, ESP_ERR_INVALID_ARG, TAG, "humidity is out of range, calculate dewpoint failed");
+    }
     
     // calculate dew-point temperature
     double H = (log10(humidity)-2)/0.4343 + (17.62*temperature)/(243.12+temperature);
@@ -200,12 +212,12 @@ static inline esp_err_t i2c_sht4x_calculate_dewpoint(const float temperature, co
 }
 
 /**
- * @brief Read serial number from SHT4X.
+ * @brief Read serial number register from SHT4X.
  *
  * @param[in] sht4x_config configuration of sht4x device
  * @return esp_err_t ESP_OK on success.
  */
-static inline esp_err_t i2c_sht4x_get_serial_number(i2c_sht4x_handle_t sht4x_handle) {
+static inline esp_err_t i2c_sht4x_get_serial_number_register(i2c_sht4x_handle_t sht4x_handle) {
     i2c_uint8_t i2c_tx_buffer 	= { I2C_SHT4X_CMD_SERIAL };
     i2c_uint48_t i2c_rx_buffer	= { 0, 0, 0, 0, 0, 0 };
 
@@ -258,8 +270,8 @@ esp_err_t i2c_sht4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sht4x_con
     }
 
     /* copy configuration */
-    out_handle->heater        = sht4x_config->heater;
-    out_handle->repeatability = sht4x_config->repeatability;
+    out_handle->heater_mode = sht4x_config->heater_mode;
+    out_handle->repeat_mode = sht4x_config->repeat_mode;
 
     /* delay before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_SHT4X_CMD_DELAY_MS));
@@ -284,23 +296,7 @@ esp_err_t i2c_sht4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sht4x_con
         return ret;
 }
 
-esp_err_t i2c_sht4x_reset(i2c_sht4x_handle_t sht4x_handle) {
-    /* validate arguments */
-    ESP_ARG_CHECK( sht4x_handle );
-
-    /* attempt to reset device */
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_cmd(sht4x_handle->i2c_dev_handle, I2C_SHT4X_CMD_RESET), TAG, "unable to write to device handle, sht4x device reset failed");
-
-    /* delay before next command - soft-reset */
-    vTaskDelay(pdMS_TO_TICKS(I2C_SHT4X_RESET_DELAY_MS));
-
-    /* sht4x attempt to read device serial number */
-    ESP_RETURN_ON_ERROR(i2c_sht4x_get_serial_number(sht4x_handle), TAG, "unable to read serial number, sht4x device reset failed");
-
-    return ESP_OK;
-}
-
-esp_err_t i2c_sht4x_get_measurement(i2c_sht4x_handle_t sht4x_handle, float *temperature, float *humidity) {
+esp_err_t i2c_sht4x_get_measurement(i2c_sht4x_handle_t sht4x_handle, float *const temperature, float *const humidity) {
     const uint8_t rx_retry_max  = 5;
     uint8_t rx_retry_count      = 0;
     size_t delay_ticks 			= 0;
@@ -311,7 +307,7 @@ esp_err_t i2c_sht4x_get_measurement(i2c_sht4x_handle_t sht4x_handle, float *temp
     /* validate arguments */
     ESP_ARG_CHECK( sht4x_handle && temperature && humidity );
     
-    /* get command and measurement duration */
+    /* get command and measurement duration from handle settings */
     i2c_tx_buffer[0] = i2c_sht4x_get_command(sht4x_handle);
     delay_ticks      = i2c_sht4x_get_tick_duration(sht4x_handle);
 
@@ -346,7 +342,7 @@ esp_err_t i2c_sht4x_get_measurement(i2c_sht4x_handle_t sht4x_handle, float *temp
     return ESP_OK;
 }
 
-esp_err_t i2c_sht4x_get_measurements(i2c_sht4x_handle_t sht4x_handle, float *temperature, float *humidity, float *dewpoint) {
+esp_err_t i2c_sht4x_get_measurements(i2c_sht4x_handle_t sht4x_handle, float *const temperature, float *const humidity, float *const dewpoint) {
     /* validate arguments */
     ESP_ARG_CHECK( sht4x_handle && temperature && humidity && dewpoint );
 
@@ -357,19 +353,74 @@ esp_err_t i2c_sht4x_get_measurements(i2c_sht4x_handle_t sht4x_handle, float *tem
     return ESP_OK;
 }
 
-esp_err_t i2c_sht4x_rm(i2c_sht4x_handle_t sht4x_handle) {
+esp_err_t i2c_sht4x_get_repeat_mode(i2c_sht4x_handle_t sht4x_handle, i2c_sht4x_repeat_modes_t *const mode) {
+    /* validate arguments */
+    ESP_ARG_CHECK( sht4x_handle );
+
+    /* set output parameter */
+    *mode = sht4x_handle->repeat_mode;
+
+    return ESP_OK;
+}
+esp_err_t i2c_sht4x_set_repeat_mode(i2c_sht4x_handle_t sht4x_handle, const i2c_sht4x_repeat_modes_t mode) {
+    /* validate arguments */
+    ESP_ARG_CHECK( sht4x_handle );
+
+    /* set handle setting */
+    sht4x_handle->repeat_mode = mode;
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_sht4x_get_heater_mode(i2c_sht4x_handle_t sht4x_handle, i2c_sht4x_heater_modes_t *const mode) {
+    /* validate arguments */
+    ESP_ARG_CHECK( sht4x_handle );
+
+    /* set output parameter */
+    *mode = sht4x_handle->heater_mode;
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_sht4x_set_heater_mode(i2c_sht4x_handle_t sht4x_handle, const i2c_sht4x_heater_modes_t mode) {
+    /* validate arguments */
+    ESP_ARG_CHECK( sht4x_handle );
+
+    /* set handle setting */
+    sht4x_handle->heater_mode = mode;
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_sht4x_reset(i2c_sht4x_handle_t sht4x_handle) {
+    /* validate arguments */
+    ESP_ARG_CHECK( sht4x_handle );
+
+    /* attempt to reset device */
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_cmd(sht4x_handle->i2c_dev_handle, I2C_SHT4X_CMD_RESET), TAG, "unable to write to device handle, sht4x device reset failed");
+
+    /* delay before next command - soft-reset */
+    vTaskDelay(pdMS_TO_TICKS(I2C_SHT4X_RESET_DELAY_MS));
+
+    /* sht4x attempt to read device serial number */
+    ESP_RETURN_ON_ERROR(i2c_sht4x_get_serial_number_register(sht4x_handle), TAG, "unable to read serial number, sht4x device reset failed");
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_sht4x_remove(i2c_sht4x_handle_t sht4x_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( sht4x_handle );
 
     return i2c_master_bus_rm_device(sht4x_handle->i2c_dev_handle);
 }
 
-esp_err_t i2c_sht4x_del(i2c_sht4x_handle_t sht4x_handle) {
+esp_err_t i2c_sht4x_delete(i2c_sht4x_handle_t sht4x_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( sht4x_handle );
 
     /* remove device from master bus */
-    ESP_RETURN_ON_ERROR( i2c_sht4x_rm(sht4x_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
+    ESP_RETURN_ON_ERROR( i2c_sht4x_remove(sht4x_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
 
     /* validate handle instance and free handles */
     if(sht4x_handle->i2c_dev_handle) {

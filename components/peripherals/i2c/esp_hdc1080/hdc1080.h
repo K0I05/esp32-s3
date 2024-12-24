@@ -148,15 +148,6 @@ typedef union __attribute__((packed)) {
 } i2c_hdc1080_serial_number_register_t;
 
 /**
- * @brief HDC1080 I2C device structure definition.
- */
-typedef struct i2c_hdc1080_t i2c_hdc1080_t;
-/**
- * @brief HDC1080 I2C device handle definition.
- */
-typedef struct i2c_hdc1080_t *i2c_hdc1080_handle_t;
-
-/**
  * @brief HDC1080 I2C device configuration structure.
  */
 typedef struct {
@@ -169,12 +160,22 @@ typedef struct {
  * @brief HDC1080 I2C device structure.
  */
 struct i2c_hdc1080_t {
-    i2c_master_dev_handle_t                 i2c_dev_handle;  /*!< I2C device handle */
+    i2c_master_dev_handle_t                 i2c_dev_handle;         /*!< I2C device handle */
     uint64_t                                serial_number;          /*!< hdc1080 device serial number */
     uint16_t                                manufacturer_id;        /*!< hdc1080 device manufacturer identifier */
     uint16_t                                device_id;              /*!< hdc1080 device device identifier */
     i2c_hdc1080_configuration_register_t    config_reg;             /*!< hdc1080 device configuration register */
 };
+
+/**
+ * @brief HDC1080 I2C device structure definition.
+ */
+typedef struct i2c_hdc1080_t i2c_hdc1080_t;
+/**
+ * @brief HDC1080 I2C device handle definition.
+ */
+typedef struct i2c_hdc1080_t *i2c_hdc1080_handle_t;
+
 
 /**
  * @brief Reads configuration register from HDC1080.
@@ -197,7 +198,7 @@ esp_err_t i2c_hdc1080_set_configuration_register(i2c_hdc1080_handle_t hdc1080_ha
  * @brief Initializes an HDC1080 device onto the I2C master bus.
  *
  * @param[in] bus_handle I2C master bus handle.
- * @param[in] hdc1080_config configuration of hdc1080 device.
+ * @param[in] hdc1080_config Configuration of hdc1080 device.
  * @param[out] hdc1080_handle HDC1080 device handle.
  * @return esp_err_t ESP_OK on success.
  */
@@ -207,22 +208,22 @@ esp_err_t i2c_hdc1080_init(i2c_master_bus_handle_t bus_handle, const i2c_hdc1080
  * @brief Reads temperature and relative humidity from HDC1080.
  * 
  * @param[in] hdc1080_handle HDC1080 device handle.
- * @param[out] temperature temperature measurement in degrees Celsius.
- * @param[out] humidity relative humidity measurement.
+ * @param[out] temperature Temperature measurement in degrees Celsius.
+ * @param[out] humidity Relative humidity measurement in percentage.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_hdc1080_get_measurement(i2c_hdc1080_handle_t hdc1080_handle, float *temperature, float *humidity);
+esp_err_t i2c_hdc1080_get_measurement(i2c_hdc1080_handle_t hdc1080_handle, float *const temperature, float *const humidity);
 
 /**
  * @brief Reads temperature, relative humidity, and dew-point from HDC1080.
  * 
  * @param[in] hdc1080_handle HDC1080 device handle.
- * @param[out] temperature temperature measurement in degrees Celsius.
- * @param[out] humidity relative humidity measurement.
- * @param[out] dewpoint calculated dewpoint in degrees Celsius.
+ * @param[out] temperature Temperature measurement in degrees Celsius.
+ * @param[out] humidity Relative humidity measurement in percentage.
+ * @param[out] dewpoint Calculated dewpoint in degrees Celsius.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_hdc1080_get_measurements(i2c_hdc1080_handle_t hdc1080_handle, float *temperature, float *humidity, float *dewpoint);
+esp_err_t i2c_hdc1080_get_measurements(i2c_hdc1080_handle_t hdc1080_handle, float *const temperature, float *const humidity, float *const dewpoint);
 
 /**
  * @brief Enables HDC1080 heater.
@@ -244,19 +245,19 @@ esp_err_t i2c_hdc1080_disable_heater(i2c_hdc1080_handle_t hdc1080_handle);
  * @brief Writes temperature measurement resolution to HDC1080.
  * 
  * @param[in] hdc1080_handle HDC1080 device handle.
- * @param[in] temperature_resolution temperature measurement resolution.
+ * @param[in] resolution HDC1080 temperature measurement resolution setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_hdc1080_set_temperature_resolution(i2c_hdc1080_handle_t hdc1080_handle, i2c_hdc1080_temperature_resolutions_t temperature_resolution);
+esp_err_t i2c_hdc1080_set_temperature_resolution(i2c_hdc1080_handle_t hdc1080_handle, const i2c_hdc1080_temperature_resolutions_t resolution);
 
 /**
  * @brief Writes relative humidity measurement resolution to HDC1080.
  * 
  * @param[in] hdc1080_handle HDC1080 device handle.
- * @param[in] humidity_resolution relative humidity measurement resolution.
+ * @param[in] resolution HDC1080 relative humidity measurement resolution setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_hdc1080_set_humidity_resolution(i2c_hdc1080_handle_t hdc1080_handle, i2c_hdc1080_humidity_resolutions_t humidity_resolution);
+esp_err_t i2c_hdc1080_set_humidity_resolution(i2c_hdc1080_handle_t hdc1080_handle, const i2c_hdc1080_humidity_resolutions_t resolution);
 
 /**
  * @brief Issues soft-reset to HDC1080.
@@ -272,15 +273,15 @@ esp_err_t i2c_hdc1080_reset(i2c_hdc1080_handle_t hdc1080_handle);
  * @param[in] hdc1080_handle HDC1080 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_hdc1080_rm(i2c_hdc1080_handle_t hdc1080_handle);
+esp_err_t i2c_hdc1080_remove(i2c_hdc1080_handle_t hdc1080_handle);
 
 /**
  * @brief Removes an HDC1080 device from master bus and frees handle.
  * 
- * @param hdc1080_handle HDC1080 device handle.
+ * @param[in] hdc1080_handle HDC1080 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_hdc1080_del(i2c_hdc1080_handle_t hdc1080_handle);
+esp_err_t i2c_hdc1080_delete(i2c_hdc1080_handle_t hdc1080_handle);
 
 
 

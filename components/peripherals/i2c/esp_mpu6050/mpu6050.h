@@ -72,7 +72,6 @@ extern "C" {
 
 /**
  * @brief MPU6050 I2C external synchronization settings enumerator.
- * 
  */
 typedef enum {
     I2C_MPU6050_EXT_SYNC_SETTING_INPUT_DISABLED = (0b000),      /*!< mpu6050  */
@@ -87,7 +86,6 @@ typedef enum {
 
 /**
  * @brief MPU6050 I2C digital low-pass filters enumerator.
- * 
  */
 typedef enum {
     I2C_MPU6050_DIGITAL_LP_FILTER_ACCEL_260KHZ_GYRO_256KHZ  = (0b000),      /*!< mpu6050  */
@@ -102,7 +100,6 @@ typedef enum {
 
 /**
  * @brief MPU6050 I2C gyroscope full-scale ranges enumerator.
- * 
  */
 typedef enum {
     I2C_MPU6050_GYRO_FS_RANGE_250DPS    = (0b00),  /*!< mpu6050 gyroscope full-scale range ± 250 °/s */
@@ -113,7 +110,6 @@ typedef enum {
 
 /**
  * @brief MPU6050 I2C accelorometer full-scale ranges enumerator.
- * 
  */
 typedef enum {
     I2C_MPU6050_ACCEL_FS_RANGE_2G       = (0b00),  /*!< mpu6050 accelerometer full-scale range ± 2g */
@@ -124,7 +120,6 @@ typedef enum {
 
 /**
  * @brief MPU6050 I2C gyroscope clock sources enumerator.
- * 
  */
 typedef enum {
     I2C_MPU6050_GYRO_CS_INT_8MHZ                = (0b000),  /*!< mpu6050 internal 8MHz oscillator */
@@ -139,7 +134,6 @@ typedef enum {
 
 /**
  * @brief MPU6050 I2C low-power wake controls enumerator.
- * 
  */
 typedef enum {
     I2C_MPU6050_LP_WAKE_CONTROL_1_25HZ  = (0b00),  /*!< mpu6050 1.25Hz wake-up frequency */
@@ -150,7 +144,6 @@ typedef enum {
 
 /**
  * @brief MPU6050 I2C self-test register (self-test x, y, z) structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -162,7 +155,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief MPU6050 I2C self-test a register structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -176,7 +168,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief MPU6050 I2C configuration register structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -189,7 +180,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief MPU6050 I2C gyroscope configuration register structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -204,7 +194,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief MPU6050 I2C accelerometer configuration register structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -219,7 +208,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief MPU6050 I2C FIFO enable register structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -237,7 +225,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief MPU6050 I2C interrupt enable register structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -269,7 +256,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief MPU6050 I2C signal path reset register structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -283,7 +269,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief MPU6050 I2C user control register structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -301,7 +286,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief MPU6050 I2C power management 1 register structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -317,7 +301,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief MPU6050 I2C power management 2 register structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -334,7 +317,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief MPU6050 I2C who am i or device identifier register structure.
- * 
  */
 typedef union __attribute__((packed)) {
     struct {
@@ -348,13 +330,12 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief MPU6050 raw data axes structure.
- * 
  */
 typedef struct {
     int16_t x_axis;    /*!< mpu6050 x-axis raw gyroscope or accelerometer measurement */
     int16_t y_axis;    /*!< mpu6050 y-axis raw gyroscope or accelerometer measurement */
     int16_t z_axis;    /*!< mpu6050 z-axis raw gyroscope or accelerometer measurement */
-} i2c_mpu6050_raw_data_axes_t;
+} i2c_mpu6050_data_axes_t;
 
 typedef struct {
     float x_axis;    /*!< mpu6050 x-axis gyroscope measurement in degrees per second (±250, ±500, ±1000, ±2000°/sec) */
@@ -669,7 +650,7 @@ esp_err_t i2c_mpu6050_reset(i2c_mpu6050_handle_t mpu6050_handle);
  * @param[in] mpu6050_handle MPU6050 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mpu6050_rm(i2c_mpu6050_handle_t mpu6050_handle);
+esp_err_t i2c_mpu6050_remove(i2c_mpu6050_handle_t mpu6050_handle);
 
 /**
  * @brief Removes an MPU6050 device from master bus and frees handle.
@@ -677,7 +658,7 @@ esp_err_t i2c_mpu6050_rm(i2c_mpu6050_handle_t mpu6050_handle);
  * @param mpu6050_handle MPU6050 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mpu6050_del(i2c_mpu6050_handle_t mpu6050_handle);
+esp_err_t i2c_mpu6050_delete(i2c_mpu6050_handle_t mpu6050_handle);
 
 
 #ifdef __cplusplus

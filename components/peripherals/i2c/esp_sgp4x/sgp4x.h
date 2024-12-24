@@ -125,10 +125,10 @@ esp_err_t i2c_sgp4x_init(i2c_master_bus_handle_t bus_handle, const i2c_sgp4x_con
  * at a different temperature for conditioning.  The conditioning should be ran when the device is initially powered for
  * 10-seconds but do not run the conditioning longer than 10-seconds, otherwise damage may occur to the SGP4X.
  * 
- * @param sgp4x_handle SGP4X device handle.
- * @param temperature Temperature compensation in degree celcius.
- * @param humidity Humidity compensation in percentage.
- * @param sraw_voc Raw signal of VOC in ticks which is proportional to the logarithm of the resistance of the sensing element.
+ * @param[in] sgp4x_handle SGP4X device handle.
+ * @param[in] temperature Temperature compensation in degree celcius.
+ * @param[in] humidity Humidity compensation in percentage.
+ * @param[out] sraw_voc Raw signal of VOC in ticks which is proportional to the logarithm of the resistance of the sensing element.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sgp4x_execute_compensated_conditioning(i2c_sgp4x_handle_t sgp4x_handle, const float temperature, const float humidity, uint16_t *sraw_voc);
@@ -139,8 +139,8 @@ esp_err_t i2c_sgp4x_execute_compensated_conditioning(i2c_sgp4x_handle_t sgp4x_ha
  * The conditioning should be ran when the device is initially powered for 10-seconds but do not run the conditioning 
  * longer than 10-seconds, otherwise damage may occur to the SGP4X.
  * 
- * @param sgp4x_handle SGP4X device handle.
- * @param sraw_voc Raw signal of VOC in ticks which is proportional to the logarithm of the resistance of the sensing element.
+ * @param[in] sgp4x_handle SGP4X device handle.
+ * @param[out] sraw_voc Raw signal of VOC in ticks which is proportional to the logarithm of the resistance of the sensing element.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sgp4x_execute_conditioning(i2c_sgp4x_handle_t sgp4x_handle, uint16_t *sraw_voc);
@@ -148,11 +148,11 @@ esp_err_t i2c_sgp4x_execute_conditioning(i2c_sgp4x_handle_t sgp4x_handle, uint16
 /**
  * @brief Starts and/or continues the VOC and NOX measurement mode with temperature and humidity compensation.
  * 
- * @param sgp4x_handle SGP4X device handle.
- * @param temperature Temperature compensation in degree celcius.
- * @param humidity Humidity compensation in percentage.
- * @param sraw_voc Raw signal of VOC in ticks which is proportional to the logarithm of the resistance of the sensing element.
- * @param sraw_nox Raw signal of NOX in ticks which is proportional to the logarithm of the resistance of the sensing element.
+ * @param[in] sgp4x_handle SGP4X device handle.
+ * @param[in] temperature Temperature compensation in degree celcius.
+ * @param[in] humidity Humidity compensation in percentage.
+ * @param[out] sraw_voc Raw signal of VOC in ticks which is proportional to the logarithm of the resistance of the sensing element.
+ * @param[out] sraw_nox Raw signal of NOX in ticks which is proportional to the logarithm of the resistance of the sensing element.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sgp4x_measure_compensated_raw_signals(i2c_sgp4x_handle_t sgp4x_handle, const float temperature, const float humidity, uint16_t *sraw_voc, uint16_t *sraw_nox);
@@ -160,9 +160,9 @@ esp_err_t i2c_sgp4x_measure_compensated_raw_signals(i2c_sgp4x_handle_t sgp4x_han
 /**
  * @brief Starts and/or continues the VOC and NOX measurement mode using default temperature and humidity compensation.
  * 
- * @param sgp4x_handle SGP4X device handle.
- * @param sraw_voc Raw signal of VOC in ticks which is proportional to the logarithm of the resistance of the sensing element.
- * @param sraw_nox Raw signal of NOX in ticks which is proportional to the logarithm of the resistance of the sensing element.
+ * @param[in] sgp4x_handle SGP4X device handle.
+ * @param[out] sraw_voc Raw signal of VOC in ticks which is proportional to the logarithm of the resistance of the sensing element.
+ * @param[out] sraw_nox Raw signal of NOX in ticks which is proportional to the logarithm of the resistance of the sensing element.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sgp4x_measure_raw_signals(i2c_sgp4x_handle_t sgp4x_handle, uint16_t *sraw_voc, uint16_t *sraw_nox);
@@ -171,8 +171,8 @@ esp_err_t i2c_sgp4x_measure_raw_signals(i2c_sgp4x_handle_t sgp4x_handle, uint16_
  * @brief Performs the built-in self-test that checks for integrity of 
  * both hotplate and MOX material.
  * 
- * @param sgp4x_handle SGP4X device handle.
- * @param result Results of the self-tests.
+ * @param[in] sgp4x_handle SGP4X device handle.
+ * @param[out] result Results of the self-tests.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sgp4x_execute_self_test(i2c_sgp4x_handle_t sgp4x_handle, i2c_sgp4x_self_test_result_t *const result);
@@ -180,7 +180,7 @@ esp_err_t i2c_sgp4x_execute_self_test(i2c_sgp4x_handle_t sgp4x_handle, i2c_sgp4x
 /**
  * @brief Turns the hotplate off, stops the measurement, and SGP4X enters idle mode.
  * 
- * @param sgp4x_handle SGP4X device handle.
+ * @param[in] sgp4x_handle SGP4X device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sgp4x_turn_heater_off(i2c_sgp4x_handle_t sgp4x_handle);
@@ -188,7 +188,7 @@ esp_err_t i2c_sgp4x_turn_heater_off(i2c_sgp4x_handle_t sgp4x_handle);
 /**
  * @brief Issues soft-reset and initializes SGP4X.  See datasheet for details.
  *
- * @param sgp4x_handle SGP4X device handle.
+ * @param[in] sgp4x_handle SGP4X device handle.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_sgp4x_reset(i2c_sgp4x_handle_t sgp4x_handle);
@@ -199,15 +199,15 @@ esp_err_t i2c_sgp4x_reset(i2c_sgp4x_handle_t sgp4x_handle);
  * @param[in] sgp4x_handle SGP4X device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_sgp4x_rm(i2c_sgp4x_handle_t sgp4x_handle);
+esp_err_t i2c_sgp4x_remove(i2c_sgp4x_handle_t sgp4x_handle);
 
 /**
  * @brief Removes an SGP4X device from master bus and frees handle.
  * 
- * @param sgp4x_handle SGP4X device handle.
+ * @param[in] sgp4x_handle SGP4X device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_sgp4x_del(i2c_sgp4x_handle_t sgp4x_handle);
+esp_err_t i2c_sgp4x_delete(i2c_sgp4x_handle_t sgp4x_handle);
 
 
 #ifdef __cplusplus

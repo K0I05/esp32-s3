@@ -39,7 +39,6 @@
 #include <esp_log.h>
 #include <esp_check.h>
 #include <esp_timer.h>
-#include <i2c_master_ext.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -96,10 +95,10 @@ static inline esp_err_t i2c_ahtxx_calculate_dewpoint(const float temperature, co
 }
 
 esp_err_t i2c_ahtxx_setup(i2c_ahtxx_handle_t ahtxx_handle) {
-    i2c_uint24_t tx = { 0, I2C_AHTXX_CTRL_CALI, I2C_AHTXX_CTRL_NOP };;
-
     /* validate arguments */
     ESP_ARG_CHECK( ahtxx_handle );
+
+    i2c_uint24_t tx = { 0, I2C_AHTXX_CTRL_CALI, I2C_AHTXX_CTRL_NOP };
 
     if(ahtxx_handle->aht_type == I2C_AHTXX_AHT2X) {
         tx[0] = I2C_AHTXX_CMD_AHT2X_INIT;
@@ -120,14 +119,7 @@ esp_err_t i2c_ahtxx_get_status_register(i2c_ahtxx_handle_t ahtxx_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ahtxx_handle );
 
-    /* attempt i2c read transaction */
-    //ESP_RETURN_ON_ERROR( i2c_master_bus_read_uint8(ahtxx_handle->i2c_dev_handle, I2C_AHTXX_CMD_STATUS, &ahtxx_handle->status_reg.reg), TAG, "read status register failed" );
-
-
-    /* distinct calls for i2c transactions: transmit, delay, receive */
-
     i2c_uint8_t tx = { I2C_AHTXX_CMD_STATUS };
-    i2c_uint8_t rx = { 0 };
 
     /* attempt i2c write transaction */
     ESP_RETURN_ON_ERROR( i2c_master_transmit(ahtxx_handle->i2c_dev_handle, tx, I2C_UINT8_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_transmit, read status register failed" );
@@ -136,10 +128,7 @@ esp_err_t i2c_ahtxx_get_status_register(i2c_ahtxx_handle_t ahtxx_handle) {
     vTaskDelay(pdMS_TO_TICKS(I2C_AHTXX_TX_RX_DELAY_MS));
 
     /* attempt i2c read transaction */
-    ESP_RETURN_ON_ERROR( i2c_master_receive(ahtxx_handle->i2c_dev_handle, rx, I2C_UINT8_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_receive, read status register failed" );
-
-    /* set status register */
-    ahtxx_handle->status_reg.reg = rx[0];
+    ESP_RETURN_ON_ERROR( i2c_master_receive(ahtxx_handle->i2c_dev_handle, &ahtxx_handle->status_reg.reg, I2C_UINT8_SIZE, I2C_XFR_TIMEOUT_MS), TAG, "i2c_master_receive, read status register failed" );
 
     /* delay before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_AHTXX_CMD_DELAY_MS));
@@ -204,7 +193,7 @@ esp_err_t i2c_ahtxx_get_measurement(i2c_ahtxx_handle_t ahtxx_handle, float *cons
     //bool         is_busy    = true;
     uint32_t     raw       = 0;
     i2c_uint24_t tx         = { I2C_AHTXX_CMD_TRIGGER_MEAS, I2C_AHTXX_CTRL_MEAS, I2C_AHTXX_CTRL_NOP };
-    i2c_uint48_t rx         = { 0, 0, 0, 0, 0, 0 };
+    i2c_uint48_t rx         = { };
 
     /* validate arguments */
     ESP_ARG_CHECK( ahtxx_handle );
@@ -341,7 +330,7 @@ esp_err_t i2c_ahtxx_reset(i2c_ahtxx_handle_t ahtxx_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_ahtxx_rm(i2c_ahtxx_handle_t ahtxx_handle) {
+esp_err_t i2c_ahtxx_remove(i2c_ahtxx_handle_t ahtxx_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ahtxx_handle );
 
@@ -349,12 +338,12 @@ esp_err_t i2c_ahtxx_rm(i2c_ahtxx_handle_t ahtxx_handle) {
     return i2c_master_bus_rm_device(ahtxx_handle->i2c_dev_handle);
 }
 
-esp_err_t i2c_ahtxx_del(i2c_ahtxx_handle_t ahtxx_handle) {
+esp_err_t i2c_ahtxx_delete(i2c_ahtxx_handle_t ahtxx_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ahtxx_handle );
 
     /* remove device from master bus */
-    ESP_RETURN_ON_ERROR( i2c_ahtxx_rm(ahtxx_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
+    ESP_RETURN_ON_ERROR( i2c_ahtxx_remove(ahtxx_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
 
     /* validate handle instance and free handles */
     if(ahtxx_handle->i2c_dev_handle) {

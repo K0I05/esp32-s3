@@ -117,6 +117,6 @@ void i2c0_sgp4x_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_sgp4x_del( dev_hdl );
+    i2c_sgp4x_delete( dev_hdl );
     vTaskDelete( NULL );
 }

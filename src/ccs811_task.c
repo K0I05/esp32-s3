@@ -76,6 +76,6 @@ void i2c0_ccs811_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_ccs811_del( dev_hdl );
+    i2c_ccs811_delete( dev_hdl );
     vTaskDelete( NULL );
 }

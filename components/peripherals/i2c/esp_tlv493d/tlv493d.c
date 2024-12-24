@@ -39,7 +39,6 @@
 #include <esp_log.h>
 #include <esp_check.h>
 #include <esp_timer.h>
-#include <i2c_master_ext.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -525,7 +524,7 @@ esp_err_t i2c_tlv493d_get_data_status(i2c_tlv493d_handle_t tlv493d_handle, bool 
     return ESP_OK;
 }
 
-esp_err_t i2c_tlv493d_rm(i2c_tlv493d_handle_t tlv493d_handle) {
+esp_err_t i2c_tlv493d_remove(i2c_tlv493d_handle_t tlv493d_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( tlv493d_handle );
 
@@ -533,12 +532,12 @@ esp_err_t i2c_tlv493d_rm(i2c_tlv493d_handle_t tlv493d_handle) {
     return i2c_master_bus_rm_device(tlv493d_handle->i2c_dev_handle);
 }
 
-esp_err_t i2c_tlv493d_del(i2c_tlv493d_handle_t tlv493d_handle) {
+esp_err_t i2c_tlv493d_delete(i2c_tlv493d_handle_t tlv493d_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( tlv493d_handle );
 
     /* remove device from master bus */
-    ESP_RETURN_ON_ERROR( i2c_tlv493d_rm(tlv493d_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
+    ESP_RETURN_ON_ERROR( i2c_tlv493d_remove(tlv493d_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
 
     /* validate handle instance and free handles */
     if(tlv493d_handle->i2c_dev_handle) {

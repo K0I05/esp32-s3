@@ -76,6 +76,6 @@ void i2c0_tlv493d_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_tlv493d_del( dev_hdl );
+    i2c_tlv493d_delete( dev_hdl );
     vTaskDelete( NULL );
 }

@@ -52,23 +52,6 @@ extern "C" {
 #define I2C_HMC5883L_DEV_ADDR                   UINT8_C(0x1e)           //!< hmc5883l I2C address when ADDR pin floating/low
 
 
-#define I2C_HMC5883L_DEV_ID                     UINT32_C(0x00333448)    //!< Chip ID, "H43"
-#define I2C_HMC5883L_MEAS_TIMEOUT               (10000)                 //!< timeout in microseconds (6ms - data ready period after cmd)
-
-#define I2C_HMC5883L_REG_CONFIG_A               0x00
-#define I2C_HMC5883L_REG_CONFIG_B               0x01
-#define I2C_HMC5883L_REG_MODE                   0x02
-#define I2C_HMC5883L_REG_DATA_OUT_X_MSB         0x03
-#define I2C_HMC5883L_REG_DATA_OUT_X_LSB         0x04
-#define I2C_HMC5883L_REG_DATA_OUT_Z_MSB         0x05
-#define I2C_HMC5883L_REG_DATA_OUT_Z_LSB         0x06
-#define I2C_HMC5883L_REG_DATA_OUT_Y_MSB         0x07
-#define I2C_HMC5883L_REG_DATA_OUT_Y_LSB         0x08
-#define I2C_HMC5883L_REG_STATUS                 0x09
-#define I2C_HMC5883L_REG_IDENT_A                0x0a
-#define I2C_HMC5883L_REG_IDENT_B                0x0b
-#define I2C_HMC5883L_REG_IDENT_C                0x0c
-
 /*
  * macro definitions
 */
@@ -87,7 +70,7 @@ extern "C" {
 */
 
 /**
- * possible calibration options
+ * HMC5883L possible calibration options
  */
 typedef enum {
     I2C_HMC5883L_CAL_GAIN_DIFF = 1, /*!< calculates the diffrence in the gain of the each axis magnetometer axis */
@@ -96,7 +79,7 @@ typedef enum {
 } i2c_hmc5883l_calibration_options_t;
 
 /**
- * possible operating modes
+ * HMC5883L possible operating modes
  */
 typedef enum {
     I2C_HMC5883L_MODE_CONTINUOUS = (0b00), //!< Continuous mode
@@ -106,7 +89,7 @@ typedef enum {
 } i2c_hmc5883l_modes_t;
 
 /**
- * number of samples averaged per measurement
+ * HMC5883L number of samples averaged per measurement
  */
 typedef enum {
     I2C_HMC5883L_SAMPLE_1 = (0b00), //!< 1 sample, default
@@ -116,7 +99,7 @@ typedef enum {
 } i2c_hmc5883l_sample_averages_t;
 
 /**
- * possible data output rate in continuous measurement mode
+ * HMC5883L possible data output rate in continuous measurement mode
  */
 typedef enum {
     I2C_HMC5883L_DATA_RATE_00_75  = (0b000), //!< 0.75 Hz
@@ -130,7 +113,7 @@ typedef enum {
 } i2c_hmc5883l_data_rates_t;
 
 /**
- * possible measurement mode of the device (bias)
+ * HMC5883L possible measurement mode of the device (bias)
  */
 typedef enum {
     I2C_HMC5883L_BIAS_NORMAL   = (0b00), //!< Default flow, no bias
@@ -140,7 +123,7 @@ typedef enum {
 } i2c_hmc5883l_biases_t;
 
 /**
- * possible device gains
+ * HMC5883L possible device gains
  */
 typedef enum {
     I2C_HMC5883L_GAIN_1370 = (0b000), //!< 0.73 mG/LSb, range -0.88..+0.88 G
@@ -201,7 +184,7 @@ typedef union __attribute__((packed)) {
 } i2c_hmc5883l_status_register_t;
 
 /**
- * raw measurement result
+ * HMC5883L raw measurement result
  */
 typedef struct {
     int16_t x_axis;
@@ -210,7 +193,7 @@ typedef struct {
 } i2c_hmc5883l_axes_data_t;
 
 /**
- * measurement result, milligauss
+ * HMC5883L measurement result, milligauss
  */
 typedef struct {
     float x_axis;   /*!< x axis mG */
@@ -232,7 +215,7 @@ typedef struct {
 } i2c_hmc5883l_gain_error_axes_data_t;
 
 /**
- * @brief i2c hmc5883l device configuration.
+ * @brief i2c HMC5883L device configuration structure.
  */
 typedef struct {
     i2c_device_config_t             dev_config;     /*!< configuration for hmc5883l device */
@@ -245,91 +228,251 @@ typedef struct {
 } i2c_hmc5883l_config_t;
 
 /**
- * @brief i2c hmc5883l device handle.
+ * @brief i2c HMC5883L device structure.
  */
 struct i2c_hmc5883l_t {
-    i2c_master_dev_handle_t                 i2c_dev_handle; /*!< I2C device handle */
+    i2c_master_dev_handle_t                 i2c_dev_handle;     /*!< I2C device handle */
     i2c_hmc5883l_configuration1_register_t  config1_reg;
     i2c_hmc5883l_configuration2_register_t  config2_reg;
     i2c_hmc5883l_mode_register_t            mode_reg;
     i2c_hmc5883l_status_register_t          status_reg;
     uint32_t                                dev_id;
-    float                                   gain_value;     /*!< used measurement mode */
-    i2c_hmc5883l_modes_t                    mode;           /*!< operating mode */
-    i2c_hmc5883l_sample_averages_t          sample;         /*!< number of samples averaged */
-    i2c_hmc5883l_data_rates_t               rate;           /*!< data rate */
-    i2c_hmc5883l_gains_t                    gain;           /*!< used measurement mode */
-    i2c_hmc5883l_biases_t                   bias;           /*!< measurement mode (bias) */
-    float                                   declination;    /*!< magnetic declination angle http://www.magnetic-declination.com/ */
+    float                                   declination;        /*!< magnetic declination angle http://www.magnetic-declination.com/ */
     bool                                    gain_calibrated;
     bool                                    offset_calibrated;
     i2c_hmc5883l_offset_axes_data_t         offset_axes;
     i2c_hmc5883l_gain_error_axes_data_t     gain_error_axes;
 };
 
+/**
+ * @brief i2c HMC5883L device definition.
+ */
 typedef struct i2c_hmc5883l_t i2c_hmc5883l_t;
+
+/**
+ * @brief i2c HMC5883L device handle definition.
+ */
 typedef struct i2c_hmc5883l_t *i2c_hmc5883l_handle_t;
 
 
-
-
+/**
+ * @brief Reads configuration 1 register from HMC5883L.
+ * 
+ * @param[in] hmc5883l_handle HMC5883L device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
 esp_err_t i2c_hmc5883l_get_configuration1_register(i2c_hmc5883l_handle_t hmc5883l_handle);
-esp_err_t i2c_hmc5883l_set_configuration1_register(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_configuration1_register_t config1_reg);
-
-esp_err_t i2c_hmc5883l_get_configuration2_register(i2c_hmc5883l_handle_t hmc5883l_handle);
-esp_err_t i2c_hmc5883l_set_configuration2_register(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_configuration2_register_t config2_reg);
-
-esp_err_t i2c_hmc5883l_get_mode_register(i2c_hmc5883l_handle_t hmc5883l_handle);
-esp_err_t i2c_hmc5883l_set_mode_register(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_mode_register_t mode_reg);
-
-esp_err_t i2c_hmc5883l_get_status_register(i2c_hmc5883l_handle_t hmc5883l_handle);
-
-esp_err_t i2c_hmc5883l_get_data_status(i2c_hmc5883l_handle_t hmc5883l_handle, bool *ready, bool *locked);
-
-esp_err_t i2c_hmc5883l_get_mode(i2c_hmc5883l_handle_t hmc5883l_handle);
-esp_err_t i2c_hmc5883l_set_mode(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_modes_t mode);
-
-esp_err_t i2c_hmc5883l_get_samples_averaged(i2c_hmc5883l_handle_t hmc5883l_handle);
-esp_err_t i2c_hmc5883l_set_samples_averaged(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_sample_averages_t sample);
-
-esp_err_t i2c_hmc5883l_get_data_rate(i2c_hmc5883l_handle_t hmc5883l_handle);
-esp_err_t i2c_hmc5883l_set_data_rate(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_data_rates_t rate);
-
-esp_err_t i2c_hmc5883l_get_bias(i2c_hmc5883l_handle_t hmc5883l_handle);
-esp_err_t i2c_hmc5883l_set_bias(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_biases_t bias);
-
-esp_err_t i2c_hmc5883l_get_gain(i2c_hmc5883l_handle_t hmc5883l_handle);
-esp_err_t i2c_hmc5883l_set_gain(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_gains_t gain);
 
 /**
- * @brief initializes an hmc5883l device onto the I2C master bus.
+ * @brief Writes configuration 1 register to HMC5883L.
+ * 
+ * @param[in] hmc5883l_handle HMC5883L device handle.
+ * @param[in] config1_reg Configuration 1 register.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_set_configuration1_register(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_configuration1_register_t config1_reg);
+
+/**
+ * @brief Reads configuration 2 register from HMC5883L.
+ * 
+ * @param[in] hmc5883l_handle HMC5883L device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_get_configuration2_register(i2c_hmc5883l_handle_t hmc5883l_handle);
+
+/**
+ * @brief Writes configuration 2 register to HMC5883L.
+ * 
+ * @param[in] hmc5883l_handle HMC5883L device handle.
+ * @param[in] config2_reg Configuration 2 register.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_set_configuration2_register(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_configuration2_register_t config2_reg);
+
+/**
+ * @brief Reads mode register from HMC5883L.
+ * 
+ * @param[in] hmc5883l_handle HMC5883L device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_get_mode_register(i2c_hmc5883l_handle_t hmc5883l_handle);
+
+/**
+ * @brief Writes mode register to HMC5883L.
+ * 
+ * @param[in] hmc5883l_handle HMC5883L device handle.
+ * @param[in] mode_reg Mode register.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_set_mode_register(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_mode_register_t mode_reg);
+
+/**
+ * @brief Reads status register from HMC5883L.
+ * 
+ * @param[in] hmc5883l_handle HMC5883L device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_get_status_register(i2c_hmc5883l_handle_t hmc5883l_handle);
+
+/**
+ * @brief Initializes an HMC5883L device onto the I2C master bus.
  *
- * @param[in] bus_handle I2C master bus handle
- * @param[in] hmc5883l_config configuration of hmc5883l device
- * @param[out] hmc5883l_handle hmc5883l device handle
- * @return ESP_OK: init success.
+ * @param[in] bus_handle I2C master bus handle.
+ * @param[in] hmc5883l_config Configuration of HMC5883L device.
+ * @param[out] hmc5883l_handle HMC5883L device handle.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_hmc5883l_init(i2c_master_bus_handle_t bus_handle, const i2c_hmc5883l_config_t *hmc5883l_config, i2c_hmc5883l_handle_t *hmc5883l_handle);
 
-esp_err_t i2c_hmc5883l_get_compass(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_compass_axes_data_t *compass_axes_data);
+/**
+ * @brief Reads uncompensated axes measurements from HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param axes_data Uncompensated axes measurements (x, y, and z axes).
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_get_fixed_compass_axes(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_axes_data_t *const axes_data);
+
+/**
+ * @brief Reads compensated compass axes measurements from HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param compass_axes_data Compensated compass axes measurements (x, y, and z axes).
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_get_compass_axes(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_compass_axes_data_t *const compass_axes_data);
+
+
+/* under test */
 
 esp_err_t i2c_hmc5883l_get_calibrated_offsets(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_calibration_options_t option);
 
-/**
- * @brief removes an hmc5883l device from master bus.
- *
- * @param[in] hmc5883l_handle hmc5883l device handle
- * @return ESP_OK: init success.
- */
-esp_err_t i2c_hmc5883l_rm(i2c_hmc5883l_handle_t hmc5883l_handle);
+
 
 /**
- * @brief Removes an hmc5883l device from master bus and frees handle.
+ * @brief Reads data status from HMC5883L.
  * 
- * @param hmc5883l_handle hmc5883l device handle.
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param ready HMC5883L data is ready.
+ * @param locked HMC5883L data is locked.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_hmc5883l_del(i2c_hmc5883l_handle_t hmc5883l_handle);
+esp_err_t i2c_hmc5883l_get_data_status(i2c_hmc5883l_handle_t hmc5883l_handle, bool *const ready, bool *const locked);
+
+/**
+ * @brief Reads operating mode setting from HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param mode HMC5883L operating mode setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+
+esp_err_t i2c_hmc5883l_get_mode(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_modes_t *const mode);
+/**
+ * @brief Writes operating mode setting to HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param mode HMC5883L operating mode setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_set_mode(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_modes_t mode);
+
+/**
+ * @brief Reads samples averaged setting from HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param sample HMC5883L samples averaged setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_get_samples_averaged(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_sample_averages_t *const sample);
+
+/**
+ * @brief Writes samples averaged setting to HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param sample HMC5883L samples averaged setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_set_samples_averaged(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_sample_averages_t sample);
+
+/**
+ * @brief Reads data rate setting from HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param rate HMC5883L data rate setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_get_data_rate(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_data_rates_t *const rate);
+
+/**
+ * @brief Writes data rate setting to HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param rate HMC5883L data rate setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_set_data_rate(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_data_rates_t rate);
+
+/**
+ * @brief Reads measurement mode bias setting from HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param bias HMC5883L measurement mode bias setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_get_bias(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_biases_t *const bias);
+
+/**
+ * @brief Writes measurement mode bias setting to HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param bias HMC5883L measurement mode bias setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_set_bias(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_biases_t bias);
+
+/**
+ * @brief Reads gain setting from HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param gain HMC5883L gain setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_get_gain(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_gains_t *const gain);
+
+/**
+ * @brief Writes gain setting to HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param gain HMC5883L gain setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_set_gain(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_gains_t gain);
+
+/**
+ * @brief Reads gain sensitivity setting from HMC5883L.
+ * 
+ * @param hmc5883l_handle HMC5883L device handle.
+ * @param sensitivity HMC5883L gain sensitivity setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_get_gain_sensitivity(i2c_hmc5883l_handle_t hmc5883l_handle, float *const sensitivity);
+
+/**
+ * @brief Removes an HMC5883L device from master bus.
+ *
+ * @param[in] hmc5883l_handle HMC5883L device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_remove(i2c_hmc5883l_handle_t hmc5883l_handle);
+
+/**
+ * @brief Removes an HMC5883L device from master bus and frees handle.
+ * 
+ * @param[in] hmc5883l_handle HMC5883L device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_hmc5883l_delete(i2c_hmc5883l_handle_t hmc5883l_handle);
 
 
 

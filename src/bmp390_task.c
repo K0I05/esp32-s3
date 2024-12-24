@@ -53,23 +53,22 @@ void i2c0_bmp390_task( void *pvParameters ) {
         ESP_LOGE(APP_TAG, "bmp390 handle init failed");
         assert(dev_hdl);
     }
-    //
-    //
-    //
-    ESP_LOGI(APP_TAG, "Configuration (0x%02x): %s", dev_hdl->config_reg.reg, uint8_to_binary(dev_hdl->config_reg.reg));
-    ESP_LOGI(APP_TAG, "Oversampling  (0x%02x): %s", dev_hdl->oversampling_reg.reg, uint8_to_binary(dev_hdl->oversampling_reg.reg));
-    ESP_LOGI(APP_TAG, "Data Rate     (0x%02x): %s", dev_hdl->output_data_rate_reg.reg, uint8_to_binary(dev_hdl->output_data_rate_reg.reg));
-    ESP_LOGI(APP_TAG, "Power Control (0x%02x): %s", dev_hdl->power_ctrl_reg.reg, uint8_to_binary(dev_hdl->power_ctrl_reg.reg));
-    ESP_LOGI(APP_TAG, "Int Control   (0x%02x): %s", dev_hdl->interrupt_ctrl_reg.reg, uint8_to_binary(dev_hdl->interrupt_ctrl_reg.reg));
 
-    if(dev_hdl->interrupt_ctrl_reg.bits.int_data_ready_enabled) ESP_LOGE(APP_TAG, "bmp390 int data ready is enabled");
-    //
+    ESP_LOGI(APP_TAG, "Configuration (0x%02x): %s", dev_hdl->config_reg.reg,           uint8_to_binary(dev_hdl->config_reg.reg));
+    ESP_LOGI(APP_TAG, "Oversampling  (0x%02x): %s", dev_hdl->oversampling_reg.reg,     uint8_to_binary(dev_hdl->oversampling_reg.reg));
+    ESP_LOGI(APP_TAG, "Data Rate     (0x%02x): %s", dev_hdl->output_data_rate_reg.reg, uint8_to_binary(dev_hdl->output_data_rate_reg.reg));
+    ESP_LOGI(APP_TAG, "Power Control (0x%02x): %s", dev_hdl->power_ctrl_reg.reg,       uint8_to_binary(dev_hdl->power_ctrl_reg.reg));
+    ESP_LOGI(APP_TAG, "Int Control   (0x%02x): %s", dev_hdl->interrupt_ctrl_reg.reg,   uint8_to_binary(dev_hdl->interrupt_ctrl_reg.reg));
+
+    if(dev_hdl->interrupt_ctrl_reg.bits.irq_data_ready_enabled) ESP_LOGE(APP_TAG, "bmp390 irq data ready is enabled");
+
     // task loop entry point
     for ( ;; ) {
         ESP_LOGI(APP_TAG, "######################## BMP390 - START #########################");
         //
         // handle sensor
         i2c_bmp390_set_power_mode(dev_hdl, I2C_BMP390_POWER_MODE_FORCED);
+
         float temperature, pressure;
         esp_err_t result = i2c_bmp390_get_measurements(dev_hdl, &temperature, &pressure);
         if(result != ESP_OK) {
@@ -88,6 +87,6 @@ void i2c0_bmp390_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_bmp390_del( dev_hdl );
+    i2c_bmp390_delete( dev_hdl );
     vTaskDelete( NULL );
 }

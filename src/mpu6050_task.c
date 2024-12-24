@@ -31,6 +31,7 @@
  *
  * MIT Licensed as described in the file LICENSE
  */
+#include <math.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_log.h>
@@ -76,24 +77,30 @@ void i2c0_mpu6050_task( void *pvParameters ) {
         if(result != ESP_OK) {
             ESP_LOGE(APP_TAG, "mpu6050 device read failed (%s)", esp_err_to_name(result));
         } else {
-            ESP_LOGI(APP_TAG, "Accelorometer X-Axis: %f", accel_data.x_axis);
-            ESP_LOGI(APP_TAG, "Accelorometer Y-Axis: %f", accel_data.y_axis);
-            ESP_LOGI(APP_TAG, "Accelorometer Z-Axis: %f", accel_data.z_axis);
-            ESP_LOGI(APP_TAG, "Gyroscope X-Axis:     %f", gyro_data.x_axis);
-            ESP_LOGI(APP_TAG, "Gyroscope Y-Axis:     %f", gyro_data.y_axis);
-            ESP_LOGI(APP_TAG, "Gyroscope Z-Axis:     %f", gyro_data.z_axis);
-            ESP_LOGI(APP_TAG, "Temperature:          %f", temperature);
+            /* pitch and roll */
+            float pitch = atanf(accel_data.x_axis / sqrtf(powf(accel_data.y_axis, 2.0f) + powf(accel_data.z_axis, 2.0f)));
+            float roll  = atanf(accel_data.y_axis / sqrtf(powf(accel_data.x_axis, 2.0f) + powf(accel_data.z_axis, 2.0f)));
+
+            ESP_LOGI(APP_TAG, "Accelorometer X-Axis: %fg", accel_data.x_axis);
+            ESP_LOGI(APP_TAG, "Accelorometer Y-Axis: %fg", accel_data.y_axis);
+            ESP_LOGI(APP_TAG, "Accelorometer Z-Axis: %fg", accel_data.z_axis);
+            ESP_LOGI(APP_TAG, "Gyroscope X-Axis:     %f°/sec", gyro_data.x_axis);
+            ESP_LOGI(APP_TAG, "Gyroscope Y-Axis:     %f°/sec", gyro_data.y_axis);
+            ESP_LOGI(APP_TAG, "Gyroscope Z-Axis:     %f°/sec", gyro_data.z_axis);
+            ESP_LOGI(APP_TAG, "Temperature:          %f°C", temperature);
+            ESP_LOGI(APP_TAG, "Pitch Angle:          %f°", pitch);
+            ESP_LOGI(APP_TAG, "Roll Angle:           %f°", roll);
         }
         //
         ESP_LOGI(APP_TAG, "######################## MPU6050 - END ###########################");
         //
         //
         // pause the task per defined wait period
-        vTaskDelaySecUntil( &last_wake_time, I2C0_TASK_SAMPLING_RATE / 2 );
-        //vTaskDelaySecUntil( &last_wake_time, 1 );
+        //vTaskDelaySecUntil( &last_wake_time, I2C0_TASK_SAMPLING_RATE / 2 );
+        vTaskDelaySecUntil( &last_wake_time, 1 );
     }
     //
     // free resources
-    i2c_mpu6050_del( dev_hdl );
+    i2c_mpu6050_delete( dev_hdl );
     vTaskDelete( NULL );
 }

@@ -63,7 +63,7 @@ void i2c0_hmc5883l_task( void *pvParameters ) {
         //
         // handle sensor
         i2c_hmc5883l_compass_axes_data_t compass_axes;
-        esp_err_t result = i2c_hmc5883l_get_compass(dev_hdl, &compass_axes);
+        esp_err_t result = i2c_hmc5883l_get_compass_axes(dev_hdl, &compass_axes);
         if(result != ESP_OK) {
             ESP_LOGE(APP_TAG, "hmc5883l device read failed (%s)", esp_err_to_name(result));
         } else {
@@ -81,6 +81,6 @@ void i2c0_hmc5883l_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_hmc5883l_del( dev_hdl );
+    i2c_hmc5883l_delete( dev_hdl );
     vTaskDelete( NULL );
 }

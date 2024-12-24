@@ -203,7 +203,6 @@ typedef union __attribute__((packed)) {
 
 /**
  * @brief ENS160 air quality data structure.
- * 
  */
 typedef struct {
     i2c_ens160_aqi_uba_indexes_t    uba_aqi;    /*!< ENS160 air quality index according to the UBA */
@@ -213,7 +212,6 @@ typedef struct {
 
 /**
  * @brief ENS160 air quality raw data structure.
- * 
  */
 typedef struct {
     uint32_t                        hp0_rs;     /*!< */
@@ -242,31 +240,30 @@ typedef struct I2C_ENS160_AQI_UBA_ROW_TAG {
  * @brief ENS160 I2C device configuration structure.
  */
 typedef struct {
-    i2c_device_config_t                     dev_config;       /*!< I2C configuration for ens160 device */
-    bool                                    irq_enabled;      /*!< true indicates interrupt pin is enabled  */
-    bool                                    irq_data_enabled; /*!< true indicates interrupt pin is asserted when new data is available in `DATA_XXX` registers   */
-    bool                                    irq_gpr_enabled;  /*!< true indicates interrupt pin is asserted when new data is available in general purpose registers  */
-    i2c_ens160_interrupt_pin_drivers_t      irq_pin_driver;   /*!< interrupt pin driver configuration   */
-    i2c_ens160_interrupt_pin_polarities_t   irq_pin_polarity; /*!< interrupt pin polarity configuration  */
+    i2c_device_config_t                     dev_config;         /*!< I2C configuration for ens160 device */
+    bool                                    irq_enabled;        /*!< true indicates interrupt pin is enabled  */
+    bool                                    irq_data_enabled;   /*!< true indicates interrupt pin is asserted when new data is available in `DATA_XXX` registers   */
+    bool                                    irq_gpr_enabled;    /*!< true indicates interrupt pin is asserted when new data is available in general purpose registers  */
+    i2c_ens160_interrupt_pin_drivers_t      irq_pin_driver;     /*!< interrupt pin driver configuration   */
+    i2c_ens160_interrupt_pin_polarities_t   irq_pin_polarity;   /*!< interrupt pin polarity configuration  */
 } i2c_ens160_config_t;
 
 /**
  * @brief ENS160 I2C device structure.
  */
 struct i2c_ens160_t {
-    i2c_master_dev_handle_t                 i2c_dev_handle;  /*!< I2C device handle */
-    bool                                    sleeping;           /*!< ens160 flag when true the device is in sleep mode */
+    i2c_master_dev_handle_t                 i2c_dev_handle;     /*!< I2C device handle */
     i2c_ens160_interrupt_config_register_t  irq_config_reg;     /*!< ens160 interrupt configuration register */
     i2c_ens160_status_register_t            status_reg;         /*!< ens160 status register */
     uint16_t                                part_id;            /*!< ens160 part identifier */
     i2c_ens160_operating_modes_t            mode;               /*!< ens160 operating mode */
-    float                                   temperature_comp;   /*!< ens160 temperature compensation register in degrees Celsius */
-    float                                   humidity_comp;      /*!< ens160 humidity compensation register in percentage */
-    bool                                    irq_enabled;      /*!< true indicates interrupt pin is enabled  */
-    bool                                    irq_data_enabled; /*!< true indicates interrupt pin is asserted when new data is available in `DATA_XXX` registers   */
-    bool                                    irq_gpr_enabled;  /*!< true indicates interrupt pin is asserted when new data is available in general purpose registers  */
-    i2c_ens160_interrupt_pin_drivers_t      irq_pin_driver;   /*!< interrupt pin driver configuration   */
-    i2c_ens160_interrupt_pin_polarities_t   irq_pin_polarity; /*!< interrupt pin polarity configuration  */
+    float                                   temperature_comp;   /*!< ens160 temperature compensation in degrees Celsius */
+    float                                   humidity_comp;      /*!< ens160 humidity compensation in percentage */
+    bool                                    irq_enabled;        /*!< true indicates interrupt pin is enabled  */
+    bool                                    irq_data_enabled;   /*!< true indicates interrupt pin is asserted when new data is available in `DATA_XXX` registers   */
+    bool                                    irq_gpr_enabled;    /*!< true indicates interrupt pin is asserted when new data is available in general purpose registers  */
+    i2c_ens160_interrupt_pin_drivers_t      irq_pin_driver;     /*!< interrupt pin driver configuration   */
+    i2c_ens160_interrupt_pin_polarities_t   irq_pin_polarity;   /*!< interrupt pin polarity configuration  */
 };
 
 /**
@@ -294,7 +291,7 @@ esp_err_t i2c_ens160_get_interrupt_config_register(i2c_ens160_handle_t ens160_ha
  * @param[in] irq_config_reg ENS160 interrupt configuration register.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_set_interrupt_config_register(i2c_ens160_handle_t ens160_handle, i2c_ens160_interrupt_config_register_t irq_config_reg);
+esp_err_t i2c_ens160_set_interrupt_config_register(i2c_ens160_handle_t ens160_handle, const i2c_ens160_interrupt_config_register_t irq_config_reg);
 
 /**
  * @brief Reads status register from ENS160.
@@ -328,21 +325,21 @@ esp_err_t i2c_ens160_get_compensation_registers(i2c_ens160_handle_t ens160_handl
  * @param[in] humidity humidity compensation in percentage.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_set_compensation_registers(i2c_ens160_handle_t ens160_handle, float temperature, float humidity);
+esp_err_t i2c_ens160_set_compensation_registers(i2c_ens160_handle_t ens160_handle, const float temperature, const float humidity);
 
 /**
- * @brief Reads part identifier from ENS160.
+ * @brief Reads part identifier register from ENS160.
  *
  * @param[in] ens160_handle ENS160 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_get_part_id(i2c_ens160_handle_t ens160_handle);
+esp_err_t i2c_ens160_get_part_id_register(i2c_ens160_handle_t ens160_handle);
 
 /**
  * @brief Initializes an ENS160 device onto the I2C master bus.
  *
  * @param[in] bus_handle I2C master bus handle.
- * @param[in] ens160_config configuration of ENS160 device.
+ * @param[in] ens160_config Configuration of ENS160 device.
  * @param[out] ens160_handle ENS160 device handle.
  * @return esp_err_t ESP_OK on success.
  */
@@ -350,23 +347,21 @@ esp_err_t i2c_ens160_init(i2c_master_bus_handle_t bus_handle, const i2c_ens160_c
 
 /**
  * @brief Reads caculated air quality measurements from ENS160.
- *
  * 
  * @param[in] ens160_handle ENS160 device handle.
  * @param[out] data ENS160 air quality data structure.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_get_measurement(i2c_ens160_handle_t ens160_handle, i2c_ens160_air_quality_data_t *data);
+esp_err_t i2c_ens160_get_measurement(i2c_ens160_handle_t ens160_handle, i2c_ens160_air_quality_data_t *const data);
 
 /**
  * @brief Reads raw air quality measurements from ENS160.
  *
- * 
  * @param[in] ens160_handle ENS160 device handle.
  * @param[out] data ENS160 air quality raw data structure.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_get_raw_measurement(i2c_ens160_handle_t ens160_handle, i2c_ens160_air_quality_raw_data_t *data);
+esp_err_t i2c_ens160_get_raw_measurement(i2c_ens160_handle_t ens160_handle, i2c_ens160_air_quality_raw_data_t *const data);
 
 /**
  * @brief Reads data ready status from ENS160.
@@ -375,7 +370,7 @@ esp_err_t i2c_ens160_get_raw_measurement(i2c_ens160_handle_t ens160_handle, i2c_
  * @param[out] ready ENS160 data ready status.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_get_data_status(i2c_ens160_handle_t ens160_handle, bool *ready);
+esp_err_t i2c_ens160_get_data_status(i2c_ens160_handle_t ens160_handle, bool *const ready);
 
 /**
  * @brief Reads general purpose registers data ready status from ENS160.
@@ -384,7 +379,7 @@ esp_err_t i2c_ens160_get_data_status(i2c_ens160_handle_t ens160_handle, bool *re
  * @param[out] ready ENS160 general purpose registers data ready status.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_get_gpr_data_status(i2c_ens160_handle_t ens160_handle, bool *ready);
+esp_err_t i2c_ens160_get_gpr_data_status(i2c_ens160_handle_t ens160_handle, bool *const ready);
 
 /**
  * @brief Read validity flag status, device status and signal rating, from ENS160.
@@ -393,25 +388,25 @@ esp_err_t i2c_ens160_get_gpr_data_status(i2c_ens160_handle_t ens160_handle, bool
  * @param[out] state ENS160 validity flag status.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_get_validity_status(i2c_ens160_handle_t ens160_handle, i2c_ens160_validity_flags_t *state);
+esp_err_t i2c_ens160_get_validity_status(i2c_ens160_handle_t ens160_handle, i2c_ens160_validity_flags_t *const state);
 
 /**
  * @brief Read error status from ENS160.
  *
  * @param[in] ens160_handle ENS160 device handle.
- * @param[out] error ENS160 error status.
+ * @param[out] error ENS160 error status, true indicates an error.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_get_error_status(i2c_ens160_handle_t ens160_handle, bool *error);
+esp_err_t i2c_ens160_get_error_status(i2c_ens160_handle_t ens160_handle, bool *const error);
 
 /**
  * @brief Read operating mode status from ENS160.
  *
  * @param[in] ens160_handle ENS160 device handle.
- * @param[out] mode ENS160 operating mode status, true indicate an operating mode is running.
+ * @param[out] mode ENS160 operating mode status, true indicates an operating mode is running.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_get_mode_status(i2c_ens160_handle_t ens160_handle, bool *mode);
+esp_err_t i2c_ens160_get_mode_status(i2c_ens160_handle_t ens160_handle, bool *const mode);
 
 /**
  * @brief Reads data ready, general purpose registers data ready, validity flag, and error status from ENS160.
@@ -424,33 +419,53 @@ esp_err_t i2c_ens160_get_mode_status(i2c_ens160_handle_t ens160_handle, bool *mo
  * @param[out] mode ENS160 operating mode status.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_get_status(i2c_ens160_handle_t ens160_handle, bool *data_ready, bool *gpr_data_ready, i2c_ens160_validity_flags_t *state, bool *error, bool *mode);
+esp_err_t i2c_ens160_get_status(i2c_ens160_handle_t ens160_handle, bool *const data_ready, bool *const gpr_data_ready, i2c_ens160_validity_flags_t *const state, bool *const error, bool *const mode);
 
 /**
- * @brief Issues operational mode to ENS160 to operate as a gas sensor and respond to commands.
+ * @brief Reads temperature and humidity compensation factors from ENS160.
+ * 
+ * @param ens160_handle ENS160 device handle.
+ * @param temperature ENS160 temperature compensation in degrees celsius.
+ * @param humidity ENS160 humidity compensation in percentage.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_ens160_get_compensation_factors(i2c_ens160_handle_t ens160_handle, float *const temperature, float *const humidity);
+
+/**
+ * @brief Writes temperature and humidity compensation factors to ENS160.
+ * 
+ * @param ens160_handle ENS160 device handle.
+ * @param temperature ENS160 temperature compensation in degrees celsius.
+ * @param humidity ENS160 humidity compensation in percentage.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_ens160_set_compensation_factors(i2c_ens160_handle_t ens160_handle, const float temperature, const float humidity);
+
+/**
+ * @brief Enables standard operating mode to ENS160 to operate as a gas sensor and respond to commands.
  *
  * @param[in] ens160_handle ENS160 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_operational(i2c_ens160_handle_t ens160_handle);
+esp_err_t i2c_ens160_enable_standard_mode(i2c_ens160_handle_t ens160_handle);
 
 /**
- * @brief Issues idle mode to ENS160 to respond to commands.
+ * @brief Enables idle operating mode to ENS160 to respond to commands.
  *
  * @param[in] ens160_handle ENS160 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_idle(i2c_ens160_handle_t ens160_handle);
+esp_err_t i2c_ens160_enable_idle_mode(i2c_ens160_handle_t ens160_handle);
 
 /**
- * @brief Issues deep sleep mode to ENS160.
+ * @brief Enables deep sleep operating mode to ENS160.
  * 
  * @note The ENS160 will not respond to commands unless it is placed in idle or operational mode.
  *
  * @param[in] ens160_handle ENS160 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_deep_sleep(i2c_ens160_handle_t ens160_handle);
+esp_err_t i2c_ens160_enable_deep_sleep_mode(i2c_ens160_handle_t ens160_handle);
 
 /**
  * @brief Issues soft-reset and initializes ENS160 to idle mode.
@@ -468,7 +483,7 @@ esp_err_t i2c_ens160_reset(i2c_ens160_handle_t ens160_handle);
  * @param[in] ens160_handle ENS160 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_rm(i2c_ens160_handle_t ens160_handle);
+esp_err_t i2c_ens160_remove(i2c_ens160_handle_t ens160_handle);
 
 /**
  * @brief Removes an ENS160 device from master bus and frees handle.
@@ -476,7 +491,7 @@ esp_err_t i2c_ens160_rm(i2c_ens160_handle_t ens160_handle);
  * @param ens160_handle ENS160 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ens160_del(i2c_ens160_handle_t ens160_handle);
+esp_err_t i2c_ens160_delete(i2c_ens160_handle_t ens160_handle);
 
 /**
  * @brief Decodes ENS160 air quality index to a uba definition row.

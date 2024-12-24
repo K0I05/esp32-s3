@@ -114,49 +114,6 @@ static inline size_t i2c_bh1750_get_tick_duration(i2c_bh1750_handle_t bh1750_han
     return res == 0 ? 1 : res;
 }
 
-esp_err_t i2c_bh1750_set_measurement_mode(i2c_bh1750_handle_t bh1750_handle, const i2c_bh1750_measurement_modes_t mode) {
-    /* validate arguments */
-    ESP_ARG_CHECK( bh1750_handle );
-
-    /* attempt to write measurement mode */
-    ESP_RETURN_ON_ERROR(i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, mode), TAG, "write measurement mode command failed");
-
-    /* set handle measurement mode parameter */
-    bh1750_handle->mode = mode;
-
-    ESP_LOGD(TAG, "i2c_bh1750_set_measurement_mode (VAL = 0x%02x)", mode);
-
-    /* set handle power status */
-     if(bh1750_handle->mode == I2C_BH1750_MODE_OM_HI_RESOLUTION ||
-        bh1750_handle->mode == I2C_BH1750_MODE_OM_HI2_RESOLUTION ||
-        bh1750_handle->mode == I2C_BH1750_MODE_OM_LO_RESOLUTION) bh1750_handle->power_enabled = false;
-
-    /* delay before next i2c transaction */
-    vTaskDelay(pdMS_TO_TICKS(I2C_BH1750_CMD_DELAY_MS));
-
-    return ESP_OK;
-}
-
-esp_err_t i2c_bh1750_set_measurement_time(i2c_bh1750_handle_t bh1750_handle, const uint8_t timespan) {
-    /* validate arguments */
-    ESP_ARG_CHECK( bh1750_handle );
-
-    /* validate timespan */
-    if(timespan < 31 || timespan > 254) return ESP_ERR_INVALID_ARG;
-
-    /* attempt to write measurement hi and lo timespan */
-    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_OPCODE_MT_HI | (timespan >> 5)) );
-    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_OPCODE_MT_LO | (timespan >> 0x1f)) );
-
-    /* set handle measurement timespan parameter */
-    bh1750_handle->timespan = timespan;
-
-    /* delay before next i2c transaction */
-    vTaskDelay(pdMS_TO_TICKS(I2C_BH1750_CMD_DELAY_MS));
-
-    return ESP_OK;
-}
-
 esp_err_t i2c_bh1750_init(i2c_master_bus_handle_t bus_handle, const i2c_bh1750_config_t *bh1750_config, i2c_bh1750_handle_t *bh1750_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( bus_handle && bh1750_config );
@@ -193,14 +150,14 @@ esp_err_t i2c_bh1750_init(i2c_master_bus_handle_t bus_handle, const i2c_bh1750_c
     /* validate power status */
     if(bh1750_config->power_enabled == true) {
         /* attempt to power up device */
-        ESP_GOTO_ON_ERROR(i2c_bh1750_power_up(out_handle), err_handle, TAG, "unable to power-up device, bh1750 device handle initialization failed");
+        ESP_GOTO_ON_ERROR(i2c_bh1750_enable_power(out_handle), err_handle, TAG, "unable to power-up device, bh1750 device handle initialization failed");
     }
 
     /* validate measurement time */
     if(bh1750_config->set_timespan == true) {
         if(bh1750_config->power_enabled == false) {
             /* attempt to power up device */
-            ESP_GOTO_ON_ERROR(i2c_bh1750_power_up(out_handle), err_handle, TAG, "unable to power-up device, bh1750 device handle initialization failed");
+            ESP_GOTO_ON_ERROR(i2c_bh1750_enable_power(out_handle), err_handle, TAG, "unable to power-up device, bh1750 device handle initialization failed");
         }
 
         /* attempt to write measurement time */
@@ -225,54 +182,6 @@ esp_err_t i2c_bh1750_init(i2c_master_bus_handle_t bus_handle, const i2c_bh1750_c
         free(out_handle);
     err:
         return ret;
-}
-
-esp_err_t i2c_bh1750_reset(i2c_bh1750_handle_t bh1750_handle) {
-    /* validate arguments */
-    ESP_ARG_CHECK( bh1750_handle );
-
-    /* attempt i2c write transaction */
-    ESP_RETURN_ON_ERROR(i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_RESET), TAG, "write soft-reset command failed");
-
-    /* set handle power status */
-    bh1750_handle->power_enabled = false;
-
-    /* delay before next command - power cycle */
-    vTaskDelay(pdMS_TO_TICKS(I2C_BH1750_RESET_DELAY_MS));
-
-    return ESP_OK;
-}
-
-esp_err_t i2c_bh1750_power_up(i2c_bh1750_handle_t bh1750_handle) {
-    /* validate arguments */
-    ESP_ARG_CHECK( bh1750_handle );
-
-    /* attempt i2c write transaction */
-    ESP_RETURN_ON_ERROR(i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_UP), TAG, "write power-up command failed");
-
-    /* set handle power status */
-    bh1750_handle->power_enabled = true;
-
-    /* delay before next command - power cycle */
-    vTaskDelay(pdMS_TO_TICKS(I2C_BH1750_POWERUP_DELAY_MS));
-
-    return ESP_OK;
-}
-
-esp_err_t i2c_bh1750_power_down(i2c_bh1750_handle_t bh1750_handle) {
-    /* validate arguments */
-    ESP_ARG_CHECK( bh1750_handle );
-
-    /* attempt i2c write transaction */
-    ESP_RETURN_ON_ERROR(i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_DOWN), TAG, "write power-down command failed");
-
-    /* set handle power status */
-    bh1750_handle->power_enabled = false;
-
-    /* delay before next command - power cycle */
-    vTaskDelay(pdMS_TO_TICKS(I2C_BH1750_POWERUP_DELAY_MS));
-
-    return ESP_OK;
 }
 
 esp_err_t i2c_bh1750_get_ambient_light(i2c_bh1750_handle_t bh1750_handle, float *const lux) {
@@ -323,19 +232,110 @@ esp_err_t i2c_bh1750_get_ambient_light(i2c_bh1750_handle_t bh1750_handle, float 
     return ESP_OK;
 }
 
-esp_err_t i2c_bh1750_rm(i2c_bh1750_handle_t bh1750_handle) {
+esp_err_t i2c_bh1750_set_measurement_mode(i2c_bh1750_handle_t bh1750_handle, const i2c_bh1750_measurement_modes_t mode) {
+    /* validate arguments */
+    ESP_ARG_CHECK( bh1750_handle );
+
+    /* attempt to write measurement mode */
+    ESP_RETURN_ON_ERROR(i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, mode), TAG, "write measurement mode command failed");
+
+    /* set handle measurement mode parameter */
+    bh1750_handle->mode = mode;
+
+    ESP_LOGD(TAG, "i2c_bh1750_set_measurement_mode (VAL = 0x%02x)", mode);
+
+    /* set handle power status */
+     if(bh1750_handle->mode == I2C_BH1750_MODE_OM_HI_RESOLUTION ||
+        bh1750_handle->mode == I2C_BH1750_MODE_OM_HI2_RESOLUTION ||
+        bh1750_handle->mode == I2C_BH1750_MODE_OM_LO_RESOLUTION) bh1750_handle->power_enabled = false;
+
+    /* delay before next i2c transaction */
+    vTaskDelay(pdMS_TO_TICKS(I2C_BH1750_CMD_DELAY_MS));
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_bh1750_set_measurement_time(i2c_bh1750_handle_t bh1750_handle, const uint8_t timespan) {
+    /* validate arguments */
+    ESP_ARG_CHECK( bh1750_handle );
+
+    /* validate timespan */
+    if(timespan < 31 || timespan > 254) return ESP_ERR_INVALID_ARG;
+
+    /* attempt to write measurement hi and lo timespan */
+    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_OPCODE_MT_HI | (timespan >> 5)) );
+    ESP_ERROR_CHECK( i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_OPCODE_MT_LO | (timespan >> 0x1f)) );
+
+    /* set handle measurement timespan parameter */
+    bh1750_handle->timespan = timespan;
+
+    /* delay before next i2c transaction */
+    vTaskDelay(pdMS_TO_TICKS(I2C_BH1750_CMD_DELAY_MS));
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_bh1750_enable_power(i2c_bh1750_handle_t bh1750_handle) {
+    /* validate arguments */
+    ESP_ARG_CHECK( bh1750_handle );
+
+    /* attempt i2c write transaction */
+    ESP_RETURN_ON_ERROR(i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_UP), TAG, "write power-up command failed");
+
+    /* set handle power status */
+    bh1750_handle->power_enabled = true;
+
+    /* delay before next command - power cycle */
+    vTaskDelay(pdMS_TO_TICKS(I2C_BH1750_POWERUP_DELAY_MS));
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_bh1750_disable_power(i2c_bh1750_handle_t bh1750_handle) {
+    /* validate arguments */
+    ESP_ARG_CHECK( bh1750_handle );
+
+    /* attempt i2c write transaction */
+    ESP_RETURN_ON_ERROR(i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_POWER_DOWN), TAG, "write power-down command failed");
+
+    /* set handle power status */
+    bh1750_handle->power_enabled = false;
+
+    /* delay before next command - power cycle */
+    vTaskDelay(pdMS_TO_TICKS(I2C_BH1750_POWERUP_DELAY_MS));
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_bh1750_reset(i2c_bh1750_handle_t bh1750_handle) {
+    /* validate arguments */
+    ESP_ARG_CHECK( bh1750_handle );
+
+    /* attempt i2c write transaction */
+    ESP_RETURN_ON_ERROR(i2c_master_bus_write_cmd(bh1750_handle->i2c_dev_handle, I2C_BH1750_CMD_RESET), TAG, "write soft-reset command failed");
+
+    /* set handle power status */
+    bh1750_handle->power_enabled = false;
+
+    /* delay before next command - power cycle */
+    vTaskDelay(pdMS_TO_TICKS(I2C_BH1750_RESET_DELAY_MS));
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_bh1750_remove(i2c_bh1750_handle_t bh1750_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( bh1750_handle );
 
     return i2c_master_bus_rm_device(bh1750_handle->i2c_dev_handle);
 }
 
-esp_err_t i2c_bh1750_del(i2c_bh1750_handle_t bh1750_handle) {
+esp_err_t i2c_bh1750_delete(i2c_bh1750_handle_t bh1750_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( bh1750_handle );
 
     /* remove device from master bus */
-    ESP_RETURN_ON_ERROR( i2c_bh1750_rm(bh1750_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
+    ESP_RETURN_ON_ERROR( i2c_bh1750_remove(bh1750_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
 
     /* validate handle instance and free handles */
     if(bh1750_handle->i2c_dev_handle) {

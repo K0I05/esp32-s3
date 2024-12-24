@@ -1,0 +1,87 @@
+/*
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2024 Eric Gionet (gionet.c.eric@gmail.com)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/**
+ * @file vector_float.h
+ * @defgroup math 3d_math
+ * @{
+ *
+ * ESP-IDF 3d math library
+ * 
+ * Ported from esp-open-rtos
+ *
+ * Copyright (c) 2024 Eric Gionet (gionet.c.eric@gmail.com)
+ *
+ * MIT Licensed as described in the file LICENSE
+ */
+#ifndef __VECTOR_FLOAT_H__
+#define __VECTOR_FLOAT_H__
+
+#include "quaternion.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include <math.h>
+#include <esp_log.h>
+#include <esp_check.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+/**
+ * @brief Vector float definition.
+ * 
+ */
+typedef struct vector_float_t vector_float_t;
+/**
+ * @brief Vector float handle structure.
+ * 
+ */
+typedef struct vector_float_t *vector_float_handle_t;
+/**
+ * @brief Vector float structure.
+ * 
+ */
+struct vector_float_t {
+    float x;
+    float y;
+    float z;
+};
+
+esp_err_t vector_float_init(vector_float_handle_t *vector_float_handle);
+esp_err_t vector_float_init_data(vector_float_handle_t vector_float_handle, float nx, float ny, float nz);
+esp_err_t vector_float_get_magnitude(vector_float_handle_t vector_float_handle, float *magnitude);
+esp_err_t vector_float_normalize(vector_float_handle_t vector_float_handle);
+esp_err_t vector_float_get_normalized(vector_float_handle_t vector_float_handle, vector_float_handle_t *normalized_handle);
+esp_err_t vector_float_rotate(vector_float_handle_t vector_float_handle, quaternion_handle_t quaternion_handle);
+esp_err_t vector_float_get_rotated(vector_float_handle_t vector_float_handle, quaternion_handle_t quaternion_handle, vector_float_handle_t *rotated_handle);
+
+
+#ifdef __cplusplus
+}
+#endif
+
+/**@}*/
+
+#endif  // __VECTOR_FLOAT_H__

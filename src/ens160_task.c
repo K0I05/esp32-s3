@@ -95,6 +95,6 @@ void i2c0_ens160_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_ens160_del( dev_hdl );
+    i2c_ens160_delete( dev_hdl );
     vTaskDelete( NULL );
 }

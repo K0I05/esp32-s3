@@ -57,6 +57,7 @@
 /* components */
 #include <i2c_master_ext.h>
 #include <nvs_ext.h>
+
 /* component tasks */
 #include <ahtxx_task.h>
 #include <as7341_task.h>
@@ -225,7 +226,7 @@ void app_main( void ) {
     /* instantiate i2c master bus 0 */
     ESP_ERROR_CHECK( i2c_new_master_bus(&i2c0_bus_cfg, &i2c0_bus_hdl) );
 
-    /* scan i2c devices on i2c master bus 0 */
+    /* scan i2c devices on i2c master bus 0 and print results */
     ESP_LOGI(APP_TAG, "Scanning I2C master bus 0 for I2C devices..");
     ESP_ERROR_CHECK( i2c0_device_scan() );
 
@@ -233,19 +234,19 @@ void app_main( void ) {
     vTaskDelay(pdMS_TO_TICKS(500));
 
     /* start a component example */
-    /* note: only one component can run at a time */
+    /* note: only one component example can run at a time */
     
     //i2c0_component_example_start(I2C_COMPONENT_AHTXX);
     //i2c0_component_example_start(I2C_COMPONENT_AS7341);
     //i2c0_component_example_start(I2C_COMPONENT_BH1750);
     //i2c0_component_example_start(I2C_COMPONENT_BMP280);
-    i2c0_component_example_start(I2C_COMPONENT_BMP390);
+    //i2c0_component_example_start(I2C_COMPONENT_BMP390);
     //i2c0_component_example_start(I2C_COMPONENT_CCS811);
     //i2c0_component_example_start(I2C_COMPONENT_ENS160);
     //i2c0_component_example_start(I2C_COMPONENT_HDC1080);
     //i2c0_component_example_start(I2C_COMPONENT_HMC5883L);
     //i2c0_component_example_start(I2C_COMPONENT_MLX90614);
-    //i2c0_component_example_start(I2C_COMPONENT_MPU6050);
+    i2c0_component_example_start(I2C_COMPONENT_MPU6050);
     //i2c0_component_example_start(I2C_COMPONENT_SGP4X);
     //i2c0_component_example_start(I2C_COMPONENT_SHT4X);
     //i2c0_component_example_start(I2C_COMPONENT_SSD1306);

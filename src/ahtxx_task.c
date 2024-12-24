@@ -76,6 +76,6 @@ void i2c0_ahtxx_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_ahtxx_del( dev_hdl );
+    i2c_ahtxx_delete( dev_hdl );
     vTaskDelete( NULL );
 }

@@ -323,7 +323,6 @@ esp_err_t ccs811_monitor_add_handler(ccs811_monitor_handle_t monitor_handle, esp
  */
 esp_err_t ccs811_monitor_remove_handler(ccs811_monitor_handle_t monitor_handle, esp_event_handler_t event_handler);
 
-
 /**
  * @brief Reads status register from CCS811.
  * 
@@ -347,7 +346,7 @@ esp_err_t i2c_ccs811_get_measure_mode_register(i2c_ccs811_handle_t ccs811_handle
  * @param[in] mode_reg measure mode register structure.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_set_measure_mode_register(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_measure_mode_register_t mode_reg);
+esp_err_t i2c_ccs811_set_measure_mode_register(i2c_ccs811_handle_t ccs811_handle, const i2c_ccs811_measure_mode_register_t mode_reg);
 
 /**
  * @brief Reads error register from CCS811.
@@ -365,7 +364,7 @@ esp_err_t i2c_ccs811_get_error_register(i2c_ccs811_handle_t ccs811_handle);
  * @param[in] humidity relative humidity compensation in percentage (default: 50 %).
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_set_environmental_data_register(i2c_ccs811_handle_t ccs811_handle, float temperature, float humidity);
+esp_err_t i2c_ccs811_set_environmental_data_register(i2c_ccs811_handle_t ccs811_handle, const float temperature, const float humidity);
 
 /**
  * @brief Writes eCO2 thresholds to CCS811 register.
@@ -376,7 +375,7 @@ esp_err_t i2c_ccs811_set_environmental_data_register(i2c_ccs811_handle_t ccs811_
  * @param[in] hysteresis Variance for thresholds in ppm (default: 50 ppm).
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_set_thresholds_register(i2c_ccs811_handle_t ccs811_handle, uint16_t low_to_med, uint16_t med_to_high, uint8_t hysteresis);
+esp_err_t i2c_ccs811_set_thresholds_register(i2c_ccs811_handle_t ccs811_handle, const uint16_t low_to_med, const uint16_t med_to_high, const uint8_t hysteresis);
 
 /**
  * @brief Reads encoded version of the current baseline register from CCS811.
@@ -393,7 +392,7 @@ esp_err_t i2c_ccs811_get_baseline_register(i2c_ccs811_handle_t ccs811_handle);
  * @param[in] baseline encoded version of the baseline.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_set_baseline_register(i2c_ccs811_handle_t ccs811_handle, uint16_t baseline);
+esp_err_t i2c_ccs811_set_baseline_register(i2c_ccs811_handle_t ccs811_handle, const uint16_t baseline);
 
 /**
  * @brief Reads hardware identifier from CCS811.
@@ -417,13 +416,13 @@ esp_err_t i2c_ccs811_get_hardware_version(i2c_ccs811_handle_t ccs811_handle);
  * @param[in] ccs811_handle CCS811 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_application_start(i2c_ccs811_handle_t ccs811_handle);
+esp_err_t i2c_ccs811_start_application(i2c_ccs811_handle_t ccs811_handle);
 
 /**
  * @brief Initializes a CCS811 device onto the I2C master bus.
  *
  * @param[in] bus_handle I2C master bus handle.
- * @param[in] ccs811_config configuration of CCS811 device.
+ * @param[in] ccs811_config Configuration of CCS811 device.
  * @param[out] ccs811_handle CCS811 device handle.
  * @return esp_err_t ESP_OK on success.
  */
@@ -433,8 +432,8 @@ esp_err_t i2c_ccs811_init(i2c_master_bus_handle_t bus_handle, const i2c_ccs811_c
  * @brief Reads air quality measurement from CCS811.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
- * @param[out] eco2 equivalent CO2 in ppm (range is from 400 to 32768 ppm).
- * @param[out] etvoc equivalent Total Volatile Oragnic Compound (TVOC) in ppb (range is from 0 to 29206 ppb).
+ * @param[out] eco2 Equivalent CO2 in ppm (range is from 400 to 32768 ppm).
+ * @param[out] etvoc Equivalent Total Volatile Oragnic Compound (TVOC) in ppb (range is from 0 to 29206 ppb).
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_ccs811_get_measurement(i2c_ccs811_handle_t ccs811_handle, uint16_t *eco2, uint16_t *etvoc);
@@ -443,46 +442,46 @@ esp_err_t i2c_ccs811_get_measurement(i2c_ccs811_handle_t ccs811_handle, uint16_t
  * @brief Reads drive mode from CCS811.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
- * @param[out] mode measurement drive mode.
+ * @param[out] mode Measurement drive mode.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_get_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_drive_modes_t *mode);
+esp_err_t i2c_ccs811_get_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_drive_modes_t *const mode);
 
 /**
  * @brief Writes drive mode to CCS811.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
- * @param[in] mode measurement drive mode.
+ * @param[in] mode Measurement drive mode.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_set_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_drive_modes_t mode);
+esp_err_t i2c_ccs811_set_mode(i2c_ccs811_handle_t ccs811_handle, const i2c_ccs811_drive_modes_t mode);
 
 /**
  * @brief Reads firmware mode from CCS811.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
- * @param[out] mode firmware mode.
+ * @param[out] mode Firmware mode.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_get_firmware_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_firmware_modes_t *mode);
+esp_err_t i2c_ccs811_get_firmware_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_firmware_modes_t *const mode);
 
 /**
  * @brief Reads data ready status from CCS811.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
- * @param[out] ready data is ready when true.
+ * @param[out] ready CCS811 data is ready when true.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_get_data_status(i2c_ccs811_handle_t ccs811_handle, bool *ready);
+esp_err_t i2c_ccs811_get_data_status(i2c_ccs811_handle_t ccs811_handle, bool *const ready);
 
 /**
  * @brief Reads error status from CCS811.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
- * @param[out] error error is present when true.
+ * @param[out] error CCS811 error is present when true.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_get_error_status(i2c_ccs811_handle_t ccs811_handle, bool *error);
+esp_err_t i2c_ccs811_get_error_status(i2c_ccs811_handle_t ccs811_handle, bool *const error);
 
 /**
  * @brief Issues soft-reset to CCS811.
@@ -522,7 +521,7 @@ esp_err_t i2c_ccs811_io_reset(i2c_ccs811_handle_t ccs811_handle);
  * @param[in] ccs811_handle CCS811 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_rm(i2c_ccs811_handle_t ccs811_handle);
+esp_err_t i2c_ccs811_remove(i2c_ccs811_handle_t ccs811_handle);
 
 /**
  * @brief Removes an CCS811 device from master I2C bus and delete the handle.
@@ -530,7 +529,7 @@ esp_err_t i2c_ccs811_rm(i2c_ccs811_handle_t ccs811_handle);
  * @param ccs811_handle CCS811 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_del(i2c_ccs811_handle_t ccs811_handle);
+esp_err_t i2c_ccs811_delete(i2c_ccs811_handle_t ccs811_handle);
 
 /**
  * @brief Decodes CCS811 device error to a textual message representation.
@@ -538,7 +537,7 @@ esp_err_t i2c_ccs811_del(i2c_ccs811_handle_t ccs811_handle);
  * @param[in] code CCS811 I2C register error.
  * @return char textual representation of error message on success.
  */
-const char *i2c_ccs811_err_to_message(i2c_ccs811_error_code_register_t error_reg);
+const char *i2c_ccs811_err_to_message(const i2c_ccs811_error_code_register_t error_reg);
 
 /**
  * @brief Decodes CCS811 device error to a textual code representation.
@@ -546,7 +545,7 @@ const char *i2c_ccs811_err_to_message(i2c_ccs811_error_code_register_t error_reg
  * @param[in] code CCS811 I2C register error.
  * @return char textual representation of error code on success.
  */
-const char *i2c_ccs811_err_to_code(i2c_ccs811_error_code_register_t error_reg);
+const char *i2c_ccs811_err_to_code(const i2c_ccs811_error_code_register_t error_reg);
 
 /**
  * @brief Decodes enumeratored drive mode to a textual descritive representation.
@@ -554,7 +553,7 @@ const char *i2c_ccs811_err_to_code(i2c_ccs811_error_code_register_t error_reg);
  * @param[in] mode measurement drive mode.
  * @return char textual representation of measure mode on success.
  */
-const char *i2c_ccs811_measure_mode_description(i2c_ccs811_drive_modes_t mode);
+const char *i2c_ccs811_measure_mode_description(const i2c_ccs811_drive_modes_t mode);
 
 
 #ifdef __cplusplus

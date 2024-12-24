@@ -119,12 +119,12 @@ struct i2c_ahtxx_t {
 };
 
 /**
- * @brief AHTXX I2C device structure definitions.
+ * @brief AHTXX I2C device structure definition.
  */
 typedef struct i2c_ahtxx_t i2c_ahtxx_t;
 
 /**
- * @brief AHTXX I2C device handle structure.
+ * @brief AHTXX I2C device handle definition.
  */
 typedef struct i2c_ahtxx_t *i2c_ahtxx_handle_t;
 
@@ -149,7 +149,7 @@ esp_err_t i2c_ahtxx_get_status_register(i2c_ahtxx_handle_t ahtxx_handle);
  * @brief Initializes an AHTXX device onto the I2C master bus.
  *
  * @param[in] bus_handle I2C master bus handle.
- * @param[in] ahtxx_config configuration of AHTXX device.
+ * @param[in] ahtxx_config Configuration of AHTXX device.
  * @param[out] ahtxx_handle AHTXX device handle.
  * @return esp_err_t ESP_OK on success.
  */
@@ -159,8 +159,8 @@ esp_err_t i2c_ahtxx_init(i2c_master_bus_handle_t bus_handle, const i2c_ahtxx_con
  * @brief Reads temperature and relative humidity from AHTXX.
  *
  * @param ahtxx_handle AHTXX device handle.
- * @param temperature temperature in degree Celsius.
- * @param humidity relative humidity in percentage.
+ * @param temperature Temperature in degree Celsius.
+ * @param humidity Relative humidity in percentage.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_ahtxx_get_measurement(i2c_ahtxx_handle_t ahtxx_handle, float *const temperature, float *const humidity);
@@ -169,9 +169,9 @@ esp_err_t i2c_ahtxx_get_measurement(i2c_ahtxx_handle_t ahtxx_handle, float *cons
  * @brief Similar to `i2c_aht2x_read_measurement` but it includes dewpoint in the results.
  *
  * @param[in] ahtxx_handle AHTXX device handle.
- * @param[out] temperature temperature in degree Celsius.
- * @param[out] humidity relative humidity in percentage.
- * @param[out] dewpoint calculated dewpoint temperature in degree Celsius.
+ * @param[out] temperature Temperature in degree Celsius.
+ * @param[out] humidity Relative humidity in percentage.
+ * @param[out] dewpoint Calculated dewpoint temperature in degree Celsius.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_ahtxx_get_measurements(i2c_ahtxx_handle_t ahtxx_handle, float *const temperature, float *const humidity, float *const dewpoint);
@@ -180,7 +180,7 @@ esp_err_t i2c_ahtxx_get_measurements(i2c_ahtxx_handle_t ahtxx_handle, float *con
  * @brief Reads busy status flag from AHTXX.
  *
  * @param ahtxx_handle AHTXX device handle.
- * @param[out] busy device is busy when true.
+ * @param[out] busy AHTXX is busy when true.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_ahtxx_get_busy_status(i2c_ahtxx_handle_t ahtxx_handle, bool *const busy);
@@ -189,7 +189,7 @@ esp_err_t i2c_ahtxx_get_busy_status(i2c_ahtxx_handle_t ahtxx_handle, bool *const
  * @brief Reads calibration status flag from AHTXX.
  *
  * @param ahtxx_handle AHTXX device handle.
- * @param[out] calibrated device is calibrated when true.  See `i2c_ahtxx_setup` and datasheet for details.
+ * @param[out] calibrated AHTXX is calibrated when true.  See `i2c_ahtxx_setup` and datasheet for details.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_ahtxx_get_calibration_status(i2c_ahtxx_handle_t ahtxx_handle, bool *const calibrated);
@@ -198,8 +198,8 @@ esp_err_t i2c_ahtxx_get_calibration_status(i2c_ahtxx_handle_t ahtxx_handle, bool
  * @brief Reads busy and calibrated status flags from AHTXX.
  *
  * @param ahtxx_handle AHTXX device handle.
- * @param[out] busy device is busy when true.
- * @param[out] calibrated device is calibrated when true.  See `i2c_ahtxx_setup` and datasheet for details.
+ * @param[out] busy AHTXX is busy when true.
+ * @param[out] calibrated AHTXX is calibrated when true.  See `i2c_ahtxx_setup` and datasheet for details.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_ahtxx_get_status(i2c_ahtxx_handle_t ahtxx_handle, bool *const busy, bool *const calibrated);
@@ -213,20 +213,20 @@ esp_err_t i2c_ahtxx_get_status(i2c_ahtxx_handle_t ahtxx_handle, bool *const busy
 esp_err_t i2c_ahtxx_reset(i2c_ahtxx_handle_t ahtxx_handle);
 
 /**
- * @brief removes an ahtxx device from master bus.
+ * @brief Removes an AHTXX device from master bus.
  *
- * @param[in] ahtxx_handle ahtxx device handle.
+ * @param[in] ahtxx_handle AHTXX device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ahtxx_rm(i2c_ahtxx_handle_t ahtxx_handle);
+esp_err_t i2c_ahtxx_remove(i2c_ahtxx_handle_t ahtxx_handle);
 
 /**
- * @brief Removes an ahtxx device from master bus and frees handle.
+ * @brief Removes an AHTXX device from master bus and frees handle.
  * 
- * @param ahtxx_handle ahtxx device handle.
+ * @param ahtxx_handle AHTXX device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ahtxx_del(i2c_ahtxx_handle_t ahtxx_handle);
+esp_err_t i2c_ahtxx_delete(i2c_ahtxx_handle_t ahtxx_handle);
 
 
 #ifdef __cplusplus

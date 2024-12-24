@@ -1028,19 +1028,19 @@ esp_err_t i2c_ssd1306_init(i2c_master_bus_handle_t bus_handle, const i2c_ssd1306
         return ret;
 }
 
-esp_err_t i2c_ssd1306_rm(i2c_ssd1306_handle_t ssd1306_handle) {
+esp_err_t i2c_ssd1306_remove(i2c_ssd1306_handle_t ssd1306_handle) {
 	/* validate parameters */
 	ESP_ARG_CHECK( ssd1306_handle );
 
     return i2c_master_bus_rm_device(ssd1306_handle->i2c_dev_handle);
 }
 
-esp_err_t i2c_ssd1306_del(i2c_ssd1306_handle_t ssd1306_handle) {
+esp_err_t i2c_ssd1306_delete(i2c_ssd1306_handle_t ssd1306_handle) {
 	/* validate arguments */
     ESP_ARG_CHECK( ssd1306_handle );
 
     /* remove device from master bus */
-    ESP_RETURN_ON_ERROR( i2c_ssd1306_rm(ssd1306_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
+    ESP_RETURN_ON_ERROR( i2c_ssd1306_remove(ssd1306_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
 
     /* validate handle instance and free handles */
     if(ssd1306_handle->i2c_dev_handle) {

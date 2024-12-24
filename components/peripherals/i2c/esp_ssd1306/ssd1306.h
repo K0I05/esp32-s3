@@ -439,7 +439,7 @@ esp_err_t i2c_ssd1306_init(i2c_master_bus_handle_t bus_handle, const i2c_ssd1306
  * @param[in] ssd1306_handle SSD1306 device handle
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ssd1306_rm(i2c_ssd1306_handle_t ssd1306_handle);
+esp_err_t i2c_ssd1306_remove(i2c_ssd1306_handle_t ssd1306_handle);
 
 /**
  * @brief Removes an SSD1306 device from master bus and frees handle.
@@ -447,7 +447,7 @@ esp_err_t i2c_ssd1306_rm(i2c_ssd1306_handle_t ssd1306_handle);
  * @param ssd1306_handle SSD1306 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ssd1306_del(i2c_ssd1306_handle_t ssd1306_handle);
+esp_err_t i2c_ssd1306_delete(i2c_ssd1306_handle_t ssd1306_handle);
 
 
 #ifdef __cplusplus

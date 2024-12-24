@@ -82,7 +82,7 @@ Supported drivers include the following device peripherals:
  - I2C: Sensirion SGP4x
  - I2C: Sensirion SHT4x
  - I2C: Generic SSD1306 (128x32 and 128x64)
- - I2C: Infineon TLV493D
+ - I2C: Infineon TLV493D - Work in Progress
  - I2C: Vishay VEML7700
  - SPI: Analog Devices MAX31865 - Work in Progress
  

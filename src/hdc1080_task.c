@@ -84,6 +84,6 @@ void i2c0_hdc1080_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_hdc1080_del( dev_hdl );
+    i2c_hdc1080_delete( dev_hdl );
     vTaskDelete( NULL );
 }

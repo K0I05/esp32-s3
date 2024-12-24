@@ -76,6 +76,6 @@ void i2c0_bh1750_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_bh1750_del( dev_hdl );
+    i2c_bh1750_delete( dev_hdl );
     vTaskDelete( NULL );
 }

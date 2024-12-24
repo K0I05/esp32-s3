@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.16.0)
-list(APPEND EXTRA_COMPONENT_DIRS 
+list(APPEND EXTRA_COMPONENT_DIRS
+                    "components/engineering/kalman_motion" 
+                    "components/engineering/sensirion_gas_index_algorithm" 
+
                     "components/peripherals/adc/esp_s12sd"
                     "components/peripherals/i2c/esp_driver_i2c_ext"
                     "components/peripherals/i2c/esp_ahtxx"
@@ -18,6 +21,11 @@ list(APPEND EXTRA_COMPONENT_DIRS
                     "components/peripherals/i2c/esp_ssd1306"
                     "components/peripherals/i2c/esp_tlv493d"
                     "components/peripherals/i2c/esp_veml7700"
+
+                    "components/schedule/esp_time_into_interval"
+
+                    "components/storage/esp_datalogger"
+                    "components/storage/esp_nvs_ext"
                     )
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(ESP32-S3_ESP-IDF_COMPONENTS)

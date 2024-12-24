@@ -42,13 +42,9 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
-
-#define I2C_HDC1080_MANUFACTURER_ID         UINT16_C(0x5449)
-#define I2C_HDC1080_DEVICE_ID               UINT16_C(0x1050)
-#define I2C_HDC1080_TEMPERATURE_MAX         INT16_C(60)
-#define I2C_HDC1080_TEMPERATURE_MIN         INT16_C(-40)
-#define I2C_HDC1080_HUMIDITY_MAX            INT16_C(100)
-#define I2C_HDC1080_HUMIDITY_MIN            INT16_C(0)
+/*
+ * HDC1080 definitions
+*/
 
 #define I2C_HDC1080_REG_TEMPERATURE         UINT8_C(0x00)   //!< hdc1080 I2C temperature measurement output 
 #define I2C_HDC1080_REG_HUMIDITY            UINT8_C(0x01)   //!< hdc1080 I2C relative humidity measurement ouput  
@@ -59,12 +55,19 @@
 #define I2C_HDC1080_REG_MANUFACTURER_ID     UINT8_C(0xFE)   //!< hdc1080 I2C ID of Texas Instruments
 #define I2C_HDC1080_REG_DEVICE_ID           UINT8_C(0xFF)   //!< hdc1080 I2C ID of the device
 
+#define I2C_HDC1080_MANUFACTURER_ID         UINT16_C(0x5449)
+#define I2C_HDC1080_DEVICE_ID               UINT16_C(0x1050)
 
-#define I2C_HDC1080_POWERUP_DELAY_MS        (30)            //!< hdc1080 I2C power-up delay in milliseconds
-#define I2C_HDC1080_APPSTART_DELAY_MS       (15)            //!< hdc1080 I2C application start delay in milliseconds
-#define I2C_HDC1080_RESET_DELAY_MS          (20)
-#define I2C_HDC1080_CMD_DELAY_MS            (5)
-#define I2C_HDC1080_RETRY_DELAY_MS          (2)
+#define I2C_HDC1080_TEMPERATURE_MAX         (float)(125.0)  //!< hdc1080 maximum temperature range
+#define I2C_HDC1080_TEMPERATURE_MIN         (float)(-40.0)  //!< hdc1080 minimum temperature range
+#define I2C_HDC1080_HUMIDITY_MAX            (float)(100.0)  //!< hdc1080 maximum humidity range
+#define I2C_HDC1080_HUMIDITY_MIN            (float)(0.0)    //!< hdc1080 minimum humidity range
+
+#define I2C_HDC1080_POWERUP_DELAY_MS        UINT16_C(30)    //!< hdc1080 I2C power-up delay in milliseconds
+#define I2C_HDC1080_APPSTART_DELAY_MS       UINT16_C(15)    //!< hdc1080 I2C application start delay in milliseconds
+#define I2C_HDC1080_RESET_DELAY_MS          UINT16_C(20)
+#define I2C_HDC1080_CMD_DELAY_MS            UINT16_C(5)
+#define I2C_HDC1080_RETRY_DELAY_MS          UINT16_C(2)
 
 /*
  * macro definitions
@@ -83,11 +86,11 @@ static const char *TAG = "hdc1080";
 /**
  * @brief Gets HDC1080 millisecond duration from humidity measurement resolution.  See datasheet for details.
  *
- * @param[in] humidity_resolution HDC1080 humidity measurement resolution.
- * @return duration in milliseconds.
+ * @param[in] resolution HDC1080 humidity measurement resolution.
+ * @return size_t Measurement duration in milliseconds.
  */
-static inline size_t i2c_hdc1080_get_humidity_duration_ms(i2c_hdc1080_humidity_resolutions_t humidity_resolution) {
-    switch (humidity_resolution) {
+static inline size_t i2c_hdc1080_get_humidity_duration_ms(const i2c_hdc1080_humidity_resolutions_t resolution) {
+    switch (resolution) {
         case I2C_HDC1080_HUMIDITY_RESOLUTION_14BIT:
             return 7;
         case I2C_HDC1080_HUMIDITY_RESOLUTION_11BIT:
@@ -102,22 +105,22 @@ static inline size_t i2c_hdc1080_get_humidity_duration_ms(i2c_hdc1080_humidity_r
 /**
  * @brief Gets HDC1080 tick duration from humidity measurement resolution.
  *
- * @param[in] humidity_resolution HDC1080 humidity measurement resolution.
- * @return duration in ticks.
+ * @param[in] resolution HDC1080 humidity measurement resolution.
+ * @return size_t Measurement duration in ticks.
  */
-static inline size_t i2c_hdc1080_get_humidity_tick_duration(i2c_hdc1080_humidity_resolutions_t humidity_resolution) {
-    size_t res = pdMS_TO_TICKS(i2c_hdc1080_get_humidity_duration_ms(humidity_resolution));
+static inline size_t i2c_hdc1080_get_humidity_tick_duration(const i2c_hdc1080_humidity_resolutions_t resolution) {
+    size_t res = pdMS_TO_TICKS(i2c_hdc1080_get_humidity_duration_ms(resolution));
     return res == 0 ? 1 : res;
 }
 
 /**
  * @brief Gets HDC1080 millisecond duration from temperature measurement resolution.  See datasheet for details.
  *
- * @param[in] humidity_resolution HDC1080 temperature measurement resolution.
- * @return duration in milliseconds.
+ * @param[in] resolution HDC1080 temperature measurement resolution.
+ * @return size_t Measurement duration in milliseconds.
  */
-static inline size_t i2c_hdc1080_get_temperature_duration_ms(i2c_hdc1080_temperature_resolutions_t temperature_resolution) {
-    switch (temperature_resolution) {
+static inline size_t i2c_hdc1080_get_temperature_duration_ms(const i2c_hdc1080_temperature_resolutions_t resolution) {
+    switch (resolution) {
         case I2C_HDC1080_TEMPERATURE_RESOLUTION_14BIT:
             return 7;
         case I2C_HDC1080_TEMPERATURE_RESOLUTION_11BIT:
@@ -130,29 +133,35 @@ static inline size_t i2c_hdc1080_get_temperature_duration_ms(i2c_hdc1080_tempera
 /**
  * @brief Gets HDC1080 tick duration from temperature measurement resolution.
  *
- * @param[in] temperature_resolution HDC1080 temperature measurement resolution.
- * @return duration in ticks.
+ * @param[in] resolution HDC1080 temperature measurement resolution.
+ * @return size_t Measurement duration in ticks.
  */
-static inline size_t i2c_hdc1080_get_temperature_tick_duration(i2c_hdc1080_temperature_resolutions_t temperature_resolution) {
-    size_t res = pdMS_TO_TICKS(i2c_hdc1080_get_temperature_duration_ms(temperature_resolution));
+static inline size_t i2c_hdc1080_get_temperature_tick_duration(const i2c_hdc1080_temperature_resolutions_t resolution) {
+    size_t res = pdMS_TO_TICKS(i2c_hdc1080_get_temperature_duration_ms(resolution));
     return res == 0 ? 1 : res;
 }
 
 /**
  * @brief Calculates dewpoint temperature from air temperature and relative humidity.
  *
- * @param[in] temperature air temperature in degrees Celsius.
- * @param[in] humidity relative humiity in percent.
- * @param[out] dewpoint calculated dewpoint temperature in degrees Celsius.
+ * @param[in] temperature Air temperature in degrees Celsius.
+ * @param[in] humidity Relative humiity in percentage.
+ * @param[out] dewpoint Calculated dewpoint temperature in degrees Celsius.
  * @return esp_err_t ESP_OK on success.
  */
-static inline esp_err_t i2c_hdc1080_calculate_dewpoint(const float temperature, const float humidity, float *dewpoint) {
+static inline esp_err_t i2c_hdc1080_calculate_dewpoint(const float temperature, const float humidity, float *const dewpoint) {
     /* validate arguments */
     ESP_ARG_CHECK(temperature && humidity && dewpoint);
 
-    // validate parameters
-    if(I2C_HDC1080_TEMPERATURE_MAX > 80 || I2C_HDC1080_TEMPERATURE_MIN < -40) return ESP_ERR_INVALID_ARG;
-    if(I2C_HDC1080_HUMIDITY_MAX > 100 || I2C_HDC1080_HUMIDITY_MIN < 0) return ESP_ERR_INVALID_ARG;
+    /* validate temperature argument */
+    if(temperature > I2C_HDC1080_TEMPERATURE_MAX || temperature < I2C_HDC1080_TEMPERATURE_MIN) {
+        ESP_RETURN_ON_FALSE( false, ESP_ERR_INVALID_ARG, TAG, "temperature is out of range, calculate dewpoint failed");
+    }
+
+    /* validate humidity argument */
+    if(humidity > I2C_HDC1080_HUMIDITY_MAX || humidity < I2C_HDC1080_HUMIDITY_MIN) {
+        ESP_RETURN_ON_FALSE( false, ESP_ERR_INVALID_ARG, TAG, "humidity is out of range, calculate dewpoint failed");
+    }
     
     // calculate dew-point temperature
     double H = (log10(humidity)-2)/0.4343 + (17.62*temperature)/(243.12+temperature);
@@ -162,12 +171,12 @@ static inline esp_err_t i2c_hdc1080_calculate_dewpoint(const float temperature, 
 }
 
 /**
- * @brief Reads HDC1080 unique serial number.
+ * @brief Reads unique serial number register from HDC1080.
  * 
  * @param[in] hdc1080_handle HDC1080 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-static inline esp_err_t i2c_hdc1080_get_serial_number(i2c_hdc1080_handle_t hdc1080_handle) {
+static inline esp_err_t i2c_hdc1080_get_serial_number_register(i2c_hdc1080_handle_t hdc1080_handle) {
     //uint16_t serial_id_fbp, serial_id_mbp, serial_id_lbp; // serial identifier parts
     //i2c_hdc1080_serial_number_register_t sn_reg; // this structure may not be needed
     // hdc1080_handle->dev_params->serial_number
@@ -182,12 +191,12 @@ static inline esp_err_t i2c_hdc1080_get_serial_number(i2c_hdc1080_handle_t hdc10
 }
 
 /**
- * @brief Reads HDC1080 manufacturer identifier.
+ * @brief Reads manufacturer identifier register from HDC1080.
  * 
  * @param[in] hdc1080_handle HDC1080 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-static inline esp_err_t i2c_hdc1080_get_manufacturer_id(i2c_hdc1080_handle_t hdc1080_handle) {
+static inline esp_err_t i2c_hdc1080_get_manufacturer_id_register(i2c_hdc1080_handle_t hdc1080_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
 
@@ -201,12 +210,12 @@ static inline esp_err_t i2c_hdc1080_get_manufacturer_id(i2c_hdc1080_handle_t hdc
 }
 
 /**
- * @brief Reads HDC1080 device identifier.
+ * @brief Reads device identifier register from HDC1080.
  * 
  * @param[in] hdc1080_handle HDC1080 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-static inline esp_err_t i2c_hdc1080_get_device_id(i2c_hdc1080_handle_t hdc1080_handle) {
+static inline esp_err_t i2c_hdc1080_get_device_id_register(i2c_hdc1080_handle_t hdc1080_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
 
@@ -220,12 +229,11 @@ static inline esp_err_t i2c_hdc1080_get_device_id(i2c_hdc1080_handle_t hdc1080_h
 }
 
 esp_err_t i2c_hdc1080_get_configuration_register(i2c_hdc1080_handle_t hdc1080_handle) {
-    uint16_t config;
-
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
 
     /* attempt to read configuration register */
+    uint16_t config;
     ESP_RETURN_ON_ERROR( i2c_master_bus_read_uint16(hdc1080_handle->i2c_dev_handle, I2C_HDC1080_REG_CONFIGURATION, &config), TAG, "read configuration register failed" );
 
     /* set handle */
@@ -238,13 +246,11 @@ esp_err_t i2c_hdc1080_get_configuration_register(i2c_hdc1080_handle_t hdc1080_ha
 }
 
 esp_err_t i2c_hdc1080_set_configuration_register(i2c_hdc1080_handle_t hdc1080_handle, const i2c_hdc1080_configuration_register_t config_reg) {
-    i2c_hdc1080_configuration_register_t config;
-
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
 
     /* copy register */
-    config.reg = config_reg.reg;
+    i2c_hdc1080_configuration_register_t config = { .reg = config_reg.reg };
 
     /* set configuration reserved fields to 0 */
     config.bits.reserved1 = 0;
@@ -296,10 +302,10 @@ esp_err_t i2c_hdc1080_init(i2c_master_bus_handle_t bus_handle, const i2c_hdc1080
     ESP_GOTO_ON_ERROR(i2c_hdc1080_get_configuration_register(out_handle), err_handle, TAG, "i2c hdc1080 read configuration register failed");
 
     /* attempt to read manufacturer identifier */
-    ESP_GOTO_ON_ERROR(i2c_hdc1080_get_manufacturer_id(out_handle), err_handle, TAG, "i2c hdc1080 read manufacturer identifer failed");
+    ESP_GOTO_ON_ERROR(i2c_hdc1080_get_manufacturer_id_register(out_handle), err_handle, TAG, "i2c hdc1080 read manufacturer identifer failed");
 
     /* attempt to read device identifier */
-    ESP_GOTO_ON_ERROR(i2c_hdc1080_get_device_id(out_handle), err_handle, TAG, "i2c hdc1080 read device identifer failed");
+    ESP_GOTO_ON_ERROR(i2c_hdc1080_get_device_id_register(out_handle), err_handle, TAG, "i2c hdc1080 read device identifer failed");
 
     /* attempt to read device serial number */
 
@@ -329,11 +335,11 @@ esp_err_t i2c_hdc1080_init(i2c_master_bus_handle_t bus_handle, const i2c_hdc1080
         return ret;
 }
 
-esp_err_t i2c_hdc1080_get_measurement(i2c_hdc1080_handle_t hdc1080_handle, float *temperature, float *humidity) {
-    const uint8_t rx_retry_max  = 5;
-    esp_err_t ret               = ESP_OK;
-    uint8_t rx_retry_count      = 0;
-    i2c_uint16_t rx             = {};
+esp_err_t i2c_hdc1080_get_measurement(i2c_hdc1080_handle_t hdc1080_handle, float *const temperature, float *const humidity) {
+    const uint8_t rx_retry_max   = 5;
+    esp_err_t     ret            = ESP_OK;
+    uint8_t       rx_retry_count = 0;
+    i2c_uint16_t  rx             = {};
 
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
@@ -384,7 +390,7 @@ esp_err_t i2c_hdc1080_get_measurement(i2c_hdc1080_handle_t hdc1080_handle, float
     return ESP_OK;
 }
 
-esp_err_t i2c_hdc1080_get_measurements(i2c_hdc1080_handle_t hdc1080_handle, float *temperature, float *humidity, float *dewpoint) {
+esp_err_t i2c_hdc1080_get_measurements(i2c_hdc1080_handle_t hdc1080_handle, float *const temperature, float *const humidity, float *const dewpoint) {
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
 
@@ -398,13 +404,11 @@ esp_err_t i2c_hdc1080_get_measurements(i2c_hdc1080_handle_t hdc1080_handle, floa
 }
 
 esp_err_t i2c_hdc1080_enable_heater(i2c_hdc1080_handle_t hdc1080_handle) {
-    i2c_hdc1080_configuration_register_t config_reg;
-
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
 
     /* copy register from handle */
-    config_reg.reg = hdc1080_handle->config_reg.reg;
+    i2c_hdc1080_configuration_register_t config_reg = { .reg = hdc1080_handle->config_reg.reg };
 
     /* set heater state */
     config_reg.bits.heater_enabled = true;
@@ -416,13 +420,11 @@ esp_err_t i2c_hdc1080_enable_heater(i2c_hdc1080_handle_t hdc1080_handle) {
 }
 
 esp_err_t i2c_hdc1080_disable_heater(i2c_hdc1080_handle_t hdc1080_handle) {
-    i2c_hdc1080_configuration_register_t config_reg;
-
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
 
     /* copy register from handle */
-    config_reg.reg = hdc1080_handle->config_reg.reg;
+    i2c_hdc1080_configuration_register_t config_reg = { .reg = hdc1080_handle->config_reg.reg };
 
     /* set heater state */
     config_reg.bits.heater_enabled = false;
@@ -433,17 +435,15 @@ esp_err_t i2c_hdc1080_disable_heater(i2c_hdc1080_handle_t hdc1080_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_hdc1080_set_temperature_resolution(i2c_hdc1080_handle_t hdc1080_handle, i2c_hdc1080_temperature_resolutions_t temperature_resolution) {
-    i2c_hdc1080_configuration_register_t config_reg;
-
+esp_err_t i2c_hdc1080_set_temperature_resolution(i2c_hdc1080_handle_t hdc1080_handle, const i2c_hdc1080_temperature_resolutions_t resolution) {
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
 
     /* copy register from handle */
-    config_reg.reg = hdc1080_handle->config_reg.reg;
+    i2c_hdc1080_configuration_register_t config_reg = { .reg = hdc1080_handle->config_reg.reg };
 
     /* set temperature resolution */
-    config_reg.bits.temperature_resolution = temperature_resolution;
+    config_reg.bits.temperature_resolution = resolution;
 
     /* attempt to write configuration register */
     ESP_RETURN_ON_ERROR( i2c_hdc1080_set_configuration_register(hdc1080_handle, config_reg), TAG, "unable to write to i2c handle, set configuration for set temperature resolution failed" );
@@ -451,17 +451,15 @@ esp_err_t i2c_hdc1080_set_temperature_resolution(i2c_hdc1080_handle_t hdc1080_ha
     return ESP_OK;
 }
 
-esp_err_t i2c_hdc1080_set_humidity_resolution(i2c_hdc1080_handle_t hdc1080_handle, i2c_hdc1080_humidity_resolutions_t humidity_resolution) {
-    i2c_hdc1080_configuration_register_t config_reg;
-
+esp_err_t i2c_hdc1080_set_humidity_resolution(i2c_hdc1080_handle_t hdc1080_handle, const i2c_hdc1080_humidity_resolutions_t resolution) {
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
 
     /* copy register from handle */
-    config_reg.reg = hdc1080_handle->config_reg.reg;
+    i2c_hdc1080_configuration_register_t config_reg = { .reg = hdc1080_handle->config_reg.reg };
 
     /* set humidity resolution */
-    config_reg.bits.humidity_resolution = humidity_resolution;
+    config_reg.bits.humidity_resolution = resolution;
 
     /* attempt to write configuration register */
     ESP_RETURN_ON_ERROR( i2c_hdc1080_set_configuration_register(hdc1080_handle, config_reg), TAG, "unable to write to i2c handle, set configuration for set humidity resolution failed" );
@@ -470,13 +468,11 @@ esp_err_t i2c_hdc1080_set_humidity_resolution(i2c_hdc1080_handle_t hdc1080_handl
 }
 
 esp_err_t i2c_hdc1080_reset(i2c_hdc1080_handle_t hdc1080_handle) {
-    i2c_hdc1080_configuration_register_t config_reg;
-
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
 
     /* copy register from handle */
-    config_reg.reg = hdc1080_handle->config_reg.reg;
+    i2c_hdc1080_configuration_register_t config_reg = { .reg = hdc1080_handle->config_reg.reg };
 
     /* set soft-reset bit */
     config_reg.bits.reset_enabled = true;
@@ -490,19 +486,19 @@ esp_err_t i2c_hdc1080_reset(i2c_hdc1080_handle_t hdc1080_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_hdc1080_rm(i2c_hdc1080_handle_t hdc1080_handle) {
+esp_err_t i2c_hdc1080_remove(i2c_hdc1080_handle_t hdc1080_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
 
     return i2c_master_bus_rm_device(hdc1080_handle->i2c_dev_handle);
 }
 
-esp_err_t i2c_hdc1080_del(i2c_hdc1080_handle_t hdc1080_handle) {
+esp_err_t i2c_hdc1080_delete(i2c_hdc1080_handle_t hdc1080_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( hdc1080_handle );
 
     /* remove device from master bus */
-    ESP_RETURN_ON_ERROR( i2c_hdc1080_rm(hdc1080_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
+    ESP_RETURN_ON_ERROR( i2c_hdc1080_remove(hdc1080_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
 
     /* validate handle instance and free handles */
     if(hdc1080_handle->i2c_dev_handle) {

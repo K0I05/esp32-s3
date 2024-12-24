@@ -208,16 +208,17 @@ esp_err_t i2c_ccs811_get_measure_mode_register(i2c_ccs811_handle_t ccs811_handle
     return ESP_OK;
 }
 
-esp_err_t i2c_ccs811_set_measure_mode_register(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_measure_mode_register_t measure_mode_reg) {
+esp_err_t i2c_ccs811_set_measure_mode_register(i2c_ccs811_handle_t ccs811_handle, const i2c_ccs811_measure_mode_register_t measure_mode_reg) {
     /* validate arguments */
     ESP_ARG_CHECK( ccs811_handle );
 
     /* set reserved bits */
-    measure_mode_reg.bits.reserved1 = 0;
-    measure_mode_reg.bits.reserved2 = 0;
+    i2c_ccs811_measure_mode_register_t measure_mode = { .reg = measure_mode_reg.reg };
+    measure_mode.bits.reserved1 = 0;
+    measure_mode.bits.reserved2 = 0;
 
     /* attempt i2c write transaction */
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(ccs811_handle->i2c_dev_handle, I2C_CCS811_REG_MEAS_MODE_RW, measure_mode_reg.reg), TAG, "write measure mode register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(ccs811_handle->i2c_dev_handle, I2C_CCS811_REG_MEAS_MODE_RW, measure_mode.reg), TAG, "write measure mode register failed" );
 
     /* set device handle mode register */
     ccs811_handle->measure_mode_reg.reg = measure_mode_reg.reg;
@@ -235,7 +236,7 @@ esp_err_t i2c_ccs811_get_error_register(i2c_ccs811_handle_t ccs811_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_ccs811_set_environmental_data_register(i2c_ccs811_handle_t ccs811_handle, float temperature, float humidity) {
+esp_err_t i2c_ccs811_set_environmental_data_register(i2c_ccs811_handle_t ccs811_handle, const float temperature, const float humidity) {
     i2c_uint40_t tx = { I2C_CCS811_REG_ENV_DATA_W, 0, 0, 0, 0 };
 
     /* validate arguments */
@@ -275,7 +276,7 @@ esp_err_t i2c_ccs811_set_environmental_data_register(i2c_ccs811_handle_t ccs811_
     return ESP_OK;
 }
 
-esp_err_t i2c_ccs811_set_thresholds_register(i2c_ccs811_handle_t ccs811_handle, uint16_t low_to_med, uint16_t med_to_high, uint8_t hysteresis) {
+esp_err_t i2c_ccs811_set_thresholds_register(i2c_ccs811_handle_t ccs811_handle, const uint16_t low_to_med, const uint16_t med_to_high, const uint8_t hysteresis) {
     i2c_uint48_t                    tx                 = { I2C_CCS811_REG_THRESHOLDS_W, 0, 0, 0, 0, 0 };
     i2c_ccs811_threshold_value_t    low_to_med_value   = { .value = low_to_med };
     i2c_ccs811_threshold_value_t    med_to_high_value  = { .value = med_to_high };
@@ -319,7 +320,7 @@ esp_err_t i2c_ccs811_get_baseline_register(i2c_ccs811_handle_t ccs811_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_ccs811_set_baseline_register(i2c_ccs811_handle_t ccs811_handle, uint16_t baseline) {
+esp_err_t i2c_ccs811_set_baseline_register(i2c_ccs811_handle_t ccs811_handle, const uint16_t baseline) {
     /* validate arguments */
     ESP_ARG_CHECK( ccs811_handle );
 
@@ -352,7 +353,7 @@ esp_err_t i2c_ccs811_get_hardware_version(i2c_ccs811_handle_t ccs811_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_ccs811_application_start(i2c_ccs811_handle_t ccs811_handle) {
+esp_err_t i2c_ccs811_start_application(i2c_ccs811_handle_t ccs811_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ccs811_handle );
 
@@ -475,7 +476,7 @@ esp_err_t i2c_ccs811_init(i2c_master_bus_handle_t bus_handle, const i2c_ccs811_c
         ESP_GOTO_ON_FALSE(out_handle->status_reg.bits.app_valid, ESP_ERR_INVALID_STATE, err_handle, TAG, "no valid application for i2c ccs811 device");
 
         /* attempt tp switch to application mode - start application */
-        ESP_GOTO_ON_ERROR(i2c_ccs811_application_start(out_handle), err_handle, TAG, "application start failed");
+        ESP_GOTO_ON_ERROR(i2c_ccs811_start_application(out_handle), err_handle, TAG, "application start failed");
 
         /* delay task before next i2c transaction */
         vTaskDelay(pdMS_TO_TICKS(I2C_CCS811_RESET_DELAY_MS));
@@ -502,7 +503,7 @@ esp_err_t i2c_ccs811_init(i2c_master_bus_handle_t bus_handle, const i2c_ccs811_c
     /* configuration */
 
     /* init measure mode register and set register bits from config */
-    i2c_ccs811_measure_mode_register_t measure_mode_reg = out_handle->measure_mode_reg;
+    i2c_ccs811_measure_mode_register_t measure_mode_reg = { .reg = out_handle->measure_mode_reg.reg };
     measure_mode_reg.bits.drive_mode        = ccs811_config->drive_mode;
     measure_mode_reg.bits.data_ready_irq    = ccs811_config->data_ready_irq_enabled;
     measure_mode_reg.bits.threshold_irq     = ccs811_config->threshold_irq_enabled;
@@ -533,7 +534,7 @@ esp_err_t i2c_ccs811_get_measurement(i2c_ccs811_handle_t ccs811_handle, uint16_t
     bool            data_is_ready   = false;
     bool            has_error       = false;
     i2c_uint8_t     tx              = { I2C_CCS811_REG_ALG_RESULT_DATA_R };
-    i2c_uint64_t    rx              = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    i2c_uint64_t    rx              = { };
 
     /* validate arguments */
     ESP_ARG_CHECK( ccs811_handle );
@@ -584,7 +585,7 @@ esp_err_t i2c_ccs811_get_measurement(i2c_ccs811_handle_t ccs811_handle, uint16_t
         return ret;
 }
 
-esp_err_t i2c_ccs811_get_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_drive_modes_t *mode) {
+esp_err_t i2c_ccs811_get_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_drive_modes_t *const mode) {
     /* validate arguments */
     ESP_ARG_CHECK( ccs811_handle );
 
@@ -597,14 +598,12 @@ esp_err_t i2c_ccs811_get_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_driv
     return ESP_OK;
 }
 
-esp_err_t i2c_ccs811_set_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_drive_modes_t mode) {
-    i2c_ccs811_measure_mode_register_t measure_mode_reg;
-
+esp_err_t i2c_ccs811_set_mode(i2c_ccs811_handle_t ccs811_handle, const i2c_ccs811_drive_modes_t mode) {
     /* validate arguments */
     ESP_ARG_CHECK( ccs811_handle );
 
     /* copy measure mode register */
-    measure_mode_reg.reg = ccs811_handle->measure_mode_reg.reg;
+    i2c_ccs811_measure_mode_register_t measure_mode_reg = { .reg = ccs811_handle->measure_mode_reg.reg };
 
     /* set drive mode */
     measure_mode_reg.bits.drive_mode = mode;
@@ -615,7 +614,7 @@ esp_err_t i2c_ccs811_set_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_driv
     return ESP_OK;
 }
 
-esp_err_t i2c_ccs811_get_firmware_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_firmware_modes_t *mode) {
+esp_err_t i2c_ccs811_get_firmware_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_firmware_modes_t *const mode) {
     /* validate arguments */
     ESP_ARG_CHECK( ccs811_handle );
 
@@ -628,7 +627,7 @@ esp_err_t i2c_ccs811_get_firmware_mode(i2c_ccs811_handle_t ccs811_handle, i2c_cc
     return ESP_OK;
 }
 
-esp_err_t i2c_ccs811_get_data_status(i2c_ccs811_handle_t ccs811_handle, bool *ready) {
+esp_err_t i2c_ccs811_get_data_status(i2c_ccs811_handle_t ccs811_handle, bool *const ready) {
     /* validate arguments */
     ESP_ARG_CHECK( ccs811_handle );
 
@@ -641,7 +640,7 @@ esp_err_t i2c_ccs811_get_data_status(i2c_ccs811_handle_t ccs811_handle, bool *re
     return ESP_OK;
 }
 
-esp_err_t i2c_ccs811_get_error_status(i2c_ccs811_handle_t ccs811_handle, bool *error) {
+esp_err_t i2c_ccs811_get_error_status(i2c_ccs811_handle_t ccs811_handle, bool *const error) {
     /* validate arguments */
     ESP_ARG_CHECK( ccs811_handle );
 
@@ -655,7 +654,7 @@ esp_err_t i2c_ccs811_get_error_status(i2c_ccs811_handle_t ccs811_handle, bool *e
 }
 
 esp_err_t i2c_ccs811_reset(i2c_ccs811_handle_t ccs811_handle) {
-    i2c_uint40_t tx  = { 0, 0, 0, 0, 0};
+    i2c_uint40_t tx  = { };
 
     const static uint8_t sw_reset[4] = I2C_CCS811_SW_RESET_DATA;
 
@@ -727,7 +726,7 @@ esp_err_t i2c_ccs811_io_reset(i2c_ccs811_handle_t ccs811_handle) {
 }
 
 
-esp_err_t i2c_ccs811_rm(i2c_ccs811_handle_t ccs811_handle) {
+esp_err_t i2c_ccs811_remove(i2c_ccs811_handle_t ccs811_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ccs811_handle );
 
@@ -735,12 +734,12 @@ esp_err_t i2c_ccs811_rm(i2c_ccs811_handle_t ccs811_handle) {
     return i2c_master_bus_rm_device(ccs811_handle->i2c_dev_handle);
 }
 
-esp_err_t i2c_ccs811_del(i2c_ccs811_handle_t ccs811_handle) {
+esp_err_t i2c_ccs811_delete(i2c_ccs811_handle_t ccs811_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ccs811_handle );
 
     /* remove device from master bus */
-    ESP_RETURN_ON_ERROR( i2c_ccs811_rm(ccs811_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
+    ESP_RETURN_ON_ERROR( i2c_ccs811_remove(ccs811_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
 
     /* validate handle instance and free handles */
     if(ccs811_handle->i2c_dev_handle) {
@@ -763,7 +762,7 @@ const char *i2c_ccs811_err_to_message(i2c_ccs811_error_code_register_t error_reg
     return i2c_ccs811_unknown_msg;
 }
 
-const char *i2c_ccs811_err_to_code(i2c_ccs811_error_code_register_t error_reg) {
+const char *i2c_ccs811_err_to_code(const i2c_ccs811_error_code_register_t error_reg) {
     /* attempt error code lookup */
     if(error_reg.bits.write_register_invalid == true) return i2c_ccs811_error_definition_table[0].code;
     if(error_reg.bits.read_register_invalid == true) return i2c_ccs811_error_definition_table[1].code;
@@ -775,7 +774,7 @@ const char *i2c_ccs811_err_to_code(i2c_ccs811_error_code_register_t error_reg) {
     return i2c_ccs811_unknown_code;
 }
 
-const char *i2c_ccs811_measure_mode_description(i2c_ccs811_drive_modes_t mode) {
+const char *i2c_ccs811_measure_mode_description(const i2c_ccs811_drive_modes_t mode) {
     /* attempt measure mode lookup */
     for(int i = 0; i< I2C_CCS811_MEASURE_MODE_TABLE_SIZE; i++) {
         if(i2c_ccs811_measure_mode_definition_table[i].mode == mode) {

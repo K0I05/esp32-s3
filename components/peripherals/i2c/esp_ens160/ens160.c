@@ -75,6 +75,11 @@
 #define I2C_ENS160_REG_GPR_READ6_R          UINT8_C(0x4e) //!< ens160 I2C general purpose read6 register
 #define I2C_ENS160_REG_GPR_READ7_R          UINT8_C(0x4f) //!< ens160 I2C general purpose read7 register
 
+#define I2C_ENS160_TEMPERATURE_MAX         (float)(125.0)  //!< ens160 maximum temperature range
+#define I2C_ENS160_TEMPERATURE_MIN         (float)(-40.0)  //!< ens160 minimum temperature range
+#define I2C_ENS160_HUMIDITY_MAX            (float)(100.0)  //!< ens160 maximum humidity range
+#define I2C_ENS160_HUMIDITY_MIN            (float)(0.0)    //!< ens160 minimum humidity range
+
 #define I2C_ENS160_POWERUP_DELAY_MS         UINT16_C(15)            //!< ens160 15ms before making i2c transactions
 #define I2C_ENS160_APPSTART_DELAY_MS        UINT16_C(25)            //!< ens160 25ms before making a measurement
 #define I2C_ENS160_CMD_DELAY_MS             UINT16_C(5)
@@ -115,7 +120,7 @@ static const struct I2C_ENS160_AQI_UBA_ROW_TAG i2c_ens160_aqi_uba_definition_tab
 /**
  * @brief Get air quality (uba) index.
  */
-static inline i2c_ens160_aqi_uba_indexes_t i2c_ens160_get_aqi_uba_index(i2c_ens160_caqi_data_register_t caqi_data_reg) {
+static inline i2c_ens160_aqi_uba_indexes_t i2c_ens160_get_aqi_uba_index(const i2c_ens160_caqi_data_register_t caqi_data_reg) {
     switch(caqi_data_reg.bits.aqi_uba) {
         case 1: return I2C_ENS160_AQI_UBA_INDEX_1;
         case 2: return I2C_ENS160_AQI_UBA_INDEX_2;
@@ -133,7 +138,7 @@ static inline i2c_ens160_aqi_uba_indexes_t i2c_ens160_get_aqi_uba_index(i2c_ens1
  * @param[in] t_uin16 compensation temperature from register.
  * @return `float` temperature compensation in degrees Celsius.
  */
-static inline float i2c_ens160_decode_temperature(uint16_t t_uint16) {
+static inline float i2c_ens160_decode_temperature(const uint16_t t_uint16) {
     return (float)((t_uint16 / 64) - 273.15);
 }
 
@@ -143,7 +148,7 @@ static inline float i2c_ens160_decode_temperature(uint16_t t_uint16) {
  * @param[in] t compensation temperature in degrees Celsius.
  * @return `uint16_t` temperature compensation.
  */
-static inline uint16_t i2c_ens160_encode_temperature(float t) {
+static inline uint16_t i2c_ens160_encode_temperature(const float t) {
     return (uint16_t)((t + 273.15) * 64);
 }
 
@@ -153,7 +158,7 @@ static inline uint16_t i2c_ens160_encode_temperature(float t) {
  * @param[in] t_uin16 compensation humidity from register.
  * @return `float` humidity compensation.
  */
-static inline float i2c_ens160_decode_humidity(uint16_t h_uint16) {
+static inline float i2c_ens160_decode_humidity(const uint16_t h_uint16) {
     return (float)(h_uint16 / 512);
 }
 
@@ -163,7 +168,7 @@ static inline float i2c_ens160_decode_humidity(uint16_t h_uint16) {
  * @param[in] h compensation humidity.
  * @return `uint16_t` humidity compensation.
  */
-static inline uint16_t i2c_ens160_encode_humidity(float h) {
+static inline uint16_t i2c_ens160_encode_humidity(const float h) {
     return (uint16_t)(h * 512);
 }
 
@@ -174,7 +179,7 @@ static inline uint16_t i2c_ens160_encode_humidity(float h) {
  * @param command Command returned from ENS160 command register.
  * @return esp_err_t ESP_OK on success.
  */
-static inline esp_err_t i2c_ens160_get_command(i2c_ens160_handle_t ens160_handle, i2c_ens160_commands_t *command) {
+static inline esp_err_t i2c_ens160_get_command(i2c_ens160_handle_t ens160_handle, i2c_ens160_commands_t *const command) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -194,7 +199,7 @@ static inline esp_err_t i2c_ens160_get_command(i2c_ens160_handle_t ens160_handle
  * @param command Command to write to ENS160 register.
  * @return esp_err_t ESP_OK on success.
  */
-static inline esp_err_t i2c_ens160_set_command(i2c_ens160_handle_t ens160_handle, i2c_ens160_commands_t command) {
+static inline esp_err_t i2c_ens160_set_command(i2c_ens160_handle_t ens160_handle, const i2c_ens160_commands_t command) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -233,18 +238,18 @@ static inline esp_err_t i2c_ens160_get_mode(i2c_ens160_handle_t ens160_handle) {
  * @param[in] mode Operating mode.
  * @return esp_err_t ESP_OK on success.
  */
-static inline esp_err_t i2c_ens160_set_mode(i2c_ens160_handle_t ens160_handle, i2c_ens160_operating_modes_t mode) {
+static inline esp_err_t i2c_ens160_set_mode(i2c_ens160_handle_t ens160_handle, const i2c_ens160_operating_modes_t mode) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
     /* attempt i2c write transaction */
     ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(ens160_handle->i2c_dev_handle, I2C_ENS160_REG_OPMODE_RW, mode), TAG, "write operating mode register for set mode failed" );
 
-    /* set handle operating mode */
-    ens160_handle->mode = mode;
-
     /* delay before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_ENS160_CMD_DELAY_MS));
+
+    /* attempt i2c read transaction */
+    ESP_RETURN_ON_ERROR( i2c_ens160_get_mode(ens160_handle), TAG, "read operating mode register for get mode failed" );
 
     return ESP_OK;
 }
@@ -269,7 +274,7 @@ static inline esp_err_t i2c_ens160_get_registers(i2c_ens160_handle_t ens160_hand
     ESP_RETURN_ON_ERROR( i2c_ens160_get_compensation_registers(ens160_handle), TAG, "read compensation registers failed" );
 
     /* attempt to read part identifier */
-    ESP_RETURN_ON_ERROR( i2c_ens160_get_part_id(ens160_handle), TAG, "read part identifier register failed" );
+    ESP_RETURN_ON_ERROR( i2c_ens160_get_part_id_register(ens160_handle), TAG, "read part identifier register failed" );
 
     /* attempt to read firmware version */
 
@@ -289,24 +294,25 @@ esp_err_t i2c_ens160_get_interrupt_config_register(i2c_ens160_handle_t ens160_ha
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_set_interrupt_config_register(i2c_ens160_handle_t ens160_handle, i2c_ens160_interrupt_config_register_t irq_config_reg) {
+esp_err_t i2c_ens160_set_interrupt_config_register(i2c_ens160_handle_t ens160_handle, const i2c_ens160_interrupt_config_register_t irq_config_reg) {
    /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
     /* set interrupt configuration register reserved fields to 0 */
-    irq_config_reg.bits.reserved1 = 0;
-    irq_config_reg.bits.reserved2 = 0;
-    irq_config_reg.bits.reserved3 = 0;
+    i2c_ens160_interrupt_config_register_t irq_config = { .reg = irq_config_reg.reg };
+    irq_config.bits.reserved1 = 0;
+    irq_config.bits.reserved2 = 0;
+    irq_config.bits.reserved3 = 0;
 
     /* attempt i2c write transaction */
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(ens160_handle->i2c_dev_handle, I2C_ENS160_REG_INT_CONFIG_RW, irq_config_reg.reg), TAG, "write interrupt configuration register failed" );
-
-    /* set handle interrupt configuration register */
-    ens160_handle->irq_config_reg.reg = irq_config_reg.reg;
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(ens160_handle->i2c_dev_handle, I2C_ENS160_REG_INT_CONFIG_RW, irq_config.reg), TAG, "write interrupt configuration register failed" );
 
     /* delay before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_ENS160_CMD_DELAY_MS));
 
+    /* attempt i2c read transaction */
+    ESP_RETURN_ON_ERROR( i2c_ens160_get_interrupt_config_register(ens160_handle), TAG, "read interrupt configuration register failed" );
+    
     return ESP_OK; 
 }
 
@@ -368,9 +374,19 @@ esp_err_t i2c_ens160_get_compensation_registers(i2c_ens160_handle_t ens160_handl
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_set_compensation_registers(i2c_ens160_handle_t ens160_handle, float temperature, float humidity) {
+esp_err_t i2c_ens160_set_compensation_registers(i2c_ens160_handle_t ens160_handle, const float temperature, const float humidity) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
+
+    /* validate temperature argument */
+    if(temperature > I2C_ENS160_TEMPERATURE_MAX || temperature < I2C_ENS160_TEMPERATURE_MIN) {
+        ESP_RETURN_ON_FALSE( false, ESP_ERR_INVALID_ARG, TAG, "temperature is out of range, write compensation registers failed");
+    }
+
+    /* validate humidity argument */
+    if(humidity > I2C_ENS160_HUMIDITY_MAX || humidity < I2C_ENS160_HUMIDITY_MIN) {
+        ESP_RETURN_ON_FALSE( false, ESP_ERR_INVALID_ARG, TAG, "humidity is out of range, write compensation registers failed");
+    }
 
     /* encode temperature & humidity compensation */
     uint16_t t = i2c_ens160_encode_temperature(temperature); 
@@ -380,17 +396,16 @@ esp_err_t i2c_ens160_set_compensation_registers(i2c_ens160_handle_t ens160_handl
     ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint16(ens160_handle->i2c_dev_handle, I2C_ENS160_REG_TEMP_IN_RW, t), TAG, "write temperature compensation register failed" );
     ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint16(ens160_handle->i2c_dev_handle, I2C_ENS160_REG_RH_IN_RW, h), TAG, "write humidity compensation register failed" );
 
-    /* set handle parameters */
-    ens160_handle->temperature_comp = temperature;
-    ens160_handle->humidity_comp    = humidity;
-
     /* delay before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_ENS160_CMD_DELAY_MS));
+
+    /* attempt i2c read transaction */
+    ESP_RETURN_ON_ERROR( i2c_ens160_get_compensation_registers(ens160_handle), TAG, "read compensation registers failed" );
 
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_get_part_id(i2c_ens160_handle_t ens160_handle) {
+esp_err_t i2c_ens160_get_part_id_register(i2c_ens160_handle_t ens160_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -457,7 +472,7 @@ esp_err_t i2c_ens160_init(i2c_master_bus_handle_t bus_handle, const i2c_ens160_c
         return ret;
 }
 
-esp_err_t i2c_ens160_get_measurement(i2c_ens160_handle_t ens160_handle, i2c_ens160_air_quality_data_t *data) {
+esp_err_t i2c_ens160_get_measurement(i2c_ens160_handle_t ens160_handle, i2c_ens160_air_quality_data_t *const data) {
     esp_err_t                       ret             = ESP_OK;
     uint64_t                        start_time      = 0;
     bool                            data_is_ready   = false;
@@ -503,11 +518,11 @@ esp_err_t i2c_ens160_get_measurement(i2c_ens160_handle_t ens160_handle, i2c_ens1
         return ret;
 }
 
-esp_err_t i2c_ens160_get_raw_measurement(i2c_ens160_handle_t ens160_handle, i2c_ens160_air_quality_raw_data_t *data) {
+esp_err_t i2c_ens160_get_raw_measurement(i2c_ens160_handle_t ens160_handle, i2c_ens160_air_quality_raw_data_t *const data) {
     esp_err_t       ret                 = ESP_OK;
     uint64_t        start_time          = 0;
     bool            gpr_data_is_ready   = false;
-    i2c_uint64_t    rx                  = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    i2c_uint64_t    rx                  = { };
 
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
@@ -561,7 +576,7 @@ esp_err_t i2c_ens160_get_raw_measurement(i2c_ens160_handle_t ens160_handle, i2c_
         return ret;
 }
 
-esp_err_t i2c_ens160_get_data_status(i2c_ens160_handle_t ens160_handle, bool *ready) {
+esp_err_t i2c_ens160_get_data_status(i2c_ens160_handle_t ens160_handle, bool *const ready) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -574,7 +589,7 @@ esp_err_t i2c_ens160_get_data_status(i2c_ens160_handle_t ens160_handle, bool *re
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_get_gpr_data_status(i2c_ens160_handle_t ens160_handle, bool *ready) {
+esp_err_t i2c_ens160_get_gpr_data_status(i2c_ens160_handle_t ens160_handle, bool *const ready) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -587,7 +602,7 @@ esp_err_t i2c_ens160_get_gpr_data_status(i2c_ens160_handle_t ens160_handle, bool
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_get_validity_status(i2c_ens160_handle_t ens160_handle, i2c_ens160_validity_flags_t *state) {
+esp_err_t i2c_ens160_get_validity_status(i2c_ens160_handle_t ens160_handle, i2c_ens160_validity_flags_t *const state) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -600,7 +615,7 @@ esp_err_t i2c_ens160_get_validity_status(i2c_ens160_handle_t ens160_handle, i2c_
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_get_error_status(i2c_ens160_handle_t ens160_handle, bool *error) {
+esp_err_t i2c_ens160_get_error_status(i2c_ens160_handle_t ens160_handle, bool *const error) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -613,7 +628,7 @@ esp_err_t i2c_ens160_get_error_status(i2c_ens160_handle_t ens160_handle, bool *e
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_get_mode_status(i2c_ens160_handle_t ens160_handle, bool *mode) {
+esp_err_t i2c_ens160_get_mode_status(i2c_ens160_handle_t ens160_handle, bool *const mode) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -626,7 +641,7 @@ esp_err_t i2c_ens160_get_mode_status(i2c_ens160_handle_t ens160_handle, bool *mo
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_get_status(i2c_ens160_handle_t ens160_handle, bool *data_ready, bool *gpr_data_ready, i2c_ens160_validity_flags_t *state, bool *error, bool *mode) {
+esp_err_t i2c_ens160_get_status(i2c_ens160_handle_t ens160_handle, bool *const data_ready, bool *const gpr_data_ready, i2c_ens160_validity_flags_t *const state, bool *const error, bool *const mode) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -643,7 +658,31 @@ esp_err_t i2c_ens160_get_status(i2c_ens160_handle_t ens160_handle, bool *data_re
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_operational(i2c_ens160_handle_t ens160_handle) {
+esp_err_t i2c_ens160_get_compensation_factors(i2c_ens160_handle_t ens160_handle, float *const temperature, float *const humidity) {
+    /* validate arguments */
+    ESP_ARG_CHECK( ens160_handle );
+
+    /* attempt to read compensation registers */
+    ESP_RETURN_ON_ERROR( i2c_ens160_get_compensation_registers(ens160_handle), TAG, "read compensation registers failed" );
+
+    /* set output parameters */
+    *temperature = ens160_handle->temperature_comp;
+    *humidity    = ens160_handle->humidity_comp;
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_ens160_set_compensation_factors(i2c_ens160_handle_t ens160_handle, const float temperature, const float humidity) {
+    /* validate arguments */
+    ESP_ARG_CHECK( ens160_handle );
+
+    /* attempt to write compensation registers */
+    ESP_RETURN_ON_ERROR( i2c_ens160_set_compensation_registers(ens160_handle, temperature, humidity), TAG, "write compensation registers failed" );
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_ens160_enable_standard_mode(i2c_ens160_handle_t ens160_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -653,7 +692,7 @@ esp_err_t i2c_ens160_operational(i2c_ens160_handle_t ens160_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_idle(i2c_ens160_handle_t ens160_handle) {
+esp_err_t i2c_ens160_enable_idle_mode(i2c_ens160_handle_t ens160_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -663,7 +702,7 @@ esp_err_t i2c_ens160_idle(i2c_ens160_handle_t ens160_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_deep_sleep(i2c_ens160_handle_t ens160_handle) {
+esp_err_t i2c_ens160_enable_deep_sleep_mode(i2c_ens160_handle_t ens160_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -697,13 +736,13 @@ esp_err_t i2c_ens160_reset(i2c_ens160_handle_t ens160_handle) {
     /* attempt to write interrupt configuration register */
     ESP_RETURN_ON_ERROR( i2c_ens160_set_interrupt_config_register(ens160_handle, irq_config_reg), TAG, "write interrupt configuration register for reset failed" );
 
-    /* attempt to write operating mode to start making measurements (idle by default)  */
-    ESP_RETURN_ON_ERROR( i2c_ens160_operational(ens160_handle), TAG, "write operational mode for reset failed" );
+    /* attempt to write standard operating mode to start making measurements (idle by default)  */
+    ESP_RETURN_ON_ERROR( i2c_ens160_enable_standard_mode(ens160_handle), TAG, "write operational mode for reset failed" );
 
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_rm(i2c_ens160_handle_t ens160_handle) {
+esp_err_t i2c_ens160_remove(i2c_ens160_handle_t ens160_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -711,12 +750,12 @@ esp_err_t i2c_ens160_rm(i2c_ens160_handle_t ens160_handle) {
     return i2c_master_bus_rm_device(ens160_handle->i2c_dev_handle);
 }
 
-esp_err_t i2c_ens160_del(i2c_ens160_handle_t ens160_handle) {
+esp_err_t i2c_ens160_delete(i2c_ens160_handle_t ens160_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
     /* remove device from master bus */
-    ESP_RETURN_ON_ERROR( i2c_ens160_rm(ens160_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
+    ESP_RETURN_ON_ERROR( i2c_ens160_remove(ens160_handle), TAG, "unable to remove device from i2c master bus, delete handle failed" );
 
     /* validate handle instance and free handles */
     if(ens160_handle->i2c_dev_handle) {

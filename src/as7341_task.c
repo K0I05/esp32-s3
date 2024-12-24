@@ -143,6 +143,6 @@ void i2c0_as7341_task( void *pvParameters ) {
     }
     //
     // free resources
-    i2c_as7341_del( dev_hdl );
+    i2c_as7341_delete( dev_hdl );
     vTaskDelete( NULL );
 }
