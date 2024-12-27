@@ -48,9 +48,7 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <string.h>
-
 #include <esp_log.h>
-
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -115,7 +113,7 @@ bool                    i2c0_component_tasked = false;
 static inline void i2c0_task_create(TaskFunction_t task, const char* name) {
     /*  
         note: only one task on the i2c master bus 0 can run at a time
-     */
+    */
 
     /* validate i2c0 component flag */
     if(i2c0_component_tasked == true) {
@@ -227,8 +225,8 @@ void app_main( void ) {
     ESP_ERROR_CHECK( i2c_new_master_bus(&i2c0_bus_cfg, &i2c0_bus_hdl) );
 
     /* scan i2c devices on i2c master bus 0 and print results */
-    ESP_LOGI(APP_TAG, "Scanning I2C master bus 0 for I2C devices..");
-    ESP_ERROR_CHECK( i2c0_device_scan() );
+    //ESP_LOGI(APP_TAG, "Scanning I2C master bus 0 for I2C devices..");
+    //ESP_ERROR_CHECK( i2c0_device_scan() );
 
     /* delay task before starting component example */
     vTaskDelay(pdMS_TO_TICKS(500));
@@ -246,10 +244,10 @@ void app_main( void ) {
     //i2c0_component_example_start(I2C_COMPONENT_HDC1080);
     //i2c0_component_example_start(I2C_COMPONENT_HMC5883L);
     //i2c0_component_example_start(I2C_COMPONENT_MLX90614);
-    i2c0_component_example_start(I2C_COMPONENT_MPU6050);
+    //i2c0_component_example_start(I2C_COMPONENT_MPU6050);
     //i2c0_component_example_start(I2C_COMPONENT_SGP4X);
     //i2c0_component_example_start(I2C_COMPONENT_SHT4X);
     //i2c0_component_example_start(I2C_COMPONENT_SSD1306);
     //i2c0_component_example_start(I2C_COMPONENT_TLV493D);
-    //i2c0_component_example_start(I2C_COMPONENT_VEML7700);
+    i2c0_component_example_start(I2C_COMPONENT_VEML7700);
 }

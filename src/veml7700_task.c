@@ -44,7 +44,7 @@ void i2c0_veml7700_task( void *pvParameters ) {
     TickType_t          last_wake_time  = xTaskGetTickCount ();
     //
     // initialize i2c device configuration
-    i2c_veml7700_config_t dev_cfg         = I2C_VEML7700_CONFIG_DEFAULT;
+    i2c_veml7700_config_t dev_cfg       = I2C_VEML7700_CONFIG_DEFAULT;
     i2c_veml7700_handle_t dev_hdl;
     //
     // init device
@@ -54,18 +54,23 @@ void i2c0_veml7700_task( void *pvParameters ) {
         assert(dev_hdl);
     }
     //
+    // optimize sensor
+    //i2c_veml7700_optimize_ambient_light(dev_hdl);
+    //
     // task loop entry point
     for ( ;; ) {
         ESP_LOGI(APP_TAG, "######################## VEML7700 - START #########################");
         //
         // handle sensor
         float ambient_light;
+        //uint16_t als_counts;
         esp_err_t result = i2c_veml7700_get_ambient_light(dev_hdl, &ambient_light);
+        //esp_err_t result = i2c_veml7700_get_ambient_light_counts(dev_hdl, &als_counts);
         if(result != ESP_OK) {
             ESP_LOGE(APP_TAG, "veml7700 device read failed (%s)", esp_err_to_name(result));
         } else {
             ESP_LOGI(APP_TAG, "ambient light:     %.2f lux", ambient_light);
-
+            //ESP_LOGI(APP_TAG, "ambient light:     %u counts", als_counts);
         }
         //
         ESP_LOGI(APP_TAG, "######################## VEML7700 - END ###########################");

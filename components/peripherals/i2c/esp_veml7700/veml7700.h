@@ -63,12 +63,10 @@ extern "C" {
             .dev_config.device_address  = I2C_VEML7700_DEV_ADDR,                    \
             .dev_config.scl_speed_hz    = I2C_VEML7700_SCL_SPEED_HZ,                \
             .gain                       = I2C_VEML7700_GAIN_DIV_4,                  \
-            .integration_time           = I2C_VEML7700_INTEGRATION_TIME_100MS,      \
+            .integration_time           = I2C_VEML7700_INTEGRATION_TIME_200MS,      \
             .persistence_protect        = I2C_VEML7700_PERSISTENCE_PROTECTION_4,    \
-            .hi_threshold               = 0,                                        \
-            .lo_threshold               = 0,                                        \
             .irq_enabled                = true,                                     \
-            .shutdown                   = false,                                    \
+            .power_enabled              = true,                                     \
             .power_saving_enabled       = false,                                    \
             .power_saving_mode          = I2C_VEML7700_POWER_SAVING_MODE_500MS }
 
@@ -80,10 +78,10 @@ extern "C" {
  * @brief VEML7700 gains enumerator.
  */
 typedef enum {
-    I2C_VEML7700_GAIN_1     = (0b00),
-    I2C_VEML7700_GAIN_2     = (0b01),
-    I2C_VEML7700_GAIN_DIV_8 = (0b10),
-    I2C_VEML7700_GAIN_DIV_4 = (0b11),
+    I2C_VEML7700_GAIN_1     = (0b00),   /*!< ALS gain x 1 */
+    I2C_VEML7700_GAIN_2     = (0b01),   /*!< ALS gain x 2 */
+    I2C_VEML7700_GAIN_DIV_8 = (0b10),   /*!< ALS gain x (1/8) */
+    I2C_VEML7700_GAIN_DIV_4 = (0b11),   /*!< ALS gain x (1/4) */
 } i2c_veml7700_gains_t;
 
 /**
@@ -175,7 +173,7 @@ typedef union __attribute__((packed)) {
 
 **/
 typedef union __attribute__((packed)) {
-    struct ISTS_REG_BITS_TAG {
+    struct {
         uint16_t                                reserved:14;              /*!< reserved and set to 0                    (bit:0-13) */
         bool                                    hi_threshold_exceeded:1;  /*!< normal unless hi threshold is exceeded   (bit:14)   */
         bool                                    lo_threshold_exceeded:1;  /*!< normal unless lo threshold is exceeded   (bit:15)   */
@@ -205,9 +203,7 @@ typedef struct {
     i2c_veml7700_integration_times_t        integration_time;       /*!< integration time to measure */
     i2c_veml7700_persistence_protections_t  persistence_protect;    /*!< persistence protection */
     bool                                    irq_enabled;            /*!< interrupt enabled when true */
-    bool                                    shutdown;               /*!< powered down (off) when true */
-    uint16_t                                hi_threshold;           /*!< high threshold register for the interrupt */
-    uint16_t                                lo_threshold;           /*!< low threshold register for the interrupt */
+    bool                                    power_enabled;          /*!< power enabled when true */
     bool                                    power_saving_enabled;   /*!< power saving enabled when true */
     i2c_veml7700_power_saving_modes_t       power_saving_mode;      /*!< power mode register */
 } i2c_veml7700_config_t;
@@ -226,6 +222,10 @@ struct i2c_veml7700_t {
     i2c_veml7700_identifier_register_t          identifier_reg;         /*!< identifier register */
     float                                       resolution;			    /*!< Current resolution and multiplier */
     uint32_t                                    maximum_lux;		    /*!< Current maximum lux limit */
+
+    i2c_veml7700_gains_t                    gain;                   /*!< gain sensitivity */
+    i2c_veml7700_integration_times_t        integration_time;       /*!< integration time to measure */
+
 };
 
 /**
@@ -242,7 +242,7 @@ typedef struct i2c_veml7700_t *i2c_veml7700_handle_t;
  * @brief Reads configuration register from VEML7700.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_veml7700_get_configuration_register(i2c_veml7700_handle_t veml7700_handle);
 
@@ -251,7 +251,7 @@ esp_err_t i2c_veml7700_get_configuration_register(i2c_veml7700_handle_t veml7700
  *
  * @param[in] veml7700_handle VEML7700 device handle.
  * @param[in] config_reg VEML7700 configuration register.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_veml7700_set_configuration_register(i2c_veml7700_handle_t veml7700_handle, const i2c_veml7700_configuration_register_t config_reg);
 
@@ -259,7 +259,7 @@ esp_err_t i2c_veml7700_set_configuration_register(i2c_veml7700_handle_t veml7700
  * @brief Reads high and low threshold registers from VEML7700.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_veml7700_get_threshold_registers(i2c_veml7700_handle_t veml7700_handle);
 
@@ -269,7 +269,7 @@ esp_err_t i2c_veml7700_get_threshold_registers(i2c_veml7700_handle_t veml7700_ha
  * @param[in] veml7700_handle VEML7700 device handle.
  * @param[in] hi_threshold VEML7700 high threshold register.
  * @param[in] lo_threshold VEML7700 lo threshold register.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_veml7700_set_threshold_registers(i2c_veml7700_handle_t veml7700_handle, const uint16_t hi_threshold, const uint16_t lo_threshold);
 
@@ -277,7 +277,7 @@ esp_err_t i2c_veml7700_set_threshold_registers(i2c_veml7700_handle_t veml7700_ha
  * @brief Reads power saving mode register from VEML7700.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_veml7700_get_power_saving_mode_register(i2c_veml7700_handle_t veml7700_handle);
 
@@ -286,7 +286,7 @@ esp_err_t i2c_veml7700_get_power_saving_mode_register(i2c_veml7700_handle_t veml
  *
  * @param[in] veml7700_handle VEML7700 device handle.
  * @param[in] power_saving_mode_reg VEML7700 power saving mode register.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_veml7700_set_power_saving_mode_register(i2c_veml7700_handle_t veml7700_handle, const i2c_veml7700_power_saving_mode_register_t power_saving_mode_reg);
 
@@ -294,7 +294,7 @@ esp_err_t i2c_veml7700_set_power_saving_mode_register(i2c_veml7700_handle_t veml
  * @brief Reads interrupt status register from VEML7700.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_veml7700_get_interrupt_status_register(i2c_veml7700_handle_t veml7700_handle);
 
@@ -302,9 +302,12 @@ esp_err_t i2c_veml7700_get_interrupt_status_register(i2c_veml7700_handle_t veml7
  * @brief Reads identifier register from VEML7700.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_veml7700_get_identifier_register(i2c_veml7700_handle_t veml7700_handle);
+
+
+esp_err_t i2c_veml7700_optimize_ambient_light(i2c_veml7700_handle_t veml7700_handle);
 
 /**
  * @brief Initializes an VEML7700 device onto the I2C master bus.
@@ -312,31 +315,49 @@ esp_err_t i2c_veml7700_get_identifier_register(i2c_veml7700_handle_t veml7700_ha
  * @param[in] bus_handle I2C master bus handle.
  * @param[in] veml7700_config configuration of VEML7700 device.
  * @param[out] veml7700_handle VEML7700 device handle.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_veml7700_init(i2c_master_bus_handle_t bus_handle, const i2c_veml7700_config_t *veml7700_config, i2c_veml7700_handle_t *veml7700_handle);
 
 /**
- * @brief Reads ambient light from VEML7700.
+ * @brief Reads ambient light counts from VEML7700.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @param counts Ambient light counts.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_get_ambient_light_counts(i2c_veml7700_handle_t veml7700_handle, uint16_t *const counts);
+
+/**
+ * @brief Reads ambient light (0 lux to 140 klux) from VEML7700.
  * 
  * @note This follows the official Vishay VEML7700 Application Note, rev. 17-Jan-2024.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
- * @param[out] lux ambient light illumination in lux.
- * @return ESP_OK on success.
+ * @param[out] ambient_light Ambient light illumination in lux.
+ * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_veml7700_get_ambient_light(i2c_veml7700_handle_t veml7700_handle, float *lux);
+esp_err_t i2c_veml7700_get_ambient_light(i2c_veml7700_handle_t veml7700_handle, float *const ambient_light);
 
 /**
- * @brief Reads optimal ambient light from VEML7700.
+ * @brief Reads optimal ambient light (0 lux to 140 klux) from VEML7700.
  * 
- * @note This follows an unofficial algorithm taken from other sources.
+ * @note This follows an unofficial algorithm taken from other sources: does not work properly
  *
  * @param[in] veml7700_handle VEML7700 device handle.
- * @param[out] lux ambient light illumination in lux.
- * @return ESP_OK on success.
+ * @param[out] ambient_light Ambient light illumination in lux.
+ * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_veml7700_get_ambient_light_auto(i2c_veml7700_handle_t veml7700_handle, float *lux);
+esp_err_t i2c_veml7700_get_ambient_light_auto(i2c_veml7700_handle_t veml7700_handle, float *const ambient_light);
+
+/**
+ * @brief Reads white channel counts from VEML7700.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @param counts White channel counts.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_get_white_channel_counts(i2c_veml7700_handle_t veml7700_handle, uint16_t *const counts);
 
 /**
  * @brief Reads white channel from VEML7700.
@@ -344,21 +365,131 @@ esp_err_t i2c_veml7700_get_ambient_light_auto(i2c_veml7700_handle_t veml7700_han
  * @note This follows the official Vishay VEML7700 Application Note, rev. 17-Jan-2024.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
- * @param[out] lux white channel illumination in lux.
- * @return ESP_OK on success.
+ * @param[out] white_light White channel illumination in lux.
+ * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_veml7700_get_white_channel(i2c_veml7700_handle_t veml7700_handle, float *lux);
+esp_err_t i2c_veml7700_get_white_channel(i2c_veml7700_handle_t veml7700_handle, float *const white_light);
 
 /**
  * @brief Reads optimal white channel from VEML7700.
  * 
- * @note This follows an unofficial algorithm taken from other sources.
+ * @note This follows an unofficial algorithm taken from other sources: does not work properly
  *
  * @param[in] veml7700_handle VEML7700 device handle.
- * @param[out] lux white channel illumination in lux.
- * @return ESP_OK on success.
+ * @param[out] white_light White channel illumination in lux.
+ * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_veml7700_get_white_channel_auto(i2c_veml7700_handle_t veml7700_handle, float *lux);
+esp_err_t i2c_veml7700_get_white_channel_auto(i2c_veml7700_handle_t veml7700_handle, float *const white_light);
+
+/**
+ * @brief Reads high and low als thresholds (lux) from VEML7700.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @param hi_threshold VEML7700 high threshold setting.
+ * @param lo_threshold VEML7700 low threshold setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_get_thresholds(i2c_veml7700_handle_t veml7700_handle, uint16_t *const hi_threshold, uint16_t *const lo_threshold);
+
+/**
+ * @brief Writes high and low als thresholds (lux) to VEML7700.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @param hi_threshold VEML7700 high threshold setting.
+ * @param lo_threshold VEML7700 low threshold setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_set_thresholds(i2c_veml7700_handle_t veml7700_handle, const uint16_t hi_threshold, const uint16_t lo_threshold);
+
+/**
+ * @brief Reads als gain from VEML7700.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @param gain VEML7700 gain setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_get_gain(i2c_veml7700_handle_t veml7700_handle, i2c_veml7700_gains_t *const gain);
+
+/**
+ * @brief Writes als gain to VEML7700.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @param gain VEML7700 gain setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_set_gain(i2c_veml7700_handle_t veml7700_handle, const i2c_veml7700_gains_t gain);
+
+/**
+ * @brief Reads als integration time from VEML7700.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @param integration_time VEML7700 integration time setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_get_integration_time(i2c_veml7700_handle_t veml7700_handle, i2c_veml7700_integration_times_t *const integration_time);
+
+/**
+ * @brief Writes als integration time to VEML7700.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @param integration_time VEML7700 integration time setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_set_integration_time(i2c_veml7700_handle_t veml7700_handle, const i2c_veml7700_integration_times_t integration_time);
+
+/**
+ * @brief Reads als persistence protection from VEML7700.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @param persistence_protection VEML7700 persistence protection setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_get_persistence_protection(i2c_veml7700_handle_t veml7700_handle, i2c_veml7700_persistence_protections_t *const persistence_protection);
+
+/**
+ * @brief Writes als persistence protection to VEML7700.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @param persistence_protection VEML7700 persistence protection setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_set_persistence_protection(i2c_veml7700_handle_t veml7700_handle, const i2c_veml7700_persistence_protections_t persistence_protection);
+
+/**
+ * @brief Reads power saving mode from VEML7700.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @param power_saving_mode VEML7700 power saving mode setting.
+ * @param power_saving_enabled VEML7700 power saving state setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_get_power_saving_mode(i2c_veml7700_handle_t veml7700_handle, i2c_veml7700_power_saving_modes_t *const power_saving_mode, bool *const power_saving_enabled);
+
+/**
+ * @brief Reads power saving mode from VEML7700.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @param power_saving_mode VEML7700 power saving mode setting.
+ * @param power_saving_enabled VEML7700 power saving state setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_set_power_saving_mode(i2c_veml7700_handle_t veml7700_handle, const i2c_veml7700_power_saving_modes_t power_saving_mode, const bool power_saving_enabled);
+
+/**
+ * @brief Enables interrupt assertion.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_enable_irq(i2c_veml7700_handle_t veml7700_handle);
+
+/**
+ * @brief Disables interrupt assertion.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_disable_irq(i2c_veml7700_handle_t veml7700_handle);
 
 /**
  * @brief Reads interrupt status from VEML7700.
@@ -366,31 +497,31 @@ esp_err_t i2c_veml7700_get_white_channel_auto(i2c_veml7700_handle_t veml7700_han
  * @param[in] veml7700_handle VEML7700 device handle.
  * @param[out] hi_threshold_exceeded true when high threshold is exceeded.
  * @param[out] lo_threshold_exceeded true when lo threshold is exceeded.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
-esp_err_t veml7700_get_interrupt_status(i2c_veml7700_handle_t veml7700_handle, bool *hi_threshold_exceeded, bool *lo_threshold_exceeded);
+esp_err_t veml7700_get_interrupt_status(i2c_veml7700_handle_t veml7700_handle, bool *const hi_threshold_exceeded, bool *const lo_threshold_exceeded);
 
 /**
  * @brief Shuts down VEML7700 until woken.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_veml7700_shutdown(i2c_veml7700_handle_t veml7700_handle);
+esp_err_t i2c_veml7700_disable_power(i2c_veml7700_handle_t veml7700_handle);
 
 /**
  * @brief Wakes up VEML7700 from shut-down.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_veml7700_wakeup(i2c_veml7700_handle_t veml7700_handle);
+esp_err_t i2c_veml7700_enable_power(i2c_veml7700_handle_t veml7700_handle);
 
 /**
  * @brief Removes an VEML7700 device from master bus.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
- * @return ESP_OK on success.
+ * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_veml7700_remove(i2c_veml7700_handle_t veml7700_handle);
 

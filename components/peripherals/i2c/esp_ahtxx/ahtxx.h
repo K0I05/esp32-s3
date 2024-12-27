@@ -67,9 +67,8 @@ extern "C"
     .aht_type = I2C_AHTXX_AHT10 }
 
 /*
-    * AHTXX enumerator and sructure declerations
-    */
-
+* AHTXX enumerator and sructure declerations
+*/
 typedef enum {
     I2C_AHTXX_AHT10,
     I2C_AHTXX_AHT2X
@@ -77,7 +76,6 @@ typedef enum {
 
 /**
  * @brief AHTXX I2C commands enumerator.
- *
  */
 typedef enum {
     I2C_AHTXX_CMD_AHT10_INIT    = (0xe1),   /*!< aht10 initialization command + 0x08 + 0x00 */
@@ -89,7 +87,6 @@ typedef enum {
 
 /**
  * @brief AHTXX I2C status register structure.
- *
  */
 typedef union __attribute__((packed)) {
     struct {
