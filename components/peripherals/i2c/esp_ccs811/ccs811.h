@@ -74,10 +74,10 @@ ESP_EVENT_DECLARE_BASE(ESP_CCS811_EVENT);
 #define I2C_CCS811_CONFIG_DEFAULT   {                                           \
         .dev_config.device_address  = I2C_CCS811_DEV_ADDR_LO,                   \
         .dev_config.scl_speed_hz    = I2C_CCS811_SCL_SPEED_HZ,                  \
-        .wake_io_enabled            = false,                                    \
-        .reset_io_enabled           = false,                                    \
-        .threshold_irq_enabled      = false,                                    \
-        .data_ready_irq_enabled     = false,                                    \
+        .wake_pin_enabled           = false,                                    \
+        .reset_pin_enabled          = false,                                    \
+        .irq_threshold_enabled      = false,                                    \
+        .irq_data_ready_enabled     = false,                                    \
         .drive_mode                 = I2C_CCS811_DRIVE_MODE_CONSTANT_POWER_IAQ, \
         .set_environmental_data     = false }
 
@@ -85,6 +85,17 @@ ESP_EVENT_DECLARE_BASE(ESP_CCS811_EVENT);
 /*
  * CCS811 enumerator and sructure declerations
 */
+
+/**
+ * CCS811 drive modes enumerator.
+ */
+typedef enum {
+    I2C_CCS811_DRIVE_MODE_IDLE                  = (0b000),   //!< idle (measurements are disabled in this mode)
+    I2C_CCS811_DRIVE_MODE_CONSTANT_POWER_IAQ    = (0b001),   //!< constant power mode, IAQ measurement every second
+    I2C_CCS811_DRIVE_MODE_PULSE_HEATING_IAQ     = (0b010),   //!< pulse heating mode IAQ measurement every 10 seconds
+    I2C_CCS811_DRIVE_MODE_LP_PULSE_HEATING_IAQ  = (0b011),   //!< low power pulse heating mode IAQ measurement every 60 seconds
+    I2C_CCS811_DRIVE_MODE_CONSTANT_POWER        = (0b100)    //!< constant power mode, sensor measurement every 250ms
+} i2c_ccs811_drive_modes_t;
 
 /**
  * CCS811 firmware modes enumerator.
@@ -112,24 +123,13 @@ typedef union __attribute__((packed)) {
 } i2c_ccs811_status_register_t;
 
 /**
- * CCS811 drive modes enumerator.
- */
-typedef enum {
-    I2C_CCS811_DRIVE_MODE_IDLE                  = (0b000),   //!< idle (measurements are disabled in this mode)
-    I2C_CCS811_DRIVE_MODE_CONSTANT_POWER_IAQ    = (0b001),   //!< constant power mode, IAQ measurement every second
-    I2C_CCS811_DRIVE_MODE_PULSE_HEATING_IAQ     = (0b010),   //!< pulse heating mode IAQ measurement every 10 seconds
-    I2C_CCS811_DRIVE_MODE_LP_PULSE_HEATING_IAQ  = (0b011),   //!< low power pulse heating mode IAQ measurement every 60 seconds
-    I2C_CCS811_DRIVE_MODE_CONSTANT_POWER        = (0b100)    //!< constant power mode, sensor measurement every 250ms
-} i2c_ccs811_drive_modes_t;
-
-/**
  * @brief CCS811 measure mode and condition register structure.
  */
 typedef union __attribute__((packed)) {
     struct MODE_REG_BITS_TAG {
         uint8_t                                  reserved1:2;            /*!< reserved and set to 0                     (bit:1-0) */
-        bool                                     threshold_irq:1;        /*!< interrupt threshold asserted when true    (bit:2)   */
-        bool                                     data_ready_irq:1;       /*!< interrupt data ready when true            (bit:3)   */
+        bool                                     irq_threshold_enabled:1;/*!< threshold interrupt enabled when true     (bit:2)   */
+        bool                                     irq_data_ready_enabled:1;/*!< data ready interrupt enabled when true    (bit:3)   */
         i2c_ccs811_drive_modes_t                 drive_mode:3;           /*!< drive mode                                (bit:6-4) */
         uint8_t                                  reserved2:1;            /*!< reserved and set to 0                     (bit:7)   */
     } bits;         /*!< represents the 8-bit register parts in bits. */
@@ -155,7 +155,6 @@ typedef union __attribute__((packed)) {
         uint8_t    hi_byte:8;  /*!< low to medium threshold (1500ppm = 0x05DC default)  (bit:7-0)    */
         uint8_t    lo_byte:8;  /*!< low to medium threshold (1500ppm = 0x05DC default)  (bit:8-15)   */
     } bits;              /*!< represents the 16-bit register parts in bits. */
-    //uint8_t  bytes[2];  /*!< represents the 16-bit register 2-byte array.  */
     uint16_t value;     /*!< represents the 16-bit threshold value register as `uint16_t`  */
 } i2c_ccs811_threshold_value_t;
 
@@ -195,7 +194,7 @@ typedef union __attribute__((packed)) {
     struct ERRC_REG_BITS_TAG {
         bool            write_register_invalid:1;   /*!< write register invalid when tru            (bit:0) */
         bool            read_register_invalid:1;    /*!< read register invalid when true            (bit:1) */
-        bool            drive_mode_invalid:1;       /*!< measurement drive mode invalid when tru    (bit:2) */
+        bool            drive_mode_invalid:1;       /*!< measurement drive mode invalid when true   (bit:2) */
         bool            max_resistance_exceeded:1;  /*!< maximum resistance exceeded when true      (bit:3) */
         bool            heater_current_fault:1;     /*!< heater current supply fault when true      (bit:4) */
         bool            heater_voltage_fault:1;     /*!< heater voltage supply fault when true      (bit:5) */
@@ -209,50 +208,36 @@ typedef union __attribute__((packed)) {
  * @brief CCS811 I2C error row definition structure.
  */
 typedef struct I2C_CCS811_ERROR_ROW_TAG {
-    char        code[I2C_CCS811_ERROR_CODE_SIZE];   /*!< error code */
-    char        msg[I2C_CCS811_ERROR_MSG_SIZE];     /*!< error meassage */
+    const char *code;   /*!< error code */
+    const char *msg;    /*!< error meassage */
 } i2c_ccs811_error_row_t;
 
 /**
  * @brief CCS811 I2C measure mode row definition structure.
  */
 typedef struct I2C_CCS811_MEASURE_MODE_ROW_TAG {
-    i2c_ccs811_drive_modes_t    mode;                                           /*!< drive mode */
-    char                        desc[I2C_CCS811_MEASURE_MODE_DESC_SIZE]; /*!< drive mode description */
-} i2c_ccs811_measre_mode_row_t;
-
-/**
- * @brief CCS811 device event object structure.
- */
-typedef struct CCS811_DEVICE_TAG {
-    uint16_t eco2;
-    uint16_t etvoc;
-} ccs811_device_t;
-
-/**
- * @brief CCS811 monitor handle type definition
- *
- */
-typedef void *ccs811_monitor_handle_t;
+    i2c_ccs811_drive_modes_t mode;                                           /*!< drive mode */
+    const char              *desc; /*!< drive mode description */
+} i2c_ccs811_measure_mode_row_t;
 
 /**
  * @brief CCS811 I2C device configuration structure.
  */
 typedef struct {
-    i2c_device_config_t      dev_config;                /*!< configuration for ccs811 device */
-    //bool                     irq_io_enabled;            /*!< ccs811 flag to enable hardware interrupt */
-    //uint32_t                 irq_io_num;                /*!< mcu interrupt pin number for ccs811 device */
-    bool                     wake_io_enabled;           /*!< ccs811 flag to enable hardware wake */
-    uint32_t                 wake_io_num;               /*!< mcu wake pin number for ccs811 device */
-    bool                     reset_io_enabled;          /*!< ccs811 flag to enable hardware reset */
-    uint32_t                 reset_io_num;              /*!< mcu reset pin number for ccs811 device */
-    bool                     threshold_irq_enabled;     /*!< interrupt threshold asserted when enabled */
-    bool                     data_ready_irq_enabled;    /*!< interrupt data ready asserted when enabled  */
-    i2c_ccs811_drive_modes_t drive_mode;                /*!< drive mode */
-    bool                     set_environmental_data;    /*!< flag to set user-defined environmental data */
-    i2c_ccs811_environmental_data_register_t environmental_data; /*!< user-defined environmental data */
+    i2c_device_config_t      dev_config;                 /*!< configuration for ccs811 device */
+    bool                     irq_data_ready_pin_enabled; /*!< ccs811 flag to enable hardware interrupt */
+    uint32_t                 irq_data_ready_pin_num;     /*!< mcu interrupt pin number for ccs811 device */
+    bool                     wake_pin_enabled;           /*!< ccs811 flag to enable hardware wake */
+    uint32_t                 wake_pin_num;               /*!< mcu wake pin number for ccs811 device */
+    bool                     reset_pin_enabled;          /*!< ccs811 flag to enable hardware reset */
+    uint32_t                 reset_pin_num;              /*!< mcu reset pin number for ccs811 device */
+    bool                     irq_threshold_enabled;      /*!< interrupt threshold asserted when enabled */
+    bool                     irq_data_ready_enabled;     /*!< interrupt data ready asserted when enabled  */
+    i2c_ccs811_drive_modes_t drive_mode;                 /*!< drive mode */
+    bool                     set_environmental_data;     /*!< flag to set user-defined environmental data */
+    float                    temperature;                /*!< user-defined temperature environmental data */
+    float                    humidity;                   /*!< user-defined humidity environmental data */
 } i2c_ccs811_config_t;
-
 
 /**
  * @brief CCS811 I2C device handle structure.
@@ -269,59 +254,19 @@ struct i2c_ccs811_t {
     i2c_ccs811_environmental_data_register_t enviromental_data_reg; /*!< ccs811 environmental data register */
     i2c_ccs811_thresholds_register_t        thresholds_reg;         /*!< ccs811 thresholds register */
     uint16_t                                baseline_reg;           /*!< ccs811 baseline register */
-    bool                                    wake_io_enabled;        /*!< ccs811 flag to enable hardware wake */
-    uint32_t                                wake_io_num;            /*!< mcu wake pin number for ccs811 device */
-    bool                                    reset_io_enabled;       /*!< ccs811 flag to enable hardware reset */
-    uint32_t                                reset_io_num;           /*!< mcu reset pin number for ccs811 device */
+    bool                                    wake_pin_enabled;        /*!< ccs811 flag to enable hardware wake */
+    uint32_t                                wake_pin_num;            /*!< mcu wake pin number for ccs811 device */
+    bool                                    reset_pin_enabled;       /*!< ccs811 flag to enable hardware reset */
+    uint32_t                                reset_pin_num;           /*!< mcu reset pin number for ccs811 device */
 };
 
 /**
  * @brief CCS811 I2C device handle type definitions
 */
 typedef struct i2c_ccs811_t i2c_ccs811_t;
+
 typedef struct i2c_ccs811_t *i2c_ccs811_handle_t;
 
-
-/**
- * @brief Initialize CCS811 monitor instance.
- * 
- * @param[in] bus_handle i2c master bus handle.
- * @param[in] ccs811_config CCS811 configuration.
- * @return ccs811_monitor_handle_t CCS811 monitor handle.
- */
-ccs811_monitor_handle_t ccs811_monitor_init(i2c_master_bus_handle_t bus_handle, const i2c_ccs811_config_t *ccs811_config);
-
-/**
- * @brief De-initialize CCS811 monitor instance.
- * 
- * @param[in] monitor_handle CCS811 monitor handle.
- * @return esp_err_t ESP_OK on success.
- */
-esp_err_t ccs811_monitor_deinit(ccs811_monitor_handle_t monitor_handle);
-
-/**
- * @brief Adds user defined event handler for CCS811 monitor.
- * 
- * @param[in] monitor_handle CCS811 monitor handle.
- * @param[in] event_handler user defined event handler.
- * @param[out] handler_args handler specific arguments.
- * @return esp_err_t
- *  - ESP_OK on success.
- *  - ESP_ERR_NO_MEM when unable to allocate memory for the handler.
- *  - ESP_ERR_INVALIG_ARG when invalid combination of event base and event id is provided.
- */
-esp_err_t ccs811_monitor_add_handler(ccs811_monitor_handle_t monitor_handle, esp_event_handler_t event_handler, void *handler_args);
-
-/**
- * @brief Removes user defined event handler for CCS811 monitor.
- * 
- * @param[in] monitor_handle CCS811 monitor handle.
- * @param[in] event_handler user defined event handler.
- * @return esp_err_t
- *  - ESP_OK on success.
- *  - ESP_ERR_INVALIG_ARG when invalid combination of event base and event id is provided.
- */
-esp_err_t ccs811_monitor_remove_handler(ccs811_monitor_handle_t monitor_handle, esp_event_handler_t event_handler);
 
 /**
  * @brief Reads status register from CCS811.
@@ -357,7 +302,7 @@ esp_err_t i2c_ccs811_set_measure_mode_register(i2c_ccs811_handle_t ccs811_handle
 esp_err_t i2c_ccs811_get_error_register(i2c_ccs811_handle_t ccs811_handle);
 
 /**
- * @brief Writes environmental compensation data to CCS811 register.
+ * @brief Writes environmental compensation factors data to CCS811 register.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
  * @param[in] temperature temperature compensation in degrees Celsius (default: 25 C).
@@ -389,26 +334,26 @@ esp_err_t i2c_ccs811_get_baseline_register(i2c_ccs811_handle_t ccs811_handle);
  * @brief Writes encoded version to the CCS811 baseline register.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
- * @param[in] baseline encoded version of the baseline.
+ * @param[in] baseline Encoded version of the baseline.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_ccs811_set_baseline_register(i2c_ccs811_handle_t ccs811_handle, const uint16_t baseline);
 
 /**
- * @brief Reads hardware identifier from CCS811.
+ * @brief Reads hardware identifier register from CCS811.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_get_hardware_identifier(i2c_ccs811_handle_t ccs811_handle);
+esp_err_t i2c_ccs811_get_hardware_identifier_register(i2c_ccs811_handle_t ccs811_handle);
 
 /**
- * @brief Reads hardware version from CCS811.
+ * @brief Reads hardware version register from CCS811.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_get_hardware_version(i2c_ccs811_handle_t ccs811_handle);
+esp_err_t i2c_ccs811_get_hardware_version_register(i2c_ccs811_handle_t ccs811_handle);
 
 /**
  * @brief Starts the CCS811 application.
@@ -439,28 +384,49 @@ esp_err_t i2c_ccs811_init(i2c_master_bus_handle_t bus_handle, const i2c_ccs811_c
 esp_err_t i2c_ccs811_get_measurement(i2c_ccs811_handle_t ccs811_handle, uint16_t *eco2, uint16_t *etvoc);
 
 /**
+ * @brief Writes environmental compensation factors data to CCS811 register.
+ * 
+ * @param[in] ccs811_handle CCS811 device handle.
+ * @param[in] temperature Temperature compensation in degrees Celsius (default: 25 C).
+ * @param[in] humidity Relative humidity compensation in percentage (default: 50 %).
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_ccs811_set_environmental_data(i2c_ccs811_handle_t ccs811_handle, const float temperature, const float humidity);
+
+/**
+ * @brief Writes eCO2 thresholds to CCS811 register.
+ * 
+ * @param[in] ccs811_handle CCS811 device handle.
+ * @param[in] low_to_med Low to medium threshold  within a range of 400 to 32768 ppm (1500 ppm).
+ * @param[in] med_to_high Medium to high threshold within a range of 400 to 32768 ppm (2500 ppm).
+ * @param[in] hysteresis Variance for thresholds in ppm (default: 50 ppm).
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_ccs811_set_thresholds(i2c_ccs811_handle_t ccs811_handle, const uint16_t low_to_med, const uint16_t med_to_high, const uint8_t hysteresis);
+
+/**
  * @brief Reads drive mode from CCS811.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
- * @param[out] mode Measurement drive mode.
+ * @param[out] mode CCS811 measurement drive mode setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_get_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_drive_modes_t *const mode);
+esp_err_t i2c_ccs811_get_drive_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_drive_modes_t *const mode);
 
 /**
  * @brief Writes drive mode to CCS811.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
- * @param[in] mode Measurement drive mode.
+ * @param[in] mode CCS811 measurement drive mode setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ccs811_set_mode(i2c_ccs811_handle_t ccs811_handle, const i2c_ccs811_drive_modes_t mode);
+esp_err_t i2c_ccs811_set_drive_mode(i2c_ccs811_handle_t ccs811_handle, const i2c_ccs811_drive_modes_t mode);
 
 /**
  * @brief Reads firmware mode from CCS811.
  * 
  * @param[in] ccs811_handle CCS811 device handle.
- * @param[out] mode Firmware mode.
+ * @param[out] mode CCS811 firmware mode setting.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_ccs811_get_firmware_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_firmware_modes_t *const mode);

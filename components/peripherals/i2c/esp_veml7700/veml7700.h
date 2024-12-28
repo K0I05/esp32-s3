@@ -63,12 +63,12 @@ extern "C" {
             .dev_config.device_address  = I2C_VEML7700_DEV_ADDR,                    \
             .dev_config.scl_speed_hz    = I2C_VEML7700_SCL_SPEED_HZ,                \
             .gain                       = I2C_VEML7700_GAIN_DIV_4,                  \
-            .integration_time           = I2C_VEML7700_INTEGRATION_TIME_200MS,      \
+            .integration_time           = I2C_VEML7700_INTEGRATION_TIME_400MS,      \
             .persistence_protect        = I2C_VEML7700_PERSISTENCE_PROTECTION_4,    \
             .irq_enabled                = true,                                     \
             .power_enabled              = true,                                     \
             .power_saving_enabled       = false,                                    \
-            .power_saving_mode          = I2C_VEML7700_POWER_SAVING_MODE_500MS }
+            .power_saving_mode          = I2C_VEML7700_POWER_SAVING_MODE_1 }
 
 /*
  * VEML7700 enumerator and sructure declerations
@@ -110,10 +110,10 @@ typedef enum {
  * @brief VEML7700 power saving modes enumerator.
  */
 typedef enum {
-    I2C_VEML7700_POWER_SAVING_MODE_500MS  = (0b00),
-    I2C_VEML7700_POWER_SAVING_MODE_1000MS = (0b01),
-    I2C_VEML7700_POWER_SAVING_MODE_2000MS = (0b10),
-    I2C_VEML7700_POWER_SAVING_MODE_4000MS = (0b11),
+    I2C_VEML7700_POWER_SAVING_MODE_1 = (0b00),
+    I2C_VEML7700_POWER_SAVING_MODE_2 = (0b01),
+    I2C_VEML7700_POWER_SAVING_MODE_3 = (0b10),
+    I2C_VEML7700_POWER_SAVING_MODE_4 = (0b11),
 } i2c_veml7700_power_saving_modes_t;
 
 /**
@@ -131,7 +131,7 @@ typedef enum {
  *  ALS_INT_END     1
  *  ALS_SD          0
 **/
-typedef union __attribute__((packed)) {
+typedef union __attribute__((packed)) CFG_REG_TAG {
     struct CFG_REG_BITS_TAG {
         bool                                    shutdown:1;             /*!< als shut-down when true                    (bit:0)     */
         bool                                    irq_enabled:1;          /*!< als interrupt enable when true             (bit:1)     */
@@ -155,7 +155,7 @@ typedef union __attribute__((packed)) {
  *  PSM             2:1
  *  PSM_EN          0
 **/
-typedef union __attribute__((packed)) {
+typedef union __attribute__((packed)) PSM_REG_TAG {
     struct PSM_REG_BITS_TAG {
         bool                                    power_saving_enabled:1; /*!< power saving enabeld when true     (bit:0)    */
         i2c_veml7700_power_saving_modes_t       power_saving_mode:2;    /*!< power saving mode                  (bit:1-2)  */
@@ -172,8 +172,8 @@ typedef union __attribute__((packed)) {
  * REGISTER NAME    BIT
 
 **/
-typedef union __attribute__((packed)) {
-    struct {
+typedef union __attribute__((packed)) IRQ_STS_REG_TAG {
+    struct IRQ_STS_REG_BITS_TAG {
         uint16_t                                reserved:14;              /*!< reserved and set to 0                    (bit:0-13) */
         bool                                    hi_threshold_exceeded:1;  /*!< normal unless hi threshold is exceeded   (bit:14)   */
         bool                                    lo_threshold_exceeded:1;  /*!< normal unless lo threshold is exceeded   (bit:15)   */
@@ -184,15 +184,13 @@ typedef union __attribute__((packed)) {
 /**
  * @brief VEML7700 identifier register structure.
  */
-typedef union __attribute__((packed)) {
+typedef union __attribute__((packed)) ID_REG_TAG {
     struct ID_REG_BITS_TAG {
         uint8_t                                device_id_code:8;       /*!< device id code (fixed 0x81)  (bit:0-7)    */
         uint8_t                                slave_option_code:8;    /*!< slave address option code    (bit:8-15)   */
     } bits;
     uint16_t reg;
 } i2c_veml7700_identifier_register_t;
-
-
 
 /**
  * @brief VEML7700 I2C device configuration structure.
@@ -220,12 +218,8 @@ struct i2c_veml7700_t {
     i2c_veml7700_power_saving_mode_register_t   power_saving_mode_reg;  /*!< power saving mode register */
     i2c_veml7700_interrupt_status_register_t    interrupt_status_reg;   /*!< interrupt status register */
     i2c_veml7700_identifier_register_t          identifier_reg;         /*!< identifier register */
-    float                                       resolution;			    /*!< Current resolution and multiplier */
-    uint32_t                                    maximum_lux;		    /*!< Current maximum lux limit */
-
-    i2c_veml7700_gains_t                    gain;                   /*!< gain sensitivity */
-    i2c_veml7700_integration_times_t        integration_time;       /*!< integration time to measure */
-
+    //float                                       resolution;			    /*!< Current resolution and multiplier */
+    //uint32_t                                    maximum_lux;		    /*!< Current maximum lux limit */
 };
 
 /**
@@ -306,8 +300,15 @@ esp_err_t i2c_veml7700_get_interrupt_status_register(i2c_veml7700_handle_t veml7
  */
 esp_err_t i2c_veml7700_get_identifier_register(i2c_veml7700_handle_t veml7700_handle);
 
+/**
+ * @brief Optimizes VEML7700 gain and integration time configuration.
+ * 
+ * @param veml7700_handle VEML7700 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_veml7700_optimize_configuration(i2c_veml7700_handle_t veml7700_handle);
+esp_err_t i2c_veml7700_optimize_configuration___(i2c_veml7700_handle_t veml7700_handle);
 
-esp_err_t i2c_veml7700_optimize_ambient_light(i2c_veml7700_handle_t veml7700_handle);
 
 /**
  * @brief Initializes an VEML7700 device onto the I2C master bus.
@@ -342,7 +343,7 @@ esp_err_t i2c_veml7700_get_ambient_light(i2c_veml7700_handle_t veml7700_handle, 
 /**
  * @brief Reads optimal ambient light (0 lux to 140 klux) from VEML7700.
  * 
- * @note This follows an unofficial algorithm taken from other sources: does not work properly
+ * @note This follows the official Vishay VEML7700 Application Note, rev. 17-Jan-2024.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
  * @param[out] ambient_light Ambient light illumination in lux.
@@ -373,7 +374,7 @@ esp_err_t i2c_veml7700_get_white_channel(i2c_veml7700_handle_t veml7700_handle, 
 /**
  * @brief Reads optimal white channel from VEML7700.
  * 
- * @note This follows an unofficial algorithm taken from other sources: does not work properly
+ * @note This follows the official Vishay VEML7700 Application Note, rev. 17-Jan-2024.
  *
  * @param[in] veml7700_handle VEML7700 device handle.
  * @param[out] white_light White channel illumination in lux.

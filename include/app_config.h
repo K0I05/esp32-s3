@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <driver/i2c_master.h>
+#include <onewire_bus.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -45,6 +46,12 @@
 extern "C" {
 #endif
 
+#define OWB0_TASK_SAMPLING_RATE        (10) // seconds
+#define OWB0_TASK_STACK_SIZE           (configMINIMAL_STACK_SIZE * 8)
+#define OWB0_TASK_PRIORITY             (tskIDLE_PRIORITY + 2)
+
+#define OWB0_MASTER_DEVICE_MAX         (8)
+#define OWB0_MASTER_DQ_IO              (gpio_num_t)(47)
 
 #define I2C0_MASTER_PORT               I2C_NUM_0
 #define I2C0_MASTER_SDA_IO             (gpio_num_t)(45) // blue
@@ -57,6 +64,10 @@ extern "C" {
 #define APP_TAG                         "ESP-IDF COMPONENTS [APP]"
 
 // macros
+#define OW0_RMT_CONFIG_DEFAULT { .max_rx_bytes = 10 } // 1-byte ROM command + 8-byte ROM number + 1-byte device command
+
+#define OW0_MASTER_CONFIG_DEFAULT { .bus_gpio_num = OWB0_MASTER_DQ_IO }
+
 #define I2C0_MASTER_CONFIG_DEFAULT {                                \
         .clk_source                     = I2C_CLK_SRC_DEFAULT,      \
         .i2c_port                       = I2C0_MASTER_PORT,         \
@@ -65,8 +76,12 @@ extern "C" {
         .glitch_ignore_cnt              = 7,                        \
         .flags.enable_internal_pullup   = true, }
 
-extern i2c_master_bus_config_t i2c0_master_cfg;
-extern i2c_master_bus_handle_t i2c0_bus_hdl;
+extern i2c_master_bus_config_t  i2c0_bus_cfg;
+extern i2c_master_bus_handle_t  i2c0_bus_hdl;
+
+extern onewire_bus_rmt_config_t owb0_rmt_cfg;
+extern onewire_bus_config_t     owb0_bus_cfg;
+extern onewire_bus_handle_t     owb0_bus_hdl;
 
 static inline void vTaskDelaySecUntil(TickType_t *previousWakeTime, const uint sec) {
     const TickType_t xFrequency = ((sec * 1000) / portTICK_PERIOD_MS);

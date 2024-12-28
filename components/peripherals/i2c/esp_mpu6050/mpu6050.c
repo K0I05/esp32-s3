@@ -208,7 +208,7 @@ esp_err_t i2c_mpu6050_get_sample_rate_divider_register(i2c_mpu6050_handle_t mpu6
  * sample rate = gyroscope output rate / (1 + sample rate divider)
  * 8khz or 1khz
  */
-esp_err_t i2c_mpu6050_set_sample_rate_divider_register(i2c_mpu6050_handle_t mpu6050_handle, uint8_t divider_reg) {
+esp_err_t i2c_mpu6050_set_sample_rate_divider_register(i2c_mpu6050_handle_t mpu6050_handle, const uint8_t divider_reg) {
     /* validate arguments */
     ESP_ARG_CHECK( mpu6050_handle );
 
@@ -237,14 +237,16 @@ esp_err_t i2c_mpu6050_get_configuration_register(i2c_mpu6050_handle_t mpu6050_ha
     return ESP_OK;
 }
 
-esp_err_t i2c_mpu6050_set_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_configuration_register_t config_reg) {
+esp_err_t i2c_mpu6050_set_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_configuration_register_t config_reg) {
     /* validate arguments */
     ESP_ARG_CHECK( mpu6050_handle );
 
-    config_reg.bits.reserved = 0;
+    i2c_mpu6050_configuration_register_t config = { .reg = config_reg.reg };
+
+    config.bits.reserved = 0;
 
     /* attempt i2c write transaction */
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mpu6050_handle->i2c_dev_handle, I2C_MPU6050_REG_CONFIG_RW, config_reg.reg), TAG, "write configuration register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mpu6050_handle->i2c_dev_handle, I2C_MPU6050_REG_CONFIG_RW, config.reg), TAG, "write configuration register failed" );
 
     /* delay task before i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_MPU6050_CMD_DELAY_MS));
@@ -271,14 +273,16 @@ esp_err_t i2c_mpu6050_get_gyro_configuration_register(i2c_mpu6050_handle_t mpu60
     return ESP_OK;
 }
 
-esp_err_t i2c_mpu6050_set_gyro_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_gyro_configuration_register_t gyro_config_reg) {
+esp_err_t i2c_mpu6050_set_gyro_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_gyro_configuration_register_t gyro_config_reg) {
     /* validate arguments */
     ESP_ARG_CHECK( mpu6050_handle );
 
-    gyro_config_reg.bits.reserved = 0;
+    i2c_mpu6050_gyro_configuration_register_t gyro_config = { .reg = gyro_config_reg.reg };
+
+    gyro_config.bits.reserved = 0;
 
     /* attempt i2c write transaction */
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mpu6050_handle->i2c_dev_handle, I2C_MPU6050_REG_GYRO_CONFIG_RW, gyro_config_reg.reg), TAG, "write gyroscope configuration register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mpu6050_handle->i2c_dev_handle, I2C_MPU6050_REG_GYRO_CONFIG_RW, gyro_config.reg), TAG, "write gyroscope configuration register failed" );
 
     /* delay task before i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_MPU6050_CMD_DELAY_MS));
@@ -308,14 +312,16 @@ esp_err_t i2c_mpu6050_get_accel_configuration_register(i2c_mpu6050_handle_t mpu6
     return ESP_OK;
 }
 
-esp_err_t i2c_mpu6050_set_accel_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_accel_configuration_register_t accel_config_reg) {
+esp_err_t i2c_mpu6050_set_accel_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_accel_configuration_register_t accel_config_reg) {
     /* validate arguments */
     ESP_ARG_CHECK( mpu6050_handle );
 
-    accel_config_reg.bits.reserved = 0;
+    i2c_mpu6050_accel_configuration_register_t accel_config = { .reg = accel_config_reg.reg };
+
+    accel_config.bits.reserved = 0;
 
     /* attempt i2c write transaction */
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mpu6050_handle->i2c_dev_handle, I2C_MPU6050_REG_ACCEL_CONFIG_RW, accel_config_reg.reg), TAG, "write accelerometer configuration register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mpu6050_handle->i2c_dev_handle, I2C_MPU6050_REG_ACCEL_CONFIG_RW, accel_config.reg), TAG, "write accelerometer configuration register failed" );
 
     /* delay task before i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_MPU6050_CMD_DELAY_MS));
@@ -342,21 +348,56 @@ esp_err_t i2c_mpu6050_get_interrupt_enable_register(i2c_mpu6050_handle_t mpu6050
     return ESP_OK;
 }
 
-esp_err_t i2c_mpu6050_set_interrupt_enable_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_interrupt_enable_register_t irq_enable_reg) {
+esp_err_t i2c_mpu6050_set_interrupt_enable_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_interrupt_enable_register_t irq_enable_reg) {
     /* validate arguments */
     ESP_ARG_CHECK( mpu6050_handle );
 
-    irq_enable_reg.bits.reserved1 = 0;
-    irq_enable_reg.bits.reserved2 = 0;
+    i2c_mpu6050_interrupt_enable_register_t irq_enable = { .reg = irq_enable_reg.reg };
+    irq_enable.bits.reserved1 = 0;
+    irq_enable.bits.reserved2 = 0;
 
     /* attempt i2c write transaction */
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mpu6050_handle->i2c_dev_handle, I2C_MPU6050_REG_INT_ENABLE_RW, irq_enable_reg.reg), TAG, "write interrupt enable register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mpu6050_handle->i2c_dev_handle, I2C_MPU6050_REG_INT_ENABLE_RW, irq_enable.reg), TAG, "write interrupt enable register failed" );
 
     /* delay task before i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_MPU6050_CMD_DELAY_MS));
 
     /* attempt to set handle parameter register */
     ESP_RETURN_ON_ERROR( i2c_mpu6050_get_interrupt_enable_register(mpu6050_handle), TAG, "read interrupt enable register failed" );
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_mpu6050_get_interrupt_pin_configuration_register(i2c_mpu6050_handle_t mpu6050_handle) {
+    /* validate arguments */
+    ESP_ARG_CHECK( mpu6050_handle );
+
+    /* attempt i2c read transaction */
+    ESP_RETURN_ON_ERROR( i2c_master_bus_read_uint8(mpu6050_handle->i2c_dev_handle, I2C_MPU6050_REG_INT_PIN_CFG_RW, &mpu6050_handle->irq_pin_config_reg.reg), TAG, "read interrupt pin configuration register failed" );
+
+    /* delay task before i2c transaction */
+    vTaskDelay(pdMS_TO_TICKS(I2C_MPU6050_CMD_DELAY_MS));
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_mpu6050_set_interrupt_pin_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_interrupt_pin_configuration_register_t irq_pin_config_reg) {
+    /* validate arguments */
+    ESP_ARG_CHECK( mpu6050_handle );
+
+    /* copy register */
+    i2c_mpu6050_interrupt_pin_configuration_register_t irq_pin_config = { .reg = irq_pin_config_reg.reg };
+
+    irq_pin_config.bits.reserved1 = 0;
+
+    /* attempt i2c write transaction */
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mpu6050_handle->i2c_dev_handle, I2C_MPU6050_REG_INT_PIN_CFG_RW, irq_pin_config.reg), TAG, "write interrupt pin configuration register failed" );
+
+    /* delay task before i2c transaction */
+    vTaskDelay(pdMS_TO_TICKS(I2C_MPU6050_CMD_DELAY_MS));
+
+    /* attempt i2c read transaction */
+    ESP_RETURN_ON_ERROR( i2c_mpu6050_get_interrupt_pin_configuration_register(mpu6050_handle), TAG, "read interrupt pin configuration register failed" );
 
     return ESP_OK;
 }
@@ -387,14 +428,16 @@ esp_err_t i2c_mpu6050_get_power_management1_register(i2c_mpu6050_handle_t mpu605
     return ESP_OK;
 }
 
-esp_err_t i2c_mpu6050_set_power_management1_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_power_management1_register_t power_management1_reg) {
+esp_err_t i2c_mpu6050_set_power_management1_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_power_management1_register_t power_management1_reg) {
     /* validate arguments */
     ESP_ARG_CHECK( mpu6050_handle );
 
-    power_management1_reg.bits.reserved = 0;
+    i2c_mpu6050_power_management1_register_t power_management1 = { .reg = power_management1_reg.reg };
+
+    power_management1.bits.reserved = 0;
 
     /* attempt i2c write transaction */
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mpu6050_handle->i2c_dev_handle, I2C_MPU6050_REG_PWR_MGMT_1_RW, power_management1_reg.reg), TAG, "write power management 1 register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mpu6050_handle->i2c_dev_handle, I2C_MPU6050_REG_PWR_MGMT_1_RW, power_management1.reg), TAG, "write power management 1 register failed" );
 
     /* delay task before i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_MPU6050_CMD_DELAY_MS));
@@ -418,7 +461,7 @@ esp_err_t i2c_mpu6050_get_power_management2_register(i2c_mpu6050_handle_t mpu605
     return ESP_OK;
 }
 
-esp_err_t i2c_mpu6050_set_power_management2_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_power_management2_register_t power_management2_reg) {
+esp_err_t i2c_mpu6050_set_power_management2_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_power_management2_register_t power_management2_reg) {
     /* validate arguments */
     ESP_ARG_CHECK( mpu6050_handle );
 
@@ -443,6 +486,53 @@ esp_err_t i2c_mpu6050_get_who_am_i_register(i2c_mpu6050_handle_t mpu6050_handle)
 
     /* delay task before i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_MPU6050_CMD_DELAY_MS));
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_mpu6050_configure_interrupts(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_config_t *const mpu6050_config) {
+    /* validate arguments */
+    ESP_ARG_CHECK( mpu6050_handle && mpu6050_config );
+
+    ESP_RETURN_ON_FALSE(GPIO_IS_VALID_GPIO(mpu6050_config->irq_io_num), ESP_ERR_INVALID_ARG, TAG, "interrupt io number is invalid, configure interrupts failed");
+
+    ESP_RETURN_ON_ERROR( i2c_mpu6050_get_interrupt_pin_configuration_register(mpu6050_handle), TAG, "unable to read interrupt pin configuration register, configure interrupts failed");
+
+    i2c_mpu6050_interrupt_pin_configuration_register_t irq_ping_config = { .reg = mpu6050_handle->irq_pin_config_reg.reg };
+
+    if (I2C_MPU6050_IRQ_PIN_ACTIVE_LOW == mpu6050_config->irq_io_active_level) {
+        irq_ping_config.bits.irq_active_level = I2C_MPU6050_IRQ_PIN_ACTIVE_LOW;
+    }
+
+    if (I2C_MPU6050_IRQ_PIN_OPEN_DRAIN == mpu6050_config->irq_io_mode) {
+        irq_ping_config.bits.irq_level_mode = I2C_MPU6050_IRQ_PIN_OPEN_DRAIN;
+    }
+
+    if (I2C_MPU6050_IRQ_LATCH_UNTIL_CLEARED == mpu6050_config->irq_latch) {
+        irq_ping_config.bits.irq_latch = I2C_MPU6050_IRQ_LATCH_UNTIL_CLEARED;
+    }
+
+    if (I2C_MPU6050_IRQ_CLEAR_ON_STATUS_READ == mpu6050_config->irq_clear_behavior) {
+        irq_ping_config.bits.irq_read_clear = I2C_MPU6050_IRQ_CLEAR_ON_STATUS_READ;
+    }
+
+    ESP_RETURN_ON_ERROR( i2c_mpu6050_set_interrupt_pin_configuration_register(mpu6050_handle, irq_ping_config), TAG, "unable to write interrupt pin configuration register, configure interrupts failed");
+
+    gpio_int_type_t gpio_intr_type;
+
+    if (I2C_MPU6050_IRQ_PIN_ACTIVE_LOW == mpu6050_config->irq_io_active_level) {
+        gpio_intr_type = GPIO_INTR_NEGEDGE;
+    } else {
+        gpio_intr_type = GPIO_INTR_POSEDGE;
+    }
+
+    gpio_config_t irq_gpio_config = {
+        .mode = GPIO_MODE_INPUT,
+        .intr_type = gpio_intr_type,
+        .pin_bit_mask = (BIT0 << mpu6050_config->irq_io_num)
+    };
+
+    ESP_RETURN_ON_ERROR( gpio_config(&irq_gpio_config), TAG, "unable to configure interrupt GPIO pin, configure interrupts failed");
 
     return ESP_OK;
 }
@@ -660,6 +750,19 @@ esp_err_t i2c_mpu6050_get_motion(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu605
     gyro_data->x_axis = raw_gyro_data_axes.x_axis / mpu6050_handle->gyro_sensitivity;
     gyro_data->y_axis = raw_gyro_data_axes.y_axis / mpu6050_handle->gyro_sensitivity;
     gyro_data->z_axis = raw_gyro_data_axes.z_axis / mpu6050_handle->gyro_sensitivity;
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_mpu6050_register_isr(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_isr_t mpu6050_isr) {
+    /* validate arguments */
+    ESP_ARG_CHECK( mpu6050_handle );
+
+    /* attempt to register isr */
+    ESP_RETURN_ON_ERROR( gpio_isr_handler_add(mpu6050_handle->irq_io_num, ((gpio_isr_t) * (mpu6050_isr)), ((void *) mpu6050_handle) ), TAG, "register isr failed" );
+
+    /* attempt to enable interrupt signal */
+    ESP_RETURN_ON_ERROR( gpio_intr_enable(mpu6050_handle->irq_io_num), TAG, "enable interrupt signal failed" );
 
     return ESP_OK;
 }

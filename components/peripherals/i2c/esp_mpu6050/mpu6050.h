@@ -38,6 +38,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <esp_err.h>
+#include <driver/gpio.h>
 #include <i2c_master_ext.h>
 
 #ifdef __cplusplus
@@ -142,6 +143,26 @@ typedef enum {
     I2C_MPU6050_LP_WAKE_CONTROL_40HZ    = (0b11),  /*!< mpu6050 40Hz wake-up frequency */
 } i2c_mpu6050_low_power_wake_controls_t;
 
+typedef enum {
+    I2C_MPU6050_IRQ_PIN_ACTIVE_HIGH = 0,          /*!< The mpu6050 sets its INT pin HIGH on interrupt */
+    I2C_MPU6050_IRQ_PIN_ACTIVE_LOW  = 1           /*!< The mpu6050 sets its INT pin LOW on interrupt */
+} i2c_mpu6050_irq_pin_active_level_t;
+
+typedef enum {
+    I2C_MPU6050_IRQ_PIN_PUSH_PULL   = 0,          /*!< The mpu6050 configures its INT pin as push-pull */
+    I2C_MPU6050_IRQ_PIN_OPEN_DRAIN  = 1           /*!< The mpu6050 configures its INT pin as open drain*/
+} i2c_mpu6050_irq_pin_mode_t;
+
+typedef enum {
+    I2C_MPU6050_IRQ_LATCH_50US            = 0,    /*!< The mpu6050 produces a 50 microsecond pulse on interrupt */
+    I2C_MPU6050_IRQ_LATCH_UNTIL_CLEARED   = 1     /*!< The mpu6050 latches its INT pin to its active level, until interrupt is cleared */
+} i2c_mpu6050_irq_latch_t;
+
+typedef enum {
+    I2C_MPU6050_IRQ_CLEAR_ON_ANY_READ     = 0,    /*!< INT_STATUS register bits are cleared on any register read */
+    I2C_MPU6050_IRQ_CLEAR_ON_STATUS_READ  = 1     /*!< INT_STATUS register bits are cleared only by reading INT_STATUS value*/
+} i2c_mpu6050_irq_clear_t;
+
 /**
  * @brief MPU6050 I2C self-test register (self-test x, y, z) structure.
  */
@@ -236,6 +257,23 @@ typedef union __attribute__((packed)) {
     } bits;
     uint8_t reg;
 } i2c_mpu6050_interrupt_enable_register_t;
+
+/**
+ * @brief MPU6050 I2C interrupt pin configuration register structure.
+ */
+typedef union __attribute__((packed)) {
+    struct {
+        uint8_t                             reserved1:1;  /*!< reserved and set to 0                     (bit:0)   */
+        bool                                i2c_bypass_enabled:1;   /*!<  (bit:1) */
+        bool                                fsynch_irq_enabled:1;   /*!<  (bit:2) */
+        bool                                fsynch_irq_level:1;     /*!<  (bit:3) */
+        i2c_mpu6050_irq_clear_t             irq_read_clear:1;       /*!<  (bit:4) */
+        i2c_mpu6050_irq_latch_t             irq_latch:1;            /*!<  (bit:5) */
+        i2c_mpu6050_irq_pin_mode_t          irq_level_mode:1;       /*!<  (bit:6) */
+        i2c_mpu6050_irq_pin_active_level_t  irq_active_level:1;     /*!<  (bit:7) */
+    } bits;
+    uint8_t reg;
+} i2c_mpu6050_interrupt_pin_configuration_register_t;
 
 /**
  * @brief MPU6050 I2C interrupt status register structure.
@@ -359,17 +397,6 @@ typedef struct {
 	float yaw;
 } i2c_mpu6050_attitude_t;
 
-
-/**
- * @brief MPU6050 I2C device structure definitions.
- */
-typedef struct i2c_mpu6050_t i2c_mpu6050_t;
-/**
- * @brief MPU6050 I2C device handle definition.
- */
-typedef struct i2c_mpu6050_t *i2c_mpu6050_handle_t;
-
-
 /**
  * @brief MPU6050 I2C device configuration structure.
  */
@@ -379,8 +406,12 @@ typedef struct {
     i2c_mpu6050_gyro_clock_sources_t        gyro_clock_source;        /*!< mpu6050 gyroscope clock source configuration */
     i2c_mpu6050_gyro_full_scale_ranges_t    gyro_full_scale_range;    /*!< mpu6050 gyroscope full scale range configuration */
     i2c_mpu6050_accel_full_scale_ranges_t   accel_full_scale_range;   /*!< mpu6050 accelerometer full scale range configuration */
+    gpio_num_t                              irq_io_num;               /*!< mpu6050 GPIO interrupt pin  */
+    i2c_mpu6050_irq_pin_active_level_t      irq_io_active_level;      /*!< Active level of mpu6050 INT pin         */
+    i2c_mpu6050_irq_pin_mode_t              irq_io_mode;              /*!< Push-pull or open drain mode for INT pin*/
+    i2c_mpu6050_irq_latch_t                 irq_latch;                /*!< The interrupt pulse behavior of INT pin */
+    i2c_mpu6050_irq_clear_t                 irq_clear_behavior;       /*!< Interrupt status clear behavior         */
 } i2c_mpu6050_config_t;
-
 
 /**
  * @brief MPU6050 I2C device structure.
@@ -393,6 +424,7 @@ struct i2c_mpu6050_t {
     i2c_mpu6050_configuration_register_t        config_reg;             /*!< mpu6050 configuration register */
     i2c_mpu6050_gyro_configuration_register_t   gyro_config_reg;        /*!< mpu6050 gyroscope configuration register */
     i2c_mpu6050_accel_configuration_register_t  accel_config_reg;       /*!< mpu6050 accelerometer configuration register */
+    i2c_mpu6050_interrupt_pin_configuration_register_t irq_pin_config_reg; /*!< mpu6050 interrupt pin configuration register */
     i2c_mpu6050_interrupt_enable_register_t     irq_enable_reg;         /*!< mpu6050 interrupt enable register */
     i2c_mpu6050_interrupt_status_register_t     irq_status_reg;         /*!< mpu6050 interrupt status register */
     i2c_mpu6050_signal_path_reset_register_t    signal_path_reset_reg;  /*!< mpu6050 signal path reset register */
@@ -400,7 +432,22 @@ struct i2c_mpu6050_t {
     i2c_mpu6050_power_management1_register_t    power_management1_reg;  /*!< mpu6050 power management 1 register */
     i2c_mpu6050_power_management2_register_t    power_management2_reg;  /*!< mpu6050 power management 2 register */
     i2c_mpu6050_who_am_i_register_t             who_am_i_reg;           /*!< mpu6050 who am i register */
+    gpio_num_t                                  irq_io_num;             /*!< mpu6050 GPIO interrupt pin  */
 };
+
+/**
+ * @brief MPU6050 I2C device structure definition.
+ */
+typedef struct i2c_mpu6050_t i2c_mpu6050_t;
+/**
+ * @brief MPU6050 I2C device handle definition.
+ */
+typedef struct i2c_mpu6050_t *i2c_mpu6050_handle_t;
+
+/**
+ * @brief MPU6050 I2C interrupt service routine definition.
+ */
+typedef gpio_isr_t i2c_mpu6050_isr_t;
 
 /**
  * @brief Reads sample rate divider register from MPU6050.
@@ -422,7 +469,7 @@ esp_err_t i2c_mpu6050_get_sample_rate_divider_register(i2c_mpu6050_handle_t mpu6
  * @param[in] divider_reg MPU6050 sample rate divider value.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mpu6050_set_sample_rate_divider_register(i2c_mpu6050_handle_t mpu6050_handle, uint8_t divider_reg);
+esp_err_t i2c_mpu6050_set_sample_rate_divider_register(i2c_mpu6050_handle_t mpu6050_handle, const uint8_t divider_reg);
 
 /**
  * @brief Reads configuration register from MPU6050.
@@ -439,7 +486,7 @@ esp_err_t i2c_mpu6050_get_configuration_register(i2c_mpu6050_handle_t mpu6050_ha
  * @param[in] config_reg MPU6050 configuration register.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mpu6050_set_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_configuration_register_t config_reg);
+esp_err_t i2c_mpu6050_set_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_configuration_register_t config_reg);
 
 /**
  * @brief Reads gyroscope configuration register from MPU6050.
@@ -456,7 +503,7 @@ esp_err_t i2c_mpu6050_get_gyro_configuration_register(i2c_mpu6050_handle_t mpu60
  * @param[in] gyro_config_reg MPU6050 gyroscope configuration register.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mpu6050_set_gyro_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_gyro_configuration_register_t gyro_config_reg);
+esp_err_t i2c_mpu6050_set_gyro_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_gyro_configuration_register_t gyro_config_reg);
 
 /**
  * @brief Reads accelerometer configuration register from MPU6050.
@@ -473,7 +520,7 @@ esp_err_t i2c_mpu6050_get_accel_configuration_register(i2c_mpu6050_handle_t mpu6
  * @param[in] accel_config_reg MPU6050 accelerometer configuration register.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mpu6050_set_accel_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_accel_configuration_register_t accel_config_reg);
+esp_err_t i2c_mpu6050_set_accel_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_accel_configuration_register_t accel_config_reg);
  
 /**
  * @brief Reads interrupt enable register from MPU6050.
@@ -490,7 +537,24 @@ esp_err_t i2c_mpu6050_get_interrupt_enable_register(i2c_mpu6050_handle_t mpu6050
  * @param[in] config_reg MPU6050 interrupt enable register.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mpu6050_set_interrupt_enable_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_interrupt_enable_register_t irq_enable_reg);
+esp_err_t i2c_mpu6050_set_interrupt_enable_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_interrupt_enable_register_t irq_enable_reg);
+
+/**
+ * @brief Reads interrupt pin configuration register from MPU6050.
+ * 
+ * @param mpu6050_handle MPU6050 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_mpu6050_get_interrupt_pin_configuration_register(i2c_mpu6050_handle_t mpu6050_handle);
+
+/**
+ * @brief Writes interrupt pin configuration register to MPU6050.
+ * 
+ * @param mpu6050_handle MPU6050 device handle.
+ * @param irq_pin_config_reg Interrupt pin configuration register.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_mpu6050_set_interrupt_pin_configuration_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_interrupt_pin_configuration_register_t irq_pin_config_reg);
 
 /**
  * @brief Reads interrupt status register from MPU6050.
@@ -517,7 +581,7 @@ esp_err_t i2c_mpu6050_get_signal_path_reset_register(i2c_mpu6050_handle_t mpu605
  * @param[in] signal_path_reset_reg MPU6050 signal path reset register.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mpu6050_set_signal_path_reset_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_signal_path_reset_register_t signal_path_reset_reg);
+esp_err_t i2c_mpu6050_set_signal_path_reset_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_signal_path_reset_register_t signal_path_reset_reg);
 
 /**
  * @brief Reads user control register from MPU6050.
@@ -534,7 +598,7 @@ esp_err_t i2c_mpu6050_get_user_control_register(i2c_mpu6050_handle_t mpu6050_han
  * @param[in] user_control_reg MPU6050 user control register.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mpu6050_set_user_control_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_user_control_register_t user_control_reg);
+esp_err_t i2c_mpu6050_set_user_control_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_user_control_register_t user_control_reg);
 
 /**
  * @brief Reads power management 1 register from MPU6050.
@@ -551,7 +615,7 @@ esp_err_t i2c_mpu6050_get_power_management1_register(i2c_mpu6050_handle_t mpu605
  * @param[in] config_reg MPU6050 power management 1 register.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mpu6050_set_power_management1_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_power_management1_register_t power_management1_reg);
+esp_err_t i2c_mpu6050_set_power_management1_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_power_management1_register_t power_management1_reg);
 
 /**
  * @brief Reads power management 2 register from MPU6050.
@@ -568,7 +632,7 @@ esp_err_t i2c_mpu6050_get_power_management2_register(i2c_mpu6050_handle_t mpu605
  * @param[in] config_reg MPU6050 power management 2 register.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mpu6050_set_power_management2_register(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_power_management2_register_t power_management2_reg);
+esp_err_t i2c_mpu6050_set_power_management2_register(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_power_management2_register_t power_management2_reg);
 
 /**
  * @brief Reads who am i (i.e. device identifier) register from MPU6050.
@@ -579,10 +643,19 @@ esp_err_t i2c_mpu6050_set_power_management2_register(i2c_mpu6050_handle_t mpu605
 esp_err_t i2c_mpu6050_get_who_am_i_register(i2c_mpu6050_handle_t mpu6050_handle);
 
 /**
+ * @brief Configures interrupt pin behavior and setup target GPIO.
+ * 
+ * @param mpu6050_handle MPU6050 device handle.
+ * @param mpu6050_config Configuration of MPU6050 device.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_mpu6050_configure_interrupts(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_config_t *const mpu6050_config);
+
+/**
  * @brief Initializes an MPU6050 device onto the I2C master bus.
  *
  * @param[in] bus_handle I2C master bus handle.
- * @param[in] mpu6050_config configuration of MPU6050 device.
+ * @param[in] mpu6050_config Configuration of MPU6050 device.
  * @param[out] mpu6050_handle MPU6050 device handle.
  * @return esp_err_t ESP_OK on success.
  */
@@ -634,6 +707,15 @@ esp_err_t i2c_mpu6050_reset_signal_condition(i2c_mpu6050_handle_t mpu6050_handle
 esp_err_t i2c_mpu6050_reset_fifo(i2c_mpu6050_handle_t mpu6050_handle);
 
 esp_err_t i2c_mpu6050_reset_sensors(i2c_mpu6050_handle_t mpu6050_handle);
+
+/**
+ * @brief Registers an Interrupt Service Routine to handle MPU6050 interrupts.
+ * 
+ * @param mpu6050_handle MPU6050 device handle.
+ * @param mpu6050_isr function to handle interrupts produced by MPU6050.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_mpu6050_register_isr(i2c_mpu6050_handle_t mpu6050_handle, const i2c_mpu6050_isr_t mpu6050_isr);
 
 /**
  * @brief Issues soft-reset to MPU6050 and initializes MPU6050 device handle registers.

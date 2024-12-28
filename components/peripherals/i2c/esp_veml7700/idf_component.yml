@@ -1,0 +1,3 @@
+version: "0.1.1"
+description: VEML7700 device driver
+url: https://github.com/espressif/esp-bsp/tree/master/components/esp_veml7700

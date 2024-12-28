@@ -100,7 +100,6 @@ struct i2c_bh1750_t {
     i2c_master_dev_handle_t         i2c_dev_handle;  /*!< I2C device handle */
     i2c_bh1750_measurement_modes_t  mode;           /*!< bh1750 measurement mode */
     uint8_t                         timespan;       /*!< bh1750 measurement time duration */
-    bool                            power_enabled;  /*!< bh1750 powered up at initialization */
 };
 
 /**
@@ -129,10 +128,10 @@ esp_err_t i2c_bh1750_init(i2c_master_bus_handle_t bus_handle, const i2c_bh1750_c
  * @brief measure BH1750 illuminance.  BH1750 goes into power-down mode after measurement when one-time measurements are configured.
  *
  * @param[in] bh1750_handle BH1750 device handle
- * @param[out] lux BH1750 illuminance measurement
+ * @param[out] ambient_light BH1750 illuminance measurement
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_bh1750_get_ambient_light(i2c_bh1750_handle_t bh1750_handle, float *const lux);
+esp_err_t i2c_bh1750_get_ambient_light(i2c_bh1750_handle_t bh1750_handle, float *const ambient_light);
 
 /**
  * @brief Writes measurement mode to bh1750.

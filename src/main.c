@@ -56,7 +56,7 @@
 #include <i2c_master_ext.h>
 #include <nvs_ext.h>
 
-/* component tasks */
+/* i2c component tasks */
 #include <ahtxx_task.h>
 #include <as7341_task.h>
 #include <bh1750_task.h>
@@ -73,6 +73,16 @@
 #include <ssd1306_task.h>
 #include <tlv493d_task.h>
 #include <veml7700_task.h>
+
+/* owb component tasks */
+#include <ds18b20_task.h>
+
+/**
+ * @brief OWB component examples enumerator.
+ */
+typedef enum owb_components_tag {
+    OWB_COMPONENT_DS18B20,
+} owb_components_t;
 
 /**
  * @brief I2C component examples enumerator.
@@ -96,10 +106,48 @@ typedef enum i2c_components_tag {
     I2C_COMPONENT_VEML7700,
 } i2c_components_t;
 
+// initialize master owb 0 bus configuration
+onewire_bus_rmt_config_t owb0_rmt_cfg = OW0_RMT_CONFIG_DEFAULT;
+onewire_bus_config_t     owb0_bus_cfg = OW0_MASTER_CONFIG_DEFAULT;
+onewire_bus_handle_t     owb0_bus_hdl;
+bool                     owb0_component_tasked = false;
+
 // initialize master i2c 0 bus configuration
 i2c_master_bus_config_t i2c0_bus_cfg = I2C0_MASTER_CONFIG_DEFAULT;
 i2c_master_bus_handle_t i2c0_bus_hdl;
 bool                    i2c0_component_tasked = false;
+
+/**
+ * @brief Creates a task pinned to the application core (1) by task function
+ * and task name to run an OWB component example on one wire master bus (0).
+ * 
+ * @note Only one OWB component example can run on one wire master bus 0.
+ * 
+ * @param task Task function reference.
+ * @param name Task reference name.
+ */
+static inline void owb0_task_create(TaskFunction_t task, const char* name) {
+    /*  
+        note: only one task on the one wire master bus 0 can run at a time
+    */
+
+    /* validate owb0 component flag */
+    if(owb0_component_tasked == true) {
+        ESP_LOGE(APP_TAG, "An OWB component sample is already running on one wire master bus 0, failed to create owb0 task");
+        return;
+    }
+    /* create task pinned to the app core */
+    xTaskCreatePinnedToCore( 
+        task,
+        name, 
+        OWB0_TASK_STACK_SIZE, 
+        NULL, 
+        OWB0_TASK_PRIORITY, 
+        NULL, 
+        APP_CPU_NUM );
+    /* set owb0 component flag */
+    owb0_component_tasked = true;
+}
 
 /**
  * @brief Creates a task pinned to the application core (1) by task function
@@ -131,6 +179,27 @@ static inline void i2c0_task_create(TaskFunction_t task, const char* name) {
         APP_CPU_NUM );
     /* set i2c0 component flag */
     i2c0_component_tasked = true;
+}
+
+/**
+ * @brief OWB example to run in the application by component name.
+ * 
+ * @note Only one OWB component example can run on one wire master bus 0.
+ * 
+ * @param component OWB component example to run in the application
+ */
+static inline void owb0_component_example_start(const owb_components_t component) {
+    /*  
+        device task functions use a common naming nomenclature
+        for owb, i2c and adc peripherals, as an example: owb0_[device]_task
+
+        note: only one owb 0 task can run at a time
+     */
+    switch(component) {
+        case OWB_COMPONENT_DS18B20:
+            owb0_task_create(owb0_ds18b20_task, OWB0_DS18B20_TASK_NAME);
+            break;
+    }
 }
 
 /**
@@ -221,6 +290,9 @@ void app_main( void ) {
     /* instantiate nvs storage */
     ESP_ERROR_CHECK( nvs_init() );
 
+    /* instantiate one wire master bus 0 */
+    ESP_ERROR_CHECK( onewire_new_bus_rmt(&owb0_bus_cfg, &owb0_rmt_cfg, &owb0_bus_hdl) );
+
     /* instantiate i2c master bus 0 */
     ESP_ERROR_CHECK( i2c_new_master_bus(&i2c0_bus_cfg, &i2c0_bus_hdl) );
 
@@ -229,7 +301,7 @@ void app_main( void ) {
     //ESP_ERROR_CHECK( i2c0_device_scan() );
 
     /* delay task before starting component example */
-    vTaskDelay(pdMS_TO_TICKS(500));
+    vTaskDelay( pdMS_TO_TICKS(500) );
 
     /* start a component example */
     /* note: only one component example can run at a time */

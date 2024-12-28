@@ -55,7 +55,7 @@ void i2c0_veml7700_task( void *pvParameters ) {
     }
     //
     // optimize sensor
-    //i2c_veml7700_optimize_ambient_light(dev_hdl);
+    //i2c_veml7700_optimize_configuration(dev_hdl);
     //
     // task loop entry point
     for ( ;; ) {
