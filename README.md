@@ -7,6 +7,7 @@ PlatformIO components with examples for the ESP32-S3 chipset.  This is a revised
 The folder structure for components, and its associated example, are outlined as follows:
 ```
 |--components
+|
 |  |--peripherals
 |  |  |--adc
 |  |  |--i2c
@@ -16,8 +17,8 @@ The folder structure for components, and its associated example, are outlined as
 |  |  |  |  |- bmp280.h
 |  |  |  |  |- CMakeList.txt
 |  |  |  |  |- LICENSE
-|  |  |--spi
 |  |  |--owb
+|  |  |--spi
 |  |
 |  |--engineering
 |  |--schedule
