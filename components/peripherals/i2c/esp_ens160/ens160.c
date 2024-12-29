@@ -80,13 +80,14 @@
 #define I2C_ENS160_HUMIDITY_MAX            (float)(100.0)  //!< ens160 maximum humidity range
 #define I2C_ENS160_HUMIDITY_MIN            (float)(0.0)    //!< ens160 minimum humidity range
 
-#define I2C_ENS160_POWERUP_DELAY_MS         UINT16_C(15)            //!< ens160 15ms before making i2c transactions
-#define I2C_ENS160_APPSTART_DELAY_MS        UINT16_C(25)            //!< ens160 25ms before making a measurement
-#define I2C_ENS160_CMD_DELAY_MS             UINT16_C(5)
-#define I2C_ENS160_RESET_DELAY_MS           UINT16_C(10)            //!< ens160 10ms when resetting the device
-#define I2C_ENS160_CLEAR_GPR_DELAY_MS       UINT16_C(2)             //!< ens160 2ms when clearing general purpose registers
-#define I2C_ENS160_DATA_READY_DELAY_MS      UINT16_C(1)             //!< ens160 1ms when checking data ready in a loop
-#define I2C_ENS160_DATA_POLL_TIMEOUT_MS     UINT16_C(1000)          //!< ens160 1s timeout when making a measurement
+#define I2C_ENS160_POWERUP_DELAY_MS         UINT16_C(15)            //!< ens160 50ms delay before making i2c transactions
+#define I2C_ENS160_APPSTART_DELAY_MS        UINT16_C(25)            //!< ens160 25ms delay before making a measurement
+#define I2C_ENS160_CMD_DELAY_MS             UINT16_C(5)             //!< ens160 5ms delay before making the next i2c transaction
+#define I2C_ENS160_MODE_DELAY_MS            UINT16_C(10) 
+#define I2C_ENS160_RESET_DELAY_MS           UINT16_C(50)            //!< ens160 25ms delay when resetting the device
+#define I2C_ENS160_CLEAR_GPR_DELAY_MS       UINT16_C(10)             //!< ens160 2ms delay when clearing general purpose registers
+#define I2C_ENS160_DATA_READY_DELAY_MS      UINT16_C(1)             //!< ens160 1ms delay when checking data ready in a loop
+#define I2C_ENS160_DATA_POLL_TIMEOUT_MS     UINT16_C(1500)          //!< ens160 1.5s timeout when making a measurement
 
 /*
  * macro definitions
@@ -196,7 +197,7 @@ static inline esp_err_t i2c_ens160_get_command(i2c_ens160_handle_t ens160_handle
  * @brief Writes command to ENS160 command register.
  * 
  * @param ens160_handle ENS160 device handle.
- * @param command Command to write to ENS160 register.
+ * @param command ENS160 command for command register.
  * @return esp_err_t ESP_OK on success.
  */
 static inline esp_err_t i2c_ens160_set_command(i2c_ens160_handle_t ens160_handle, const i2c_ens160_commands_t command) {
@@ -213,32 +214,32 @@ static inline esp_err_t i2c_ens160_set_command(i2c_ens160_handle_t ens160_handle
 }
 
 /**
- * @brief Reads operating mode from ENS160.
+ * @brief Reads operating mode register from ENS160.
  * 
  * @param[in] ens160_handle ENS160 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-static inline esp_err_t i2c_ens160_get_mode(i2c_ens160_handle_t ens160_handle) {
+static inline esp_err_t i2c_ens160_get_mode_register(i2c_ens160_handle_t ens160_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
     /* attempt i2c read transaction */
-    ESP_RETURN_ON_ERROR( i2c_master_bus_read_uint8(ens160_handle->i2c_dev_handle, I2C_ENS160_REG_OPMODE_RW, (uint8_t*)ens160_handle->mode), TAG, "read operating mode register for get mode failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_read_uint8(ens160_handle->i2c_dev_handle, I2C_ENS160_REG_OPMODE_RW, (uint8_t*)&ens160_handle->mode), TAG, "read operating mode register for get mode failed" );
 
     /* delay before next i2c transaction */
-    vTaskDelay(pdMS_TO_TICKS(I2C_ENS160_CMD_DELAY_MS));
+    vTaskDelay(pdMS_TO_TICKS(I2C_ENS160_MODE_DELAY_MS));
 
     return ESP_OK;
 }
 
 /**
- * @brief Writes operating mode to ENS160.
+ * @brief Writes operating mode register to ENS160.
  * 
  * @param[in] ens160_handle ENS160 device handle.
- * @param[in] mode Operating mode.
+ * @param[in] mode Operating mode register setting.
  * @return esp_err_t ESP_OK on success.
  */
-static inline esp_err_t i2c_ens160_set_mode(i2c_ens160_handle_t ens160_handle, const i2c_ens160_operating_modes_t mode) {
+static inline esp_err_t i2c_ens160_set_mode_register(i2c_ens160_handle_t ens160_handle, const i2c_ens160_operating_modes_t mode) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -246,10 +247,10 @@ static inline esp_err_t i2c_ens160_set_mode(i2c_ens160_handle_t ens160_handle, c
     ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(ens160_handle->i2c_dev_handle, I2C_ENS160_REG_OPMODE_RW, mode), TAG, "write operating mode register for set mode failed" );
 
     /* delay before next i2c transaction */
-    vTaskDelay(pdMS_TO_TICKS(I2C_ENS160_CMD_DELAY_MS));
+    vTaskDelay(pdMS_TO_TICKS(I2C_ENS160_MODE_DELAY_MS));
 
     /* attempt i2c read transaction */
-    ESP_RETURN_ON_ERROR( i2c_ens160_get_mode(ens160_handle), TAG, "read operating mode register for get mode failed" );
+    ESP_RETURN_ON_ERROR( i2c_ens160_get_mode_register(ens160_handle), TAG, "read operating mode register for get mode failed" );
 
     return ESP_OK;
 }
@@ -329,7 +330,7 @@ esp_err_t i2c_ens160_get_status_register(i2c_ens160_handle_t ens160_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_ens160_clear_command_register(i2c_ens160_handle_t ens160_handle) {
+esp_err_t i2c_ens160_clear_general_purpose_registers(i2c_ens160_handle_t ens160_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( ens160_handle );
 
@@ -445,6 +446,9 @@ esp_err_t i2c_ens160_init(i2c_master_bus_handle_t bus_handle, const i2c_ens160_c
         ESP_GOTO_ON_ERROR(i2c_master_bus_add_device(bus_handle, &i2c_dev_conf, &out_handle->i2c_dev_handle), err_handle, TAG, "i2c new bus for init failed");
     }
 
+    /* delay before next i2c transaction */
+    vTaskDelay(pdMS_TO_TICKS(I2C_ENS160_CMD_DELAY_MS));
+
     /* copy configuration */
     out_handle->irq_enabled         = ens160_config->irq_enabled;
     out_handle->irq_data_enabled    = ens160_config->irq_data_enabled;
@@ -455,11 +459,11 @@ esp_err_t i2c_ens160_init(i2c_master_bus_handle_t bus_handle, const i2c_ens160_c
     /* attempt to reset device and initialize device configuration and handle */
     ESP_GOTO_ON_ERROR( i2c_ens160_reset(out_handle), err_handle, TAG, "soft-reset for init failed" );
 
-    /* app-start task delay  */
-    vTaskDelay(pdMS_TO_TICKS(I2C_ENS160_APPSTART_DELAY_MS));
-
     /* set device handle */
     *ens160_handle = out_handle;
+
+    /* app-start task delay  */
+    vTaskDelay(pdMS_TO_TICKS(I2C_ENS160_APPSTART_DELAY_MS));
 
     return ESP_OK;
 
@@ -564,8 +568,8 @@ esp_err_t i2c_ens160_get_raw_measurement(i2c_ens160_handle_t ens160_handle, i2c_
     data->hp2_bl = I2C_ENS160_CONVERT_RS_RAW2OHMS_F((uint32_t)(rx[4] | ((uint16_t)rx[5] << 8)));
     data->hp3_bl = I2C_ENS160_CONVERT_RS_RAW2OHMS_F((uint32_t)(rx[6] | ((uint16_t)rx[7] << 8)));
 
-    /* attempt to clear command register ? */
-    //ESP_GOTO_ON_ERROR( i2c_ens160_clear_command_register(ens160_handle), err, TAG, "clear command failed" );
+    /* attempt to clear general purpose registers */
+    //ESP_GOTO_ON_ERROR( i2c_ens160_clear_general_purpose_registers(ens160_handle), err, TAG, "clear general purpose registers failed" );
 
     /* delay before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_ENS160_CMD_DELAY_MS));
@@ -687,7 +691,7 @@ esp_err_t i2c_ens160_enable_standard_mode(i2c_ens160_handle_t ens160_handle) {
     ESP_ARG_CHECK( ens160_handle );
 
     /* attempt to set operating mode to standard  */
-    ESP_RETURN_ON_ERROR( i2c_ens160_set_mode(ens160_handle, I2C_ENS160_OPMODE_STANDARD), TAG, "write mode for operational mode failed" );
+    ESP_RETURN_ON_ERROR( i2c_ens160_set_mode_register(ens160_handle, I2C_ENS160_OPMODE_STANDARD), TAG, "write mode for standard operating mode failed" );
 
     return ESP_OK;
 }
@@ -697,7 +701,7 @@ esp_err_t i2c_ens160_enable_idle_mode(i2c_ens160_handle_t ens160_handle) {
     ESP_ARG_CHECK( ens160_handle );
 
     /* attempt to set operating mode to idle  */
-    ESP_RETURN_ON_ERROR( i2c_ens160_set_mode(ens160_handle, I2C_ENS160_OPMODE_IDLE), TAG, "write mode for idle mode failed" );
+    ESP_RETURN_ON_ERROR( i2c_ens160_set_mode_register(ens160_handle, I2C_ENS160_OPMODE_IDLE), TAG, "write mode for idle operating mode failed" );
 
     return ESP_OK;
 }
@@ -707,7 +711,7 @@ esp_err_t i2c_ens160_enable_deep_sleep_mode(i2c_ens160_handle_t ens160_handle) {
     ESP_ARG_CHECK( ens160_handle );
 
     /* attempt to set operating mode to deep sleep  */
-    ESP_RETURN_ON_ERROR( i2c_ens160_set_mode(ens160_handle, I2C_ENS160_OPMODE_DEEP_SLEEP), TAG, "write mode for deep sleep mode failed" );
+    ESP_RETURN_ON_ERROR( i2c_ens160_set_mode_register(ens160_handle, I2C_ENS160_OPMODE_DEEP_SLEEP), TAG, "write mode for deep sleep operating mode failed" );
 
     return ESP_OK;
 }
@@ -717,13 +721,19 @@ esp_err_t i2c_ens160_reset(i2c_ens160_handle_t ens160_handle) {
     ESP_ARG_CHECK( ens160_handle );
 
     /* attempt to write operating mode to reset  */
-    ESP_RETURN_ON_ERROR( i2c_ens160_set_mode(ens160_handle, I2C_ENS160_OPMODE_RESET), TAG, "write mode for soft-reset failed" );
+    ESP_RETURN_ON_ERROR( i2c_ens160_set_mode_register(ens160_handle, I2C_ENS160_OPMODE_RESET), TAG, "write mode for soft-reset failed" );
 
     /* delay task before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_ENS160_RESET_DELAY_MS));
 
     /* attempt read device configuration registers */
     ESP_RETURN_ON_ERROR( i2c_ens160_get_registers(ens160_handle), TAG, "read device configuration registers for reset failed" );
+
+    /* attempt to enable idle operating mode before writing to configuration registers */
+    ESP_RETURN_ON_ERROR( i2c_ens160_enable_idle_mode(ens160_handle), TAG, "enable idle operating mode for reset failed" );
+
+    /* attempt to clear general purpose registers */
+    ESP_RETURN_ON_ERROR( i2c_ens160_clear_general_purpose_registers(ens160_handle), TAG, "clear general purpose registers for reset failed" );
 
     /* copy irq configuration from device handle */
     i2c_ens160_interrupt_config_register_t irq_config_reg;
@@ -736,8 +746,8 @@ esp_err_t i2c_ens160_reset(i2c_ens160_handle_t ens160_handle) {
     /* attempt to write interrupt configuration register */
     ESP_RETURN_ON_ERROR( i2c_ens160_set_interrupt_config_register(ens160_handle, irq_config_reg), TAG, "write interrupt configuration register for reset failed" );
 
-    /* attempt to write standard operating mode to start making measurements (idle by default)  */
-    ESP_RETURN_ON_ERROR( i2c_ens160_enable_standard_mode(ens160_handle), TAG, "write operational mode for reset failed" );
+    /* attempt to enable standard operating mode to start making measurements (idle by default)  */
+    ESP_RETURN_ON_ERROR( i2c_ens160_enable_standard_mode(ens160_handle), TAG, "enable standard operating mode for reset failed" );
 
     return ESP_OK;
 }

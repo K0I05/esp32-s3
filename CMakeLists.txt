@@ -7,6 +7,7 @@ list(APPEND EXTRA_COMPONENT_DIRS
 
                     "components/peripherals/i2c/esp_driver_i2c_ext"
                     "components/peripherals/i2c/esp_ahtxx"
+                    "components/peripherals/i2c/esp_ak8975"
                     "components/peripherals/i2c/esp_as7341"
                     "components/peripherals/i2c/esp_bh1750"
                     "components/peripherals/i2c/esp_bmp280"
@@ -27,7 +28,7 @@ list(APPEND EXTRA_COMPONENT_DIRS
                     "components/peripherals/owb/onewire_bus"
                     "components/peripherals/owb/esp_ds18b20"
 
-                    #"components/peripherals/spi/esp_max31865"
+                    "components/peripherals/spi/esp_max31865"
 
                     "components/schedule/esp_time_into_interval"
 

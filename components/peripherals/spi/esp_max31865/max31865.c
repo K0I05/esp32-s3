@@ -81,22 +81,23 @@ typedef struct {
     float a, b;
 } spi_rtd_coeff_t;
 
+/*
 static const spi_rtd_coeff_t spi_rtd_coeff[] = {
      [SPI_MAX31865_ITS90]         = { .a = 3.9083e-3f, .b = -5.775e-7f },
      [SPI_MAX31865_DIN43760]      = { .a = 3.9848e-3f, .b = -5.8019e-7f },
      [SPI_MAX31865_US_INDUSTRIAL] = { .a = 3.9692e-3f, .b = -5.8495e-7f },
 };
-
+*/
 
 
 static inline void spi_max31865_cs_high(spi_transaction_t* t) {
-    ESP_EARLY_LOGV(TAG, "cs high %d.", ((spi_max31865_handle_t)t->user)->spi_dev_config.cs_io);
-    gpio_set_level(((spi_max31865_handle_t)t->user)->spi_dev_config.cs_io, 1);
+    ESP_EARLY_LOGV(TAG, "cs high %d.", ((spi_max31865_handle_t)t->user)->spi_dev_config.cs_io_num);
+    gpio_set_level(((spi_max31865_handle_t)t->user)->spi_dev_config.cs_io_num, 1);
 }
 
 static inline void spi_max31865_cs_low(spi_transaction_t* t) {
-    gpio_set_level(((spi_max31865_handle_t)t->user)->spi_dev_config.cs_io, 0);
-    ESP_EARLY_LOGV(TAG, "cs low %d.", ((spi_max31865_handle_t)t->user)->spi_dev_config.cs_io);
+    gpio_set_level(((spi_max31865_handle_t)t->user)->spi_dev_config.cs_io_num, 0);
+    ESP_EARLY_LOGV(TAG, "cs low %d.", ((spi_max31865_handle_t)t->user)->spi_dev_config.cs_io_num);
 }
 
 void spi_max31865_ready_rising_isr(void* arg) {
@@ -148,10 +149,10 @@ esp_err_t spi_max31865_init(const spi_max31865_config_t *max31865_config, spi_ma
 
     /* configure cs io */
     gpio_config_t cs_gpio_cfg = {
-        .pin_bit_mask = BIT64(out_handle->spi_dev_config.cs_io),
+        .pin_bit_mask = BIT64(out_handle->spi_dev_config.cs_io_num),
         .mode = GPIO_MODE_OUTPUT,
     };
-    gpio_set_level(out_handle->spi_dev_config.cs_io, 0);
+    gpio_set_level(out_handle->spi_dev_config.cs_io_num, 0);
     gpio_config(&cs_gpio_cfg);
 
     /* configure isr handler */
@@ -159,9 +160,9 @@ esp_err_t spi_max31865_init(const spi_max31865_config_t *max31865_config, spi_ma
         out_handle->spi_ready_sem = xSemaphoreCreateBinary();
         ESP_GOTO_ON_FALSE(out_handle->spi_ready_sem, ESP_ERR_NO_MEM, err_handle, TAG, "no memory for spi ready semaphore, init failed");
 
-        gpio_set_intr_type(out_handle->spi_dev_config.miso_io, GPIO_INTR_POSEDGE);
-        ESP_GOTO_ON_ERROR(gpio_isr_handler_add(out_handle->spi_dev_config.miso_io, spi_max31865_ready_rising_isr, out_handle), err_handle, TAG, "add gpio isr handler for init failed");
-        gpio_intr_disable(out_handle->spi_dev_config.miso_io);
+        gpio_set_intr_type(out_handle->spi_dev_config.miso_io_num, GPIO_INTR_POSEDGE);
+        ESP_GOTO_ON_ERROR(gpio_isr_handler_add(out_handle->spi_dev_config.miso_io_num, spi_max31865_ready_rising_isr, out_handle), err_handle, TAG, "add gpio isr handler for init failed");
+        gpio_intr_disable(out_handle->spi_dev_config.miso_io_num);
     }
 
     /* set device handle */

@@ -38,8 +38,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <esp_err.h>
-#include <driver/spi_master.h>
 #include <driver/gpio.h>
+#include <driver/spi_common.h>
+#include <driver/spi_master.h>
+
 
 #ifdef __cplusplus
 extern "C"
@@ -57,10 +59,12 @@ extern "C"
 /*
  * MAX31865 macro definitions
  */
-//#define I2C_MAX31865_CONFIG_DEFAULT {                      \
-//    .dev_config.device_address = I2C_MAX31865_DEV_ADDR,    \
-//    .dev_config.scl_speed_hz   = I2C_MAX31865_SCL_SPEED_HZ,\
-//    .aht_type = I2C_AHTXX_AHT2X }
+/*
+#define I2C_MAX31865_CONFIG_DEFAULT {                      \
+    .dev_config.device_address = I2C_MAX31865_DEV_ADDR,    \
+    .dev_config.scl_speed_hz   = I2C_MAX31865_SCL_SPEED_HZ,\
+    .aht_type = I2C_AHTXX_AHT2X }
+*/
 
 typedef enum {
     SPI_MAX31865_FAULT_DETECT_FINISHED       = (0b00), /**<  */
@@ -80,9 +84,8 @@ typedef enum {
 } spi_max31865_filters_t;
 
 typedef enum {
-    SPI_MAX31865_2WIRE = 0, /**< 2 wires */
-    SPI_MAX31865_3WIRE,     /**< 3 wires */
-    SPI_MAX31865_4WIRE      /**< 4 wires */
+    SPI_MAX31865_2WIRE_OR_4WIRE = 0, /**< 2-wires or 4-wires */
+    SPI_MAX31865_3WIRE = 1,          /**< 3-wires */
 } spi_max31865_connection_types_t;
 
 typedef enum {
@@ -140,6 +143,7 @@ typedef struct {
     gpio_num_t                              cs_io_num;      /*!< CS gpio number, set before calling `spi_eeprom_init()` */
     gpio_num_t                              miso_io_num;    /*!< MISO gpio number, set before calling `spi_eeprom_init()` */
     bool                                    irq_enabled;    /*!< Whether to use polling or interrupt when waiting for write to be done. Set before calling `spi_eeprom_init()`. */
+    gpio_num_t                              irq_io_num;     /*!< interrupt gpio number */
 } spi_max31865_config_t;
 
 /**

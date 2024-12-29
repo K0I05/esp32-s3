@@ -269,7 +269,7 @@ esp_err_t i2c_mmc56x3_get_temperature(i2c_mmc56x3_handle_t mmc56x3_handle, float
         i2c_mmc56x3_control0_register_t ctrl0 = { .reg = mmc56x3_handle->control0_reg.reg };
         
         /* trigger temperature measurement */
-        ctrl0.bits.sample_t          = true;
+        ctrl0.bits.sample_t = true;
 
         /* attempt to write control 0 register */
         ESP_GOTO_ON_ERROR( i2c_mmc56x3_set_control0_register(mmc56x3_handle, ctrl0), err, TAG, "write magnetic sample trigger for get magnetic failed." );
@@ -324,7 +324,7 @@ esp_err_t i2c_mmc56x3_get_magnetic_axes(i2c_mmc56x3_handle_t mmc56x3_handle, i2c
         ctrl0.reg = mmc56x3_handle->control0_reg.reg;
 
         /* trigger magnetic measurement */
-        ctrl0.bits.sample_m          = true;
+        ctrl0.bits.sample_m = true;
 
         /* attempt to write control 0 register */
         ESP_GOTO_ON_ERROR( i2c_mmc56x3_set_control0_register(mmc56x3_handle, ctrl0), err, TAG, "write magnetic sample trigger for get magnetic axes failed." );

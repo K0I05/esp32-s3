@@ -131,26 +131,22 @@ static inline size_t i2c_mlx90614_get_tick_duration(const uint16_t ms) {
  * @param[in] raw_data Raw `uint16_t` temperature to decode.
  * @return float Decoded floating point temperature in degrees celsius.
  */
-static inline float i2c_mlx90614_decode_temperature(const uint16_t raw_data) {
-    float temperature = (float)raw_data * 0.02f;
-
-    temperature -= 273.15f;  // kelvin to celcius
-
-    return temperature;
+static inline float i2c_mlx90614_decode_temperature(const uint16_t encoded_temperature) {
+    float decoded_temperature = (float)encoded_temperature * 0.02f;
+    decoded_temperature -= 273.15f;  // kelvin to celcius
+    return decoded_temperature;
 }
 
 /**
  * @brief Encodes floating point temperature in degrees celsius to raw `uint16_t` temperature.
  *
- * @param[in] temperature Floating point temperature to encode.
+ * @param[in] temperature Decoded floating point temperature to encode.
  * @return uint16_t Encoded raw `uint16_t` temperature.
  */
-static inline uint16_t i2c_mlx90614_encode_temperature(const float temperature) {
-    float temp = temperature + 273.15f;
-
-	temp *= 50.0f;  // then multiply by 0.02 degK / bit
-
-	return (uint16_t)temp;
+static inline uint16_t i2c_mlx90614_encode_temperature(const float decoded_temperature) {
+    float encoded_temperature = decoded_temperature + 273.15f;
+	encoded_temperature *= 50.0f;  // then multiply by 0.02 degK / bit
+	return (uint16_t)encoded_temperature;
 }
 
 /**
@@ -161,11 +157,9 @@ static inline uint16_t i2c_mlx90614_encode_temperature(const float temperature) 
  */
 static inline int16_t i2c_mlx90614_decode_ir(const uint16_t raw_data) {
     int16_t ir = raw_data;
-
     if(raw_data > 0x7FFF) {
         ir = 0x8000 - ir;
     }
-
     return ir;
 }
 
@@ -541,7 +535,7 @@ esp_err_t i2c_mlx90614_get_ambient_temperature_range(i2c_mlx90614_handle_t mlx90
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_get_emissivity(i2c_mlx90614_handle_t mlx90614_handle, float *const emissivity) {
+esp_err_t i2c_mlx90614_get_emissivity(i2c_mlx90614_handle_t mlx90614_handle, float *const coefficient) {
     uint16_t raw_data;
 
     /* validate arguments */
@@ -550,21 +544,21 @@ esp_err_t i2c_mlx90614_get_emissivity(i2c_mlx90614_handle_t mlx90614_handle, flo
     ESP_ERROR_CHECK( i2c_mlx90614_read_word(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_EMISS, &raw_data) );
 
     // if we successfully read from the ke register
-	// calculate the emissivity between 0.1 and 1.0:
-    *emissivity = ((float)raw_data) / 0xffff;
+	// calculate the emissivity coefficient between 0.05 and 1.0:
+    *coefficient = ((float)raw_data) / 0xffff;
 
     return ESP_OK;
 }
 
-esp_err_t i2c_mlx90614_set_emissivity(i2c_mlx90614_handle_t mlx90614_handle, const float emissivity) {
+esp_err_t i2c_mlx90614_set_emissivity(i2c_mlx90614_handle_t mlx90614_handle, const float coefficient) {
     /* validate arguments */
     ESP_ARG_CHECK( mlx90614_handle );
 
-    // make sure emissivity is between 0.05 and 1.0
-	if ((emissivity > 1.0f) || (emissivity < 0.05f))
-		return ESP_ERR_INVALID_ARG;
+    // validate emissivity coefficient range is between 0.05 and 1.0
+    ESP_RETURN_ON_FALSE((coefficient <= 1.0f), ESP_ERR_INVALID_ARG, TAG, "emissivity coefficient range must be between 0.05 and 1.0, set emissivity failed");
+    ESP_RETURN_ON_FALSE((coefficient >= 0.05f), ESP_ERR_INVALID_ARG, TAG, "emissivity coefficient range must be between 0.05 and 1.0, set emissivity failed");
 
-    uint16_t raw_data = (uint16_t)(0xffff * emissivity);
+    uint16_t raw_data = (uint16_t)(0xffff * coefficient);
 
     ESP_ERROR_CHECK( i2c_mlx90614_write_eeprom(mlx90614_handle, I2C_MLX90614_CMD_EEPROM_RDWR_EMISS, raw_data) );
 

@@ -58,6 +58,7 @@
 
 /* i2c component tasks */
 #include <ahtxx_task.h>
+#include <ak8975_task.h>
 #include <as7341_task.h>
 #include <bh1750_task.h>
 #include <bmp280_task.h>
@@ -101,6 +102,7 @@ typedef enum owb_components_tag {
 typedef enum i2c_components_tag {
     I2C_COMPONENT_AHTXX,
     I2C_COMPONENT_AS7341,
+    I2C_COMPONENT_AK8975,
     I2C_COMPONENT_BH1750,
     I2C_COMPONENT_BMP280,
     I2C_COMPONENT_BMP390,
@@ -232,6 +234,9 @@ static inline void i2c0_component_example_start(const i2c_components_t component
         case I2C_COMPONENT_AHTXX:
             i2c0_task_create(i2c0_ahtxx_task, I2C0_AHTXX_TASK_NAME);
             break;
+        case I2C_COMPONENT_AK8975:
+            i2c0_task_create(i2c0_ak8975_task, I2C0_AK8975_TASK_NAME);
+            break;
         case I2C_COMPONENT_AS7341:
             i2c0_task_create(i2c0_as7341_task, I2C0_AS7341_TASK_NAME);
             break;
@@ -287,6 +292,7 @@ static inline void i2c0_component_example_start(const i2c_components_t component
  * @brief Scans I2C master bus 0 for i2c devices and prints each device address when detected.
  */
 static inline esp_err_t i2c0_device_scan(void) {
+    ESP_LOGI(APP_TAG, "Scanning I2C master bus 0 for I2C devices..");
     return i2c_master_bus_detect_devices(i2c0_bus_hdl);
 }
 
@@ -312,7 +318,6 @@ void app_main( void ) {
     ESP_ERROR_CHECK( i2c_new_master_bus(&i2c0_bus_cfg, &i2c0_bus_hdl) );
 
     /* scan i2c devices on i2c master bus 0 and print results */
-    //ESP_LOGI(APP_TAG, "Scanning I2C master bus 0 for I2C devices..");
     //ESP_ERROR_CHECK( i2c0_device_scan() );
 
     /* delay task before starting component example */
@@ -322,16 +327,17 @@ void app_main( void ) {
     /* note: only one component example can run at a time */
     
     //i2c0_component_example_start(I2C_COMPONENT_AHTXX);
+    //i2c0_component_example_start(I2C_COMPONENT_AK8975);
     //i2c0_component_example_start(I2C_COMPONENT_AS7341);
     //i2c0_component_example_start(I2C_COMPONENT_BH1750);
     //i2c0_component_example_start(I2C_COMPONENT_BMP280);
     //i2c0_component_example_start(I2C_COMPONENT_BMP390);
     //i2c0_component_example_start(I2C_COMPONENT_CCS811);
-    //i2c0_component_example_start(I2C_COMPONENT_ENS160);
+    i2c0_component_example_start(I2C_COMPONENT_ENS160);
     //i2c0_component_example_start(I2C_COMPONENT_HDC1080);
     //i2c0_component_example_start(I2C_COMPONENT_HMC5883L);
     //i2c0_component_example_start(I2C_COMPONENT_MLX90614);
-    i2c0_component_example_start(I2C_COMPONENT_MMC56X3);
+    //i2c0_component_example_start(I2C_COMPONENT_MMC56X3);
     //i2c0_component_example_start(I2C_COMPONENT_MPU6050);
     //i2c0_component_example_start(I2C_COMPONENT_SGP4X);
     //i2c0_component_example_start(I2C_COMPONENT_SHT4X);

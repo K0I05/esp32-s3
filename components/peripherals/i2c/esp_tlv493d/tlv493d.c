@@ -231,7 +231,7 @@ static inline int16_t i2c_tlv493d_concat_12bit_data(const uint8_t msb, const uin
 	return value;
 }
 
-static inline esp_err_t i2c_tlv493d_get_raw_data(i2c_tlv493d_handle_t tlv493d_handle, i2c_tlv493d_raw_data_t *const raw_data) {
+static inline esp_err_t i2c_tlv493d_get_fixed_magnetic_axes(i2c_tlv493d_handle_t tlv493d_handle, i2c_tlv493d_raw_data_t *const raw_data) {
     esp_err_t               ret             = ESP_OK;
     uint64_t                start_time      = 0;
     bool                    data_is_ready   = false;
@@ -268,7 +268,9 @@ static inline esp_err_t i2c_tlv493d_get_raw_data(i2c_tlv493d_handle_t tlv493d_ha
     //ESP_GOTO_ON_ERROR( i2c_master_transmit_receive(tlv493d_handle->i2c_dev_handle, tx_buffer, I2C_UINT8_SIZE, rx_buffer, I2C_UINT56_SIZE, I2C_XFR_TIMEOUT_MS), err, TAG, "unable to write to i2c device handle, get measurement failed");
 	
     ESP_GOTO_ON_ERROR( i2c_master_transmit(tlv493d_handle->i2c_dev_handle, tx_buffer, I2C_UINT8_SIZE, I2C_XFR_TIMEOUT_MS), err, TAG, "unable to write to i2c device handle, get measurement failed");
-	vTaskDelay(pdMS_TO_TICKS(5));
+	
+    vTaskDelay(pdMS_TO_TICKS(5));
+    
     ESP_GOTO_ON_ERROR( i2c_master_receive(tlv493d_handle->i2c_dev_handle, rx_buffer, I2C_UINT56_SIZE, I2C_XFR_TIMEOUT_MS), err, TAG, "unable to read from i2c device handle, get measurement failed");
 	
 
@@ -439,6 +441,7 @@ esp_err_t i2c_tlv493d_init(i2c_master_bus_handle_t bus_handle, const i2c_tlv493d
 
     ESP_GOTO_ON_ERROR(i2c_tlv493d_set_mode2_register(out_handle, mode2_reg), err_handle, TAG, "write mode 2 register for init failed");
 
+    /* sum registers */
     uint8_t result = 0x00;
     result ^= reserved1_reg.reg;
     result ^= mode1_reg.reg;
@@ -504,8 +507,7 @@ esp_err_t i2c_tlv493d_get_data(i2c_tlv493d_handle_t tlv493d_handle, i2c_tlv493d_
     /* validate arguments */
     ESP_ARG_CHECK( tlv493d_handle );
 
-    ESP_RETURN_ON_ERROR( i2c_tlv493d_get_raw_data(tlv493d_handle, &raw_data), TAG, "unable to read raw data registers, get data failed" );
-
+    ESP_RETURN_ON_ERROR( i2c_tlv493d_get_fixed_magnetic_axes(tlv493d_handle, &raw_data), TAG, "unable to read raw data registers, get data failed" );
 
     return ESP_OK;
 }

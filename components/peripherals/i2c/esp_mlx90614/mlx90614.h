@@ -347,22 +347,22 @@ esp_err_t i2c_mlx90614_get_ir_channel2(i2c_mlx90614_handle_t mlx90614_handle, in
 esp_err_t i2c_mlx90614_get_ambient_temperature_range(i2c_mlx90614_handle_t mlx90614_handle, float *const ambient_temperature_range);
 
 /**
- * @brief Reads emissivity (0.1 to 1.0) setting from MLX90614.
+ * @brief Reads emissivity coefficient (0.1 to 1.0) setting from MLX90614.
  * 
  * @param mlx90614_handle MLX90614 device handle.
- * @param emissivity MLX90614 emissivity (0.1 to 1.0) setting.
+ * @param emissivity MLX90614 emissivity coefficient (0.1 to 1.0) setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mlx90614_get_emissivity(i2c_mlx90614_handle_t mlx90614_handle, float *const emissivity);
+esp_err_t i2c_mlx90614_get_emissivity(i2c_mlx90614_handle_t mlx90614_handle, float *const coefficient);
 
 /**
- * @brief Writes emissivity (0.1 to 1.0) setting to MLX90614.
+ * @brief Writes emissivity coefficient (0.1 to 1.0) setting to MLX90614.
  * 
  * @param mlx90614_handle MLX90614 device handle.
- * @param emissivity MLX90614 emissivity (0.1 to 1.0) setting.
+ * @param emissivity MLX90614 emissivity coefficient (0.1 to 1.0) setting.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_mlx90614_set_emissivity(i2c_mlx90614_handle_t mlx90614_handle, const float emissivity);
+esp_err_t i2c_mlx90614_set_emissivity(i2c_mlx90614_handle_t mlx90614_handle, const float coefficient);
 
 /**
  * @brief Reads maximum object temperature setting from MLX90614.

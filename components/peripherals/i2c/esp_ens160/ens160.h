@@ -143,8 +143,8 @@ typedef enum {
  */
 typedef enum {
     I2C_ENS160_VALFLAG_NORMAL           = 0x00, /*!< ens160 normal operation validity flag */
-    I2C_ENS160_VALFLAG_WARMUP           = 0x01, /*!< ens160 warm-up phase validity flag */
-    I2C_ENS160_VALFLAG_INITIAL_STARTUP  = 0x02, /*!< ens160 initial start-up phase validity flag */
+    I2C_ENS160_VALFLAG_WARMUP           = 0x01, /*!< ens160 warm-up phase validity flag (first 3-minutes after power-on) */
+    I2C_ENS160_VALFLAG_INITIAL_STARTUP  = 0x02, /*!< ens160 initial start-up phase validity flag (first full hour of operation after power-on, once in the sensor's lifetime) */
     I2C_ENS160_VALFLAG_INVALID_OUTPUT   = 0x03  /*!< ens160 invalid output validity flag */
 } i2c_ens160_validity_flags_t;
 

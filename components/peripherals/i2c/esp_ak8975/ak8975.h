@@ -47,35 +47,12 @@ extern "C" {
 /*
  * AK8975 definitions
 */
-#define I2C_AK8975_DATA_RATE_HZ             (100000)        //!< ak8975 I2C default clock frequency (100KHz)
+#define I2C_AK8975_SCL_SPEED_HZ             UINT32_C(100000)//!< ak8975 I2C default clock frequency (100KHz)
 
-#define I2C_AK8975_MODE_DELAY_MS            (5)            //!< ak8975 100us when mode is changed
-#define I2C_AK8975_DATA_READY_DELAY_MS      (1)             //!< ak8975 1ms when checking data ready in a loop
-#define I2C_AK8975_MEASUREMENT_DELAY_MS     (10)            //!< ak8975 9ms max for single measurement
-#define I2C_AK8975_DEVICE_ID                UINT8_C(0x48)   //!< ak8975 I2C device identifier (static)
-
-#define I2C_AK8975_ADDR_CAD1_0_CAD0_0       UINT8_C(0x0c)   //!< ak8975 I2C address when CAD1 and CAD0 are low
-#define I2C_AK8975_ADDR_CAD1_0_CAD0_1       UINT8_C(0x0d)   //!< ak8975 I2C address when CAD1 is low and CAD0 is high
-#define I2C_AK8975_ADDR_CAD1_1_CAD0_0       UINT8_C(0x0e)   //!< ak8975 I2C address when CAD1 is high and CAD0 is low
-#define I2C_AK8975_ADDR_CAD1_1_CAD0_1       UINT8_C(0x0f)   //!< ak8975 I2C address when CAD1 and CAD0 are high
-
-#define I2C_AK8975_REG_DEVICE_ID_R          UINT8_C(0x00)   //!< ak8975 I2C device identifier
-#define I2C_AK8975_REG_INFO_R               UINT8_C(0x01)   //!< ak8975 I2C device information register
-#define I2C_AK8975_REG_STATUS_1_R           UINT8_C(0x02)   //!< ak8975 I2C status 1 register
-#define I2C_AK8975_REG_HXL_DATA_R           UINT8_C(0x03)   //!< ak8975 I2C x-axis low-byte data register
-#define I2C_AK8975_REG_HXH_DATA_R           UINT8_C(0x04)   //!< ak8975 I2C x-axis high-byte data register
-#define I2C_AK8975_REG_HYL_DATA_R           UINT8_C(0x05)   //!< ak8975 I2C y-axis low-byte data register
-#define I2C_AK8975_REG_HYH_DATA_R           UINT8_C(0x06)   //!< ak8975 I2C y-axis high-byte data register
-#define I2C_AK8975_REG_HZL_DATA_R           UINT8_C(0x07)   //!< ak8975 I2C z-axis low-byte data register
-#define I2C_AK8975_REG_HZH_DATA_R           UINT8_C(0x08)   //!< ak8975 I2C z-axis high-byte data register
-#define I2C_AK8975_REG_STATUS_2_R           UINT8_C(0x09)   //!< ak8975 I2C status 2 register
-#define I2C_AK8975_REG_CONTROL_RW           UINT8_C(0x0a)   //!< ak8975 I2C control register
-#define I2C_AK8975_REG_SELF_TEST_RW         UINT8_C(0x0c)   //!< ak8975 I2C self-test register
-#define I2C_AK8975_REG_I2C_DISABLE_RW       UINT8_C(0x0f)   //!< ak8975 I2C disable i2c register
-#define I2C_AK8975_REG_ASAX_VALUE_R         UINT8_C(0x10)   //!< ak8975 I2C x-axys sensitivity adjustment value register
-#define I2C_AK8975_REG_ASAY_VALUE_R         UINT8_C(0x11)   //!< ak8975 I2C y-axys sensitivity adjustment value register
-#define I2C_AK8975_REG_ASAZ_VALUE_R         UINT8_C(0x12)   //!< ak8975 I2C z-axys sensitivity adjustment value register
-
+#define I2C_AK8975_DEV_ADDR_CAD1_0_CAD0_0   UINT8_C(0x0c)   //!< ak8975 I2C address when CAD1 and CAD0 are low
+#define I2C_AK8975_DEV_ADDR_CAD1_0_CAD0_1   UINT8_C(0x0d)   //!< ak8975 I2C address when CAD1 is low and CAD0 is high
+#define I2C_AK8975_DEV_ADDR_CAD1_1_CAD0_0   UINT8_C(0x0e)   //!< ak8975 I2C address when CAD1 is high and CAD0 is low
+#define I2C_AK8975_DEV_ADDR_CAD1_1_CAD0_1   UINT8_C(0x0f)   //!< ak8975 I2C address when CAD1 and CAD0 are high
 
 
 /*
@@ -85,8 +62,9 @@ extern "C" {
 /**
  * @brief Macro that initializes `i2c_ak8975_config_t` to default configuration settings.
  */
-#define I2C_AK8975_CONFIG_DEFAULT {                                      \
-        .dev_config.device_address     = I2C_AK8975_ADDR_CAD1_0_CAD0_0, }
+#define I2C_AK8975_CONFIG_DEFAULT {                                 \
+    .dev_config.scl_speed_hz   = I2C_AK8975_SCL_SPEED_HZ,           \
+    .dev_config.device_address = I2C_AK8975_DEV_ADDR_CAD1_0_CAD0_0, }
 
 /*
  * AK8975 enumerator and sructure declerations
@@ -143,11 +121,11 @@ typedef union __attribute__((packed)) {
 typedef union __attribute__((packed)) {
     struct STCTRL_REG_BITS_TAG {
         uint8_t             reserved1:6;   /*!< reserved and set to 0 (bit:0-5)   */
-        bool                self_test:1;   /*!< self-test status      (bit:6)   */
+        bool                selftest_state:1; /*!< self-test status      (bit:6)   */
         uint8_t             reserved2:1;   /*!< reserved and set to 0 (bit:7)   */
     } bits;            /*!< represents the 8-bit self-test control register parts in bits.   */
     uint8_t reg;       /*!< represents the 8-bit self-test control register as `uint8_t`.   */
-} i2c_ak8975_self_test_control_register_t;
+} i2c_ak8975_selftest_control_register_t;
 
 /**
  * @brief AK8975 processed compass axes data structure and axes have a range +/-1229 uT.
@@ -157,21 +135,19 @@ typedef union __attribute__((packed)) {
  * 
  */
 typedef struct {
-    int16_t x_axis;
-    int16_t y_axis;
-    int16_t z_axis;
-} i2c_ak8975_compass_axes_data_t;
+    float x_axis;
+    float y_axis;
+    float z_axis;
+} i2c_ak8975_magnetic_axes_data_t;
 
 /**
  * @brief AK8975 axes data registers (HX, HZ, HZ) structure.
- * 
  */
 typedef struct {
     i2c_bytes_to_int16_t x_axis;
     i2c_bytes_to_int16_t y_axis;
     i2c_bytes_to_int16_t z_axis;
 } i2c_ak8975_axes_data_t;
-
 
 /**
  * @brief AK8975 I2C device configuration structure.
@@ -181,20 +157,6 @@ typedef struct {
 } i2c_ak8975_config_t;
 
 /**
- * @brief AK8975 I2C device parameters structure.
- */
-typedef struct {
-    uint8_t                         device_id;    /*!< ak8975 device identifier */
-    uint8_t                         device_info;  /*!< ak8975 device information */
-    i2c_ak8975_control_register_t   control_reg;  /*!< ak8975 device control register */
-    i2c_ak8975_status1_register_t   status1_reg;  /*!< ak8975 device status 1 register */
-    i2c_ak8975_status2_register_t   status2_reg;  /*!< ak8975 device status 2 register */
-    uint8_t                         asa_x_value;  /*!< ak8975 x-axis sensitivity adjustment value */
-    uint8_t                         asa_y_value;  /*!< ak8975 y-axis sensitivity adjustment value */
-    uint8_t                         asa_z_value;  /*!< ak8975 z-axis sensitivity adjustment value */
-} i2c_ak8975_params_t;
-
-/**
  * @brief AK8975 I2C device structure.
  */
 struct i2c_ak8975_t {
@@ -202,6 +164,7 @@ struct i2c_ak8975_t {
     uint8_t                         device_id;    /*!< ak8975 device identifier */
     uint8_t                         device_info;  /*!< ak8975 device information */
     i2c_ak8975_control_register_t   control_reg;  /*!< ak8975 device control register */
+    i2c_ak8975_selftest_control_register_t selftest_reg;  /*!< ak8975 device self-test control register */
     i2c_ak8975_status1_register_t   status1_reg;  /*!< ak8975 device status 1 register */
     i2c_ak8975_status2_register_t   status2_reg;  /*!< ak8975 device status 2 register */
     uint8_t                         asa_x_value;  /*!< ak8975 x-axis sensitivity adjustment value */
@@ -234,7 +197,16 @@ esp_err_t i2c_ak8975_get_control_register(i2c_ak8975_handle_t ak8975_handle);
  * @param[in] control_reg AK8975 control register.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ak8975_set_control_register(i2c_ak8975_handle_t ak8975_handle, i2c_ak8975_control_register_t control_reg);
+esp_err_t i2c_ak8975_set_control_register(i2c_ak8975_handle_t ak8975_handle, const i2c_ak8975_control_register_t control_reg);
+
+/**
+ * @brief Reads self-test control register from AK8975.
+ * 
+ * @param[in] ak8975_handle AK8975 device handle.
+ * @param[in] control_reg AK8975 self-test control register.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_ak8975_get_selftest_control_register(i2c_ak8975_handle_t ak8975_handle);
 
 /**
  * @brief Reads status 1 register from AK8975.
@@ -261,11 +233,11 @@ esp_err_t i2c_ak8975_get_status2_register(i2c_ak8975_handle_t ak8975_handle);
 esp_err_t i2c_ak8975_get_asa_registers(i2c_ak8975_handle_t ak8975_handle);
 
 /**
- * @brief Processes heading (0-359 degrees) from compass axes.
+ * @brief Converts heading (0-359 degrees) from magnetic axes.
  * 
  * @return float heading in degrees (0-359).
  */
-float i2c_ak8975_process_heading(i2c_ak8975_compass_axes_data_t compass_axes);
+float i2c_ak8975_convert_to_heading(const i2c_ak8975_magnetic_axes_data_t magnetic_axes_data);
 
 /**
  * @brief Initializes an AK8975 device onto the I2C master bus.
@@ -278,13 +250,13 @@ float i2c_ak8975_process_heading(i2c_ak8975_compass_axes_data_t compass_axes);
 esp_err_t i2c_ak8975_init(i2c_master_bus_handle_t bus_handle, const i2c_ak8975_config_t *ak8975_config, i2c_ak8975_handle_t *ak8975_handle);
 
 /**
- * @brief Read magnetic compass measurement from AK8975.
+ * @brief Read magnetic measurement from AK8975.
  *
  * @param[in] ak8975_handle AK8975 device handle.
- * @param[out] compass_axes AK8975 compass axes data (X, Y, Z) with sensitivity adjustments applied.
+ * @param[out] magnetic_axes AK8975 magnetic axes data (X, Y, Z) with sensitivity adjustments applied.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ak8975_get_compass_axes(i2c_ak8975_handle_t ak8975_handle, i2c_ak8975_compass_axes_data_t *compass_axes);
+esp_err_t i2c_ak8975_get_magnetic_axes(i2c_ak8975_handle_t ak8975_handle, i2c_ak8975_magnetic_axes_data_t *const magnetic_axes_data);
 
 /**
  * @brief Self-test judgement of AK8975 to check if sensor is working normally.
@@ -295,13 +267,13 @@ esp_err_t i2c_ak8975_get_compass_axes(i2c_ak8975_handle_t ak8975_handle, i2c_ak8
  * @param[out] compass_axes AK8975 compass axes data (X, Y, Z) with sensitivity adjustments applied.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ak8975_self_test(i2c_ak8975_handle_t ak8975_handle, i2c_ak8975_compass_axes_data_t *compass_axes);
+esp_err_t i2c_ak8975_selftest(i2c_ak8975_handle_t ak8975_handle, i2c_ak8975_magnetic_axes_data_t *const magnetic_axes_data);
 
-esp_err_t i2c_ak8975_get_data_status(i2c_ak8975_handle_t ak8975_handle, bool *ready);
+esp_err_t i2c_ak8975_get_data_status(i2c_ak8975_handle_t ak8975_handle, bool *const ready);
 
-esp_err_t i2c_ak8975_get_error_status(i2c_ak8975_handle_t ak8975_handle, bool *error);
+esp_err_t i2c_ak8975_get_error_status(i2c_ak8975_handle_t ak8975_handle, bool *const error);
 
-esp_err_t i2c_ak8975_get_overflow_status(i2c_ak8975_handle_t ak8975_handle, bool *overflow);
+esp_err_t i2c_ak8975_get_overflow_status(i2c_ak8975_handle_t ak8975_handle, bool *const overflow);
 
 esp_err_t i2c_ak8975_power_down(i2c_ak8975_handle_t ak8975_handle);
 
@@ -311,8 +283,15 @@ esp_err_t i2c_ak8975_power_down(i2c_ak8975_handle_t ak8975_handle);
  * @param[in] ak8975_handle AK8975 device handle.
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_ak8975_rm(i2c_ak8975_handle_t ak8975_handle);
+esp_err_t i2c_ak8975_remove(i2c_ak8975_handle_t ak8975_handle);
 
+/**
+ * @brief Removes an AK8975 device from master bus and frees handle.
+ * 
+ * @param ak8975_handle AK8975 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_ak8975_delete(i2c_ak8975_handle_t ak8975_handle);
 
 
 #ifdef __cplusplus
