@@ -27,6 +27,8 @@ list(APPEND EXTRA_COMPONENT_DIRS
                     "components/peripherals/owb/onewire_bus"
                     "components/peripherals/owb/esp_ds18b20"
 
+                    #"components/peripherals/spi/esp_max31865"
+
                     "components/schedule/esp_time_into_interval"
 
                     "components/storage/esp_datalogger"

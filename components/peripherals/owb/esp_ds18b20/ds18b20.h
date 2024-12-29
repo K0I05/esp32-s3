@@ -27,6 +27,11 @@
  * @{
  *
  * ESP-IDF driver for ds18b20 sensor
+ * 
+ * Source references:
+ * https://github.com/espressif/esp-bsp/blob/master/components/ds18b20/src/ds18b20.c
+ * https://github.com/DavidAntliff/esp32-ds18b20/blob/99eb5dd55536fd79b4bd5790f1430c218c51410f/ds18b20.c
+ * 
  *
  * Copyright (c) 2024 Eric Gionet (gionet.c.eric@gmail.com)
  *
@@ -95,10 +100,10 @@ typedef struct {
  * @brief DS18B20 OWB device structure.
  */
 struct owb_ds18b20_t {
-    onewire_bus_handle_t owb_bus_handle;
-    onewire_device_address_t owb_dev_address;
-    uint8_t th_user1;
-    uint8_t tl_user2;
+    onewire_bus_handle_t      owb_bus_handle;
+    onewire_device_address_t  owb_dev_address;
+    uint8_t                   th_user1;
+    uint8_t                   tl_user2;
     owb_ds18b20_resolutions_t resolution;
 };
 
@@ -160,6 +165,15 @@ esp_err_t owb_ds18b20_trigger_temperature_conversion(owb_ds18b20_handle_t ds18b2
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t owb_ds18b20_set_resolution(owb_ds18b20_handle_t ds18b20_handle, const owb_ds18b20_resolutions_t resolution);
+
+/**
+ * @brief Reads power supply type setting from DS18B20.  Parasitic-powered devices will pull the bus low during read time slot.
+ * 
+ * @param ds18b20_handle DS18B20 device handle. 
+ * @param parasitic DS18B20 power supply type setting is parasitic when true.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t owb_ds18b20_get_power_supply_type(owb_ds18b20_handle_t ds18b20_handle, bool *const parasitic);
 
 /**
  * @brief Removes an DS18B20 device from master bus and frees handle.

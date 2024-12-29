@@ -32,7 +32,6 @@
  *
  * MIT Licensed as described in the file LICENSE
  */
-//#include "kalman.h"
 #include "mpu6050.h"
 #include <string.h>
 #include <stdio.h>
@@ -680,11 +679,11 @@ esp_err_t i2c_mpu6050_get_data_status(i2c_mpu6050_handle_t mpu6050_handle, bool 
 }
 
 static inline esp_err_t i2c_mpu6050_get_raw_motion(i2c_mpu6050_handle_t mpu6050_handle, i2c_mpu6050_data_axes_t *gyro_data, i2c_mpu6050_data_axes_t *accel_data, int16_t *temperature) {
-    esp_err_t                   ret             = ESP_OK;
-    uint64_t                    start_time      = 0;
-    bool                        data_is_ready   = false;
-    i2c_uint8_t                 tx              = { I2C_MPU6050_REG_ACCEL_XOUT_H_R };
-    uint8_t                     rx[14];
+    esp_err_t   ret             = ESP_OK;
+    uint64_t    start_time      = 0;
+    bool        data_is_ready   = false;
+    i2c_uint8_t tx              = { I2C_MPU6050_REG_ACCEL_XOUT_H_R };
+    uint8_t     rx[14]          = { };
     
     /* validate arguments */
     ESP_ARG_CHECK( mpu6050_handle );

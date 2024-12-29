@@ -111,7 +111,7 @@ The ESP storage components can be used for use-cases that require volatile and/o
 Supported components include the following:
 
 - `Data-Logger`: A user friendly table based data logging component for measurement and control use-cases.  See Data-Logger examples for more details, see readme file in the component folder.
-- `NVS`: A component extension that simplifies the process of reading and writing information to non-volatile storage (NVS).  See readme file in the component folder.
+- `NVS Ext`: A component extension that simplifies the process of reading and writing information to non-volatile storage (NVS).  See readme file in the component folder.
 
 
 

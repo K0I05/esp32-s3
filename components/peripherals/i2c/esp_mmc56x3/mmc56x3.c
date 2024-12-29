@@ -122,8 +122,16 @@ esp_err_t i2c_mmc56x3_set_control0_register(i2c_mmc56x3_handle_t mmc56x3_handle,
     /* delay task before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_MMC56X3_CMD_DELAY_MS));
 
+    /* reset auto-reset parameters */
+    control0.bits.continuous_freq_enabled = false;
+    control0.bits.auto_st_enabled         = false;
+    control0.bits.do_reset                = false;
+    control0.bits.do_set                  = false;
+    control0.bits.sample_m                = false;
+    control0.bits.sample_t                = false;
+
     /* set device handle control 0 register */
-    //mmc56x3_handle->dev_params->control0_reg.reg = control0_reg.reg;
+    mmc56x3_handle->control0_reg.reg = control0.reg;
 
     return ESP_OK;
 }
@@ -132,6 +140,8 @@ esp_err_t i2c_mmc56x3_set_control1_register(i2c_mmc56x3_handle_t mmc56x3_handle,
     /* validate arguments */
     ESP_ARG_CHECK( mmc56x3_handle );
 
+    i2c_mmc56x3_control1_register_t control1 = { .reg = control1_reg.reg };
+
     /* attempt i2c write transaction */
     ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_CONTROL_1_W, control1_reg.reg), TAG, "write control 1 register failed" );
 
@@ -139,7 +149,7 @@ esp_err_t i2c_mmc56x3_set_control1_register(i2c_mmc56x3_handle_t mmc56x3_handle,
     vTaskDelay(pdMS_TO_TICKS(I2C_MMC56X3_CMD_DELAY_MS));
 
     /* set device handle control 1 register */
-    //mmc56x3_handle->dev_params->control1_reg.reg = control1_reg.reg;
+    mmc56x3_handle->control1_reg.reg = control1.reg;
 
     return ESP_OK;
 }
@@ -177,19 +187,6 @@ esp_err_t i2c_mmc56x3_get_product_id_register(i2c_mmc56x3_handle_t mmc56x3_handl
     return ESP_OK;
 }
 
-static inline esp_err_t i2c_mmc56x3_init_control0_register(i2c_mmc56x3_handle_t mmc56x3_handle, i2c_mmc56x3_control0_register_t *const control0_reg) {
-    i2c_mmc56x3_control0_register_t ctrl0;
-
-    /* validate arguments */
-    ESP_ARG_CHECK( mmc56x3_handle );
-
-    ctrl0.bits.auto_sr_enabled = mmc56x3_handle->auto_sr_enabled;
-
-    control0_reg->reg = ctrl0.reg;
-
-    return ESP_OK;
-}
-
 esp_err_t i2c_mmc56x3_init(i2c_master_bus_handle_t bus_handle, const i2c_mmc56x3_config_t *mmc56x3_config, i2c_mmc56x3_handle_t *mmc56x3_handle) {
     /* validate arguments */
     ESP_ARG_CHECK( bus_handle && mmc56x3_config );
@@ -200,6 +197,11 @@ esp_err_t i2c_mmc56x3_init(i2c_master_bus_handle_t bus_handle, const i2c_mmc56x3
     /* validate device exists on the master bus */
     esp_err_t ret = i2c_master_probe(bus_handle, mmc56x3_config->dev_config.device_address, I2C_XFR_TIMEOUT_MS);
     ESP_GOTO_ON_ERROR(ret, err, TAG, "device does not exist at address 0x%02x, mmc56x3 device handle initialization failed", mmc56x3_config->dev_config.device_address);
+
+    /* validate data rate if continuous mode is enabled */
+    if(mmc56x3_config->continuous_mode_enabled == true) {
+        ESP_GOTO_ON_FALSE(mmc56x3_config->data_rate > 0, ESP_ERR_INVALID_ARG, err, TAG, "data rate (odr) must be non-zero in continuous measurement mode, init failed");
+    }
 
     /* validate memory availability for handle */
     i2c_mmc56x3_handle_t out_handle = (i2c_mmc56x3_handle_t)calloc(1, sizeof(i2c_mmc56x3_t));
@@ -220,9 +222,20 @@ esp_err_t i2c_mmc56x3_init(i2c_master_bus_handle_t bus_handle, const i2c_mmc56x3
     /* delay task before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_MMC56X3_CMD_DELAY_MS));
 
-    /* attempt to reset the device */
-    ESP_GOTO_ON_ERROR( i2c_mmc56x3_reset(out_handle), err_handle, TAG, "soft-reset for init failed" );
+    /* copy configuration */
+    out_handle->auto_sr_enabled         = mmc56x3_config->auto_sr_enabled;
+    out_handle->continuous_mode_enabled = mmc56x3_config->continuous_mode_enabled;
+    out_handle->data_rate               = mmc56x3_config->data_rate;
+    out_handle->measurement_bandwidth   = mmc56x3_config->measurement_bandwidth;
+    out_handle->declination             = mmc56x3_config->declination;
 
+    /* attempt to reset the device */
+    ESP_GOTO_ON_ERROR( i2c_mmc56x3_reset(out_handle), err_handle, TAG, "unable to issue soft-reset, init failed" );
+
+    /* configure the device */
+    ESP_GOTO_ON_ERROR( i2c_mmc56x3_set_measure_bandwidth(out_handle, out_handle->measurement_bandwidth), err_handle, TAG, "unable to set measure bandwidth, init failed" );
+    ESP_GOTO_ON_ERROR( i2c_mmc56x3_set_data_rate(out_handle, out_handle->data_rate), err_handle, TAG, "unable to issue soft-reset, init failed" );
+    ESP_GOTO_ON_ERROR( i2c_mmc56x3_set_measure_mode(out_handle, out_handle->continuous_mode_enabled), err_handle, TAG, "unable to set measure mode, init failed" );
 
     /* set device handle */
     *mmc56x3_handle = out_handle;
@@ -242,10 +255,10 @@ esp_err_t i2c_mmc56x3_init(i2c_master_bus_handle_t bus_handle, const i2c_mmc56x3
 }
 
 esp_err_t i2c_mmc56x3_get_temperature(i2c_mmc56x3_handle_t mmc56x3_handle, float *const temperature) {
-    esp_err_t                       ret             = ESP_OK;
-    uint64_t                        start_time      = 0;
-    bool                            data_is_ready   = false;
-    uint8_t                         temp_reg;
+    esp_err_t ret             = ESP_OK;
+    uint64_t  start_time      = 0;
+    bool      data_is_ready   = false;
+    uint8_t   temp_reg;
 
     /* validate arguments */
     ESP_ARG_CHECK( mmc56x3_handle );
@@ -257,7 +270,6 @@ esp_err_t i2c_mmc56x3_get_temperature(i2c_mmc56x3_handle_t mmc56x3_handle, float
         
         /* trigger temperature measurement */
         ctrl0.bits.sample_t          = true;
-        //ctrl0.bits.auto_sr_enabled   = true;
 
         /* attempt to write control 0 register */
         ESP_GOTO_ON_ERROR( i2c_mmc56x3_set_control0_register(mmc56x3_handle, ctrl0), err, TAG, "write magnetic sample trigger for get magnetic failed." );
@@ -302,9 +314,6 @@ esp_err_t i2c_mmc56x3_get_magnetic_axes(i2c_mmc56x3_handle_t mmc56x3_handle, i2c
     i2c_mmc56x3_control0_register_t ctrl0;
     i2c_uint8_t                     tx = { I2C_MMC56X3_REG_XOUT_0_R };
     uint8_t                         rx[9];
-    int32_t                         x_axis;
-    int32_t                         y_axis;
-    int32_t                         z_axis;
 
     /* validate arguments */
     ESP_ARG_CHECK( mmc56x3_handle );
@@ -316,7 +325,6 @@ esp_err_t i2c_mmc56x3_get_magnetic_axes(i2c_mmc56x3_handle_t mmc56x3_handle, i2c
 
         /* trigger magnetic measurement */
         ctrl0.bits.sample_m          = true;
-        //ctrl0.bits.auto_sr_enabled   = true;
 
         /* attempt to write control 0 register */
         ESP_GOTO_ON_ERROR( i2c_mmc56x3_set_control0_register(mmc56x3_handle, ctrl0), err, TAG, "write magnetic sample trigger for get magnetic axes failed." );
@@ -344,23 +352,15 @@ esp_err_t i2c_mmc56x3_get_magnetic_axes(i2c_mmc56x3_handle_t mmc56x3_handle, i2c
     /* delay task before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_MMC56X3_CMD_DELAY_MS));
 
-    x_axis = (uint32_t)rx[0] << 12 | (uint32_t)rx[1] << 4 | (uint32_t)rx[6] >> 4;
-    y_axis = (uint32_t)rx[2] << 12 | (uint32_t)rx[3] << 4 | (uint32_t)rx[7] >> 4;
-    z_axis = (uint32_t)rx[4] << 12 | (uint32_t)rx[5] << 4 | (uint32_t)rx[8] >> 4;
+    // convert bytes (20-bit) to int32_t
+    int32_t x_axis = (uint32_t)rx[0] << 12 | (uint32_t)rx[1] << 4 | (uint32_t)rx[6] >> 4;
+    int32_t y_axis = (uint32_t)rx[2] << 12 | (uint32_t)rx[3] << 4 | (uint32_t)rx[7] >> 4;
+    int32_t z_axis = (uint32_t)rx[4] << 12 | (uint32_t)rx[5] << 4 | (uint32_t)rx[8] >> 4;
 
-    //ESP_LOGW(TAG, "X-Axis (Raw):  %ld", x_axis);
-    //ESP_LOGW(TAG, "Y-Axis (Raw):  %ld", y_axis);
-    //ESP_LOGW(TAG, "Z-Axis (Raw):  %ld", z_axis);
-
-    // fix center offsets
-    x_axis -= (uint32_t)1 << 19;
-    y_axis -= (uint32_t)1 << 19;
-    z_axis -= (uint32_t)1 << 19;
-
-    // scale to uT by LSB in datasheet
-    magnetic_axes_data->x_axis = (float)x_axis * 0.00625;
-    magnetic_axes_data->y_axis = (float)y_axis * 0.00625;
-    magnetic_axes_data->z_axis = (float)z_axis * 0.00625;
+    // scale to mG by LSB (0.0625mG per LSB resolution) in datasheet (20-bit 524288 counts)
+    magnetic_axes_data->x_axis = (float)(x_axis - 524288) * 0.0625;
+    magnetic_axes_data->y_axis = (float)(y_axis - 524288) * 0.0625;
+    magnetic_axes_data->z_axis = (float)(z_axis - 524288) * 0.0625;
 
     return ESP_OK;
 
@@ -408,10 +408,14 @@ esp_err_t i2c_mmc56x3_get_data_status(i2c_mmc56x3_handle_t mmc56x3_handle, bool 
     return ESP_OK;
 }
 
-
 esp_err_t i2c_mmc56x3_set_measure_mode(i2c_mmc56x3_handle_t mmc56x3_handle, const bool continuous) {
     /* validate arguments */
     ESP_ARG_CHECK( mmc56x3_handle );
+
+    /* validate data rate if continuous mode is enabled */
+    if(continuous == true) {
+        ESP_RETURN_ON_FALSE(mmc56x3_handle->data_rate > 0, ESP_ERR_INVALID_ARG, TAG, "data rate (odr) must be non-zero in continuous measurement mode, set mode failed");
+    }
 
     /* copy registers */
     i2c_mmc56x3_control0_register_t ctrl0 = { .reg = mmc56x3_handle->control0_reg.reg };
@@ -428,12 +432,12 @@ esp_err_t i2c_mmc56x3_set_measure_mode(i2c_mmc56x3_handle_t mmc56x3_handle, cons
     }
 
     /* attempt control 0 register write */
-    ESP_RETURN_ON_ERROR( i2c_mmc56x3_set_control0_register(mmc56x3_handle, ctrl0), TAG, "write control 0 register for set mode failed" );
+    ESP_RETURN_ON_ERROR( i2c_mmc56x3_set_control0_register(mmc56x3_handle, ctrl0), TAG, "write control 0 register, set mode failed" );
 
     /* attempt control 2 register write */
-    ESP_RETURN_ON_ERROR( i2c_mmc56x3_set_control2_register(mmc56x3_handle, ctrl2), TAG, "write control 2 register for set mode failed" );
+    ESP_RETURN_ON_ERROR( i2c_mmc56x3_set_control2_register(mmc56x3_handle, ctrl2), TAG, "write control 2 register, set mode failed" );
 
-    mmc56x3_handle->continuous_enabled = continuous;
+    mmc56x3_handle->continuous_mode_enabled = continuous;
 
     return ESP_OK;
 }
@@ -478,6 +482,66 @@ esp_err_t i2c_mmc56x3_set_data_rate(i2c_mmc56x3_handle_t mmc56x3_handle, const u
         ESP_RETURN_ON_ERROR( i2c_mmc56x3_set_control2_register(mmc56x3_handle, ctrl2), TAG, "write control 2 register failed" );
     }
 
+    mmc56x3_handle->data_rate = rate;
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_mmc56x3_set_measure_bandwidth(i2c_mmc56x3_handle_t mmc56x3_handle, const i2c_mmc56x3_measurement_times_t bandwidth) {
+    /* validate arguments */
+    ESP_ARG_CHECK( mmc56x3_handle );
+
+    /* copy register */
+    i2c_mmc56x3_control1_register_t ctrl1 = { .reg = mmc56x3_handle->control1_reg.reg };
+    ctrl1.bits.bandwidth = bandwidth;
+
+    /* attempt control 1 register write */
+    ESP_RETURN_ON_ERROR( i2c_mmc56x3_set_control1_register(mmc56x3_handle, ctrl1), TAG, "unable to write control 1 register, set measure bandwidth failed" );
+
+    mmc56x3_handle->measurement_bandwidth = bandwidth;
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_mmc56x3_enable_periodical_set(i2c_mmc56x3_handle_t mmc56x3_handle, const i2c_mmc56x3_measurement_samples_t samples) {
+    /* validate arguments */
+    ESP_ARG_CHECK( mmc56x3_handle );
+
+    /* copy registers */
+    i2c_mmc56x3_control0_register_t ctrl0 = { .reg = mmc56x3_handle->control0_reg.reg };
+    i2c_mmc56x3_control2_register_t ctrl2 = { .reg = mmc56x3_handle->control2_reg.reg };
+
+    ctrl0.bits.auto_sr_enabled = true;
+    ctrl2.bits.periodical_set_enabled = true;
+    ctrl2.bits.periodical_set_samples = samples;
+
+    /* attempt control 0 register write */
+    ESP_RETURN_ON_ERROR( i2c_mmc56x3_set_control0_register(mmc56x3_handle, ctrl0), TAG, "write control 0 register, enable periodical set failed" );
+
+    /* attempt control 2 register write */
+    ESP_RETURN_ON_ERROR( i2c_mmc56x3_set_control2_register(mmc56x3_handle, ctrl2), TAG, "write control 2 register, enable periodical set failed" );
+
+    return ESP_OK;
+}
+
+esp_err_t i2c_mmc56x3_disable_periodical_set(i2c_mmc56x3_handle_t mmc56x3_handle) {
+    /* validate arguments */
+    ESP_ARG_CHECK( mmc56x3_handle );
+
+    /* copy registers */
+    i2c_mmc56x3_control0_register_t ctrl0 = { .reg = mmc56x3_handle->control0_reg.reg };
+    i2c_mmc56x3_control2_register_t ctrl2 = { .reg = mmc56x3_handle->control2_reg.reg };
+
+    if(mmc56x3_handle->auto_sr_enabled == false) ctrl0.bits.auto_sr_enabled = false;
+    ctrl2.bits.periodical_set_enabled = false;
+    ctrl2.bits.periodical_set_samples = I2C_MMC56X3_MEAS_SAMPLE_1;
+
+    /* attempt control 0 register write */
+    ESP_RETURN_ON_ERROR( i2c_mmc56x3_set_control0_register(mmc56x3_handle, ctrl0), TAG, "write control 0 register, enable periodical set failed" );
+
+    /* attempt control 2 register write */
+    ESP_RETURN_ON_ERROR( i2c_mmc56x3_set_control2_register(mmc56x3_handle, ctrl2), TAG, "write control 2 register, enable periodical set failed" );
+
     return ESP_OK;
 }
 
@@ -499,14 +563,14 @@ esp_err_t i2c_mmc56x3_magnetic_set_reset(i2c_mmc56x3_handle_t mmc56x3_handle) {
     return ESP_OK;
 }
 
-esp_err_t i2c_mmc56x3_set_selftest_thresholds(i2c_mmc56x3_handle_t mmc56x3_handle, const i2c_mmc56x3_selftest_axes_data_t threshold_axes_data) {
+esp_err_t i2c_mmc56x3_set_selftest_thresholds(i2c_mmc56x3_handle_t mmc56x3_handle, const i2c_mmc56x3_selftest_axes_data_t axes_data) {
     /* validate arguments */
     ESP_ARG_CHECK( mmc56x3_handle );
 
     /* attempt i2c write transactions for each axis */
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_X_TH_W, threshold_axes_data.x_axis), TAG, "write self-test x-axis threshold register failed" );
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_Y_TH_W, threshold_axes_data.y_axis), TAG, "write self-test y-axis threshold register failed" );
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_Z_TH_W, threshold_axes_data.z_axis), TAG, "write self-test z-axis threshold register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_X_TH_W, axes_data.x_axis), TAG, "write self-test x-axis threshold register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_Y_TH_W, axes_data.y_axis), TAG, "write self-test y-axis threshold register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_Z_TH_W, axes_data.z_axis), TAG, "write self-test z-axis threshold register failed" );
 
     /* delay task before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_MMC56X3_CMD_DELAY_MS));
@@ -514,14 +578,14 @@ esp_err_t i2c_mmc56x3_set_selftest_thresholds(i2c_mmc56x3_handle_t mmc56x3_handl
     return ESP_OK;
 }
 
-esp_err_t i2c_mmc56x3_get_selftest_set_values(i2c_mmc56x3_handle_t mmc56x3_handle, i2c_mmc56x3_selftest_axes_data_t *const set_value_axes_data) {
+esp_err_t i2c_mmc56x3_get_selftest_set_values(i2c_mmc56x3_handle_t mmc56x3_handle, i2c_mmc56x3_selftest_axes_data_t *const axes_data) {
     /* validate arguments */
     ESP_ARG_CHECK( mmc56x3_handle );
 
     /* attempt i2c read transactions for each axis */
-    ESP_RETURN_ON_ERROR( i2c_master_bus_read_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_X_SV_RW, &set_value_axes_data->x_axis), TAG, "read self-test x-axis set value register failed" );
-    ESP_RETURN_ON_ERROR( i2c_master_bus_read_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_Y_SV_RW, &set_value_axes_data->y_axis), TAG, "read self-test y-axis set value register failed" );
-    ESP_RETURN_ON_ERROR( i2c_master_bus_read_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_Z_SV_RW, &set_value_axes_data->z_axis), TAG, "read self-test z-axis set value register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_read_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_X_SV_RW, &axes_data->x_axis), TAG, "read self-test x-axis set value register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_read_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_Y_SV_RW, &axes_data->y_axis), TAG, "read self-test y-axis set value register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_read_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_Z_SV_RW, &axes_data->z_axis), TAG, "read self-test z-axis set value register failed" );
     
     /* delay task before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_MMC56X3_CMD_DELAY_MS));
@@ -529,14 +593,14 @@ esp_err_t i2c_mmc56x3_get_selftest_set_values(i2c_mmc56x3_handle_t mmc56x3_handl
     return ESP_OK;
 }
 
-esp_err_t i2c_mmc56x3_set_selftest_set_values(i2c_mmc56x3_handle_t mmc56x3_handle, const i2c_mmc56x3_selftest_axes_data_t set_value_axes_data) {
+esp_err_t i2c_mmc56x3_set_selftest_set_values(i2c_mmc56x3_handle_t mmc56x3_handle, const i2c_mmc56x3_selftest_axes_data_t axes_data) {
     /* validate arguments */
     ESP_ARG_CHECK( mmc56x3_handle );
 
     /* attempt i2c write transactions for each axis */
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_X_SV_RW, set_value_axes_data.x_axis), TAG, "write self-test x-axis set value register failed" );
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_Y_SV_RW, set_value_axes_data.y_axis), TAG, "write self-test y-axis set value register failed" );
-    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_Z_SV_RW, set_value_axes_data.z_axis), TAG, "write self-test z-axis set value register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_X_SV_RW, axes_data.x_axis), TAG, "write self-test x-axis set value register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_Y_SV_RW, axes_data.y_axis), TAG, "write self-test y-axis set value register failed" );
+    ESP_RETURN_ON_ERROR( i2c_master_bus_write_uint8(mmc56x3_handle->i2c_dev_handle, I2C_MMC56X3_REG_ST_Z_SV_RW, axes_data.z_axis), TAG, "write self-test z-axis set value register failed" );
 
     /* delay task before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_MMC56X3_CMD_DELAY_MS));
@@ -600,14 +664,26 @@ esp_err_t i2c_mmc56x3_delete(i2c_mmc56x3_handle_t mmc56x3_handle) {
 }
 
 float i2c_mmc56x3_convert_to_heading(const i2c_mmc56x3_magnetic_axes_data_t magnetic_axes_data) {
-    // calculate the angle of the vector y,x
-    float heading = (atan2(magnetic_axes_data.y_axis, magnetic_axes_data.x_axis) * 180) / M_PI;
+    float heading = 0;
 
-    // normalize to 0-360
-    if (heading < 0)
-    {
-        heading = 360 + heading;
-    }
+    /* honeywell application note AN-203 */
+    if(magnetic_axes_data.y_axis > 0.0f) heading = 90.0f - atanf(magnetic_axes_data.x_axis/magnetic_axes_data.y_axis * 180.0f / M_PI);
+    if(magnetic_axes_data.y_axis < 0.0f) heading = 270.0f - atanf(magnetic_axes_data.x_axis/magnetic_axes_data.y_axis * 180.0f / M_PI);
+    if(magnetic_axes_data.y_axis == 0.0f && magnetic_axes_data.x_axis < 0.0f) heading = 180.0f;
+    if(magnetic_axes_data.y_axis == 0.0f && magnetic_axes_data.x_axis > 0.0f) heading = 180.0f;
 
     return heading;
 }
+
+float i2c_mmc56x3_convert_to_true_heading(const float declination, const i2c_mmc56x3_magnetic_axes_data_t magnetic_axes_data) {
+    float heading = 0;
+
+    /* honeywell application note AN-203 */
+    if(magnetic_axes_data.y_axis > 0.0f) heading = 90.0f - atanf(magnetic_axes_data.x_axis/magnetic_axes_data.y_axis * 180.0f / M_PI);
+    if(magnetic_axes_data.y_axis < 0.0f) heading = 270.0f - atanf(magnetic_axes_data.x_axis/magnetic_axes_data.y_axis * 180.0f / M_PI);
+    if(magnetic_axes_data.y_axis == 0.0f && magnetic_axes_data.x_axis < 0.0f) heading = 180.0f;
+    if(magnetic_axes_data.y_axis == 0.0f && magnetic_axes_data.x_axis > 0.0f) heading = 180.0f;
+
+    return heading + declination;
+}
+

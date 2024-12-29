@@ -47,9 +47,9 @@ extern "C" {
 /*
  * MMC56X3 definitions
 */
-#define I2C_MMC56X3_SCL_SPEED_HZ            UINT32_C(100000)   //!< mmc56x3 I2C default clock frequency (100KHz)
+#define I2C_MMC56X3_SCL_SPEED_HZ            UINT32_C(100000)  //!< mmc56x3 I2C default clock frequency (100KHz)
 
-#define I2C_MMC56X3_DEV_ADDR                UINT8_C(0x30)   //!< mmc56x3 I2C address
+#define I2C_MMC56X3_DEV_ADDR                UINT8_C(0x30)     //!< mmc56x3 I2C address
 
 
 /*
@@ -63,13 +63,16 @@ extern "C" {
         .dev_config.device_address     = I2C_MMC56X3_DEV_ADDR,      \
         .dev_config.scl_speed_hz       = I2C_MMC56X3_SCL_SPEED_HZ,  \
         .data_rate                     = 0,                         \
-        .continuous_enabled            = false }
+        .continuous_mode_enabled       = false,                     \
+        .declination                   = -16.0f }
 
 /*
  * MMC56X3 enumerator and sructure declerations
 */
 
-
+/**
+ * @brief MMC56X3 measurement times enumerator.
+ */
 typedef enum {
     I2C_MMC56X3_MEAS_TIME_6_6MS = (0b00),
     I2C_MMC56X3_MEAS_TIME_3_5MS = (0b01),
@@ -77,15 +80,22 @@ typedef enum {
     I2C_MMC56X3_MEAS_TIME_1_2MS = (0b11),
 } i2c_mmc56x3_measurement_times_t;
 
+/**
+ * @brief MMC56X3 measurement samples enumerator.
+ */
 typedef enum {
-    I2C_MMC56X3_MEAS_SAMPLE_1 = (0b000),
-    I2C_MMC56X3_MEAS_SAMPLE_2 = (0b001),
-    I2C_MMC56X3_MEAS_SAMPLE_3 = (0b010),
-    I2C_MMC56X3_MEAS_SAMPLE_4 = (0b000),
+    I2C_MMC56X3_MEAS_SAMPLE_1    = (0b000),
+    I2C_MMC56X3_MEAS_SAMPLE_25   = (0b001),
+    I2C_MMC56X3_MEAS_SAMPLE_75   = (0b010),
+    I2C_MMC56X3_MEAS_SAMPLE_100  = (0b011),
+    I2C_MMC56X3_MEAS_SAMPLE_250  = (0b100),
+    I2C_MMC56X3_MEAS_SAMPLE_500  = (0b101),
+    I2C_MMC56X3_MEAS_SAMPLE_1000 = (0b110),
+    I2C_MMC56X3_MEAS_SAMPLE_2000 = (0b111),
 } i2c_mmc56x3_measurement_samples_t;
 
 /**
- * @brief MMC56X3 status 1 register structure.
+ * @brief MMC56X3 status 1 register (0x18) structure.
  */
 typedef union __attribute__((packed)) {
     struct STS_REG_BITS_TAG {
@@ -99,7 +109,7 @@ typedef union __attribute__((packed)) {
 } i2c_mmc56x3_status_register_t;
 
 /**
- * @brief MMC56X3 control 0 register structure.
+ * @brief MMC56X3 control 0 register (0x1B) structure.
  */
 typedef union __attribute__((packed)) {
     struct CTRL0_REG_BITS_TAG {
@@ -116,60 +126,64 @@ typedef union __attribute__((packed)) {
 } i2c_mmc56x3_control0_register_t;
 
 /**
- * @brief MMC56X3 control 1 register structure.
+ * @brief MMC56X3 control 1 register (0x1C) structure.
  */
 typedef union __attribute__((packed)) {
     struct CTRL1_REG_BITS_TAG {
-        i2c_mmc56x3_measurement_times_t bandwidth:2;    /*!< measurement time                           (bit:0-1) */
+        i2c_mmc56x3_measurement_times_t bandwidth:2;     /*!< measurement time                           (bit:0-1) */
         bool                            x_disabled:1;    /*!< x channel disabled true                      (bit:2) */
         bool                            y_disabled:1;    /*!< y channel disabled true                      (bit:3) */
         bool                            z_disabled:1;    /*!< z channel disabled true                      (bit:4) */
-        bool                            st_enp:1;       /*!< bring selftest coild dc current when true  (bit:5) */
-        bool                            st_enm:1;       /*!< same as st_enp but opposite polarity       (bit:6) */
-        bool                            sw_reset:1;     /*!< causes software-reset when true            (bit:7) */
+        bool                            st_enp_enabled:1;/*!< bring selftest coil dc current when true   (bit:5) */
+        bool                            st_enm_enabled:1;/*!< same as st_enp but opposite polarity       (bit:6) */
+        bool                            sw_reset:1;      /*!< causes software-reset when true            (bit:7) */
     } bits;            /*!< represents the 8-bit control 1 register parts in bits.   */
     uint8_t reg;       /*!< represents the 8-bit control 1 register as `uint8_t` and has a reset-value of 0x00.   */
 } i2c_mmc56x3_control1_register_t;
 
 /**
- * @brief MMC56X3 control 2 register structure.
+ * @brief MMC56X3 control 2 register (0x1D) structure.
  */
 typedef union __attribute__((packed)) {
     struct CTRL2_REG_BITS_TAG {
-        uint8_t             period_set_samples:3;     /*!< number of samples before set is executed, period set and auto set-reset must be enabled (bit:0-2) */
-        bool                period_set_enabled:1;  /*!< perform periodical set when true               (bit:3) */
-        bool                continuous_enabled:1;         /*!< continuous mode when true, data period (odr) must be non-zero and contineous frequency enabled beforehand (bit:4) */
-        uint8_t             reserved:2;       /*!< reserved and set to 0                          (bit:5-6) */
-        bool                h_power_enabled:1;        /*!< achieve 1000Hz odr when true                   (bit:7) */
+        i2c_mmc56x3_measurement_samples_t periodical_set_samples:3;  /*!< number of samples before set is executed, period set and auto set-reset must be enabled (bit:0-2) */
+        bool                periodical_set_enabled:1;  /*!< perform periodical set when true               (bit:3) */
+        bool                continuous_enabled:1;  /*!< continuous mode when true, data period (odr) must be non-zero and contineous frequency enabled beforehand (bit:4) */
+        uint8_t             reserved:2;            /*!< reserved and set to 0                          (bit:5-6) */
+        bool                h_power_enabled:1;     /*!< achieve 1000Hz odr when true                   (bit:7) */
     } bits;            /*!< represents the 8-bit control 2 register parts in bits.   */
     uint8_t reg;       /*!< represents the 8-bit control 2 register as `uint8_t` and has a reset-value of 0x00.   */
 } i2c_mmc56x3_control2_register_t;
 
-
+/**
+ * @brief MMC56X3 magnetic axes data structure.
+ */
 typedef struct {
     float x_axis;
     float y_axis;
     float z_axis;
 } i2c_mmc56x3_magnetic_axes_data_t;
 
+/**
+ * @brief MMC56X3 self-test axes data structure.
+ */
 typedef struct {
     uint8_t x_axis;
     uint8_t y_axis;
     uint8_t z_axis;
 } i2c_mmc56x3_selftest_axes_data_t;
 
-
 /**
  * @brief MMC56X3 I2C device configuration structure.
  */
 typedef struct {
-    i2c_device_config_t             dev_config;             /*!< configuration for mmc56x3 device */
-    uint16_t                        data_rate;              /*!< mmc56x3 device data rate, 0-255 or 1000 for 1000Hz data rate configuration */
-    bool                            continuous_enabled;     /*!< mmc56x3 device measurement mode configuration */
-    i2c_mmc56x3_measurement_times_t measurement_bandwidth;  /*!< mmc56x3 device measurement bandwith configuration */
-    bool                            auto_sr_enabled;        /*!< mmc56x3 auto set-reset configuration */
+    i2c_device_config_t               dev_config;             /*!< configuration for mmc56x3 device */
+    uint16_t                          data_rate;              /*!< mmc56x3 device data rate (odr), 0-255 or 1000 for 1000Hz data rate configuration */
+    bool                              continuous_mode_enabled;/*!< mmc56x3 device measurement mode configuration, data rate must be non-zero when enabled */
+    i2c_mmc56x3_measurement_times_t   measurement_bandwidth;  /*!< mmc56x3 device measurement bandwith configuration */
+    bool                              auto_sr_enabled;        /*!< mmc56x3 auto set-reset configuration */
+    float                             declination;            /*!< magnetic declination angle http://www.magnetic-declination.com/ */
 } i2c_mmc56x3_config_t;
-
 
 /**
  * @brief MMC56X3 I2C device structure.
@@ -177,9 +191,10 @@ typedef struct {
 struct i2c_mmc56x3_t {
     i2c_master_dev_handle_t         i2c_dev_handle;         /*!< I2C device handle */
     uint8_t                         product_id;             /*!< mmc56x3 product identifier */
+    float                           declination;            /*!< magnetic declination angle http://www.magnetic-declination.com/ */
     // place-holders from baseline configuration
-    uint16_t                        data_rate;              /*!< mmc56x3 device data rate, 0-255 or 1000 for 1000Hz data rate configuration */
-    bool                            continuous_enabled;     /*!< mmc56x3 device measurement mode configuration */
+    uint16_t                        data_rate;              /*!< mmc56x3 device data rate (odr), 0-255 or 1000 for 1000Hz data rate configuration */
+    bool                            continuous_mode_enabled;/*!< mmc56x3 device measurement mode configuration, data rate (odr) must be non-zero when enabled */
     i2c_mmc56x3_measurement_times_t measurement_bandwidth;  /*!< mmc56x3 device measurement bandwith configuration */
     bool                            auto_sr_enabled;        /*!< mmc56x3 auto set-reset configuration */
     bool                            x_axis_disabled;        /*!< mmc56x3 x-axis channel state configuration  */
@@ -197,7 +212,7 @@ struct i2c_mmc56x3_t {
  */
 typedef struct i2c_mmc56x3_t i2c_mmc56x3_t;
 /**
- * @brief MMC56X3 I2C device handle structure.
+ * @brief MMC56X3 I2C device handle definition.
  */
 typedef struct i2c_mmc56x3_t *i2c_mmc56x3_handle_t;
 
@@ -257,21 +272,57 @@ esp_err_t i2c_mmc56x3_get_product_id_register(i2c_mmc56x3_handle_t mmc56x3_handl
  */
 esp_err_t i2c_mmc56x3_init(i2c_master_bus_handle_t bus_handle, const i2c_mmc56x3_config_t *mmc56x3_config, i2c_mmc56x3_handle_t *mmc56x3_handle);
 
+/**
+ * @brief Reads temperature from MMC56X3. 
+ * 
+ * @param mmc56x3_handle MMC56X3 device handle.
+ * @param temperature Temperature in degrees celsius.
+ * @return esp_err_t ESP_OK on success.
+ */
 esp_err_t i2c_mmc56x3_get_temperature(i2c_mmc56x3_handle_t mmc56x3_handle, float *const temperature);
 
+/**
+ * @brief Reads magnetic axes (x, y, z axes) from MMC56X3.
+ * 
+ * @param mmc56x3_handle MMC56X3 device handle.
+ * @param magnetic_axes_data Magnetic axes data (x, y, z axes) in mG.
+ * @return esp_err_t ESP_OK on success.
+ */
 esp_err_t i2c_mmc56x3_get_magnetic_axes(i2c_mmc56x3_handle_t mmc56x3_handle, i2c_mmc56x3_magnetic_axes_data_t *const magnetic_axes_data);
 
+/**
+ * @brief Reads temperature data status from MMC56X3.
+ * 
+ * @param mmc56x3_handle MMC56X3 device handle.
+ * @param ready Temperature data is ready when true.
+ * @return esp_err_t ESP_OK on success.
+ */
 esp_err_t i2c_mmc56x3_get_temperature_data_status(i2c_mmc56x3_handle_t mmc56x3_handle, bool *const ready);
 
+/**
+ * @brief Reads magnetic data status from MMC56X3.
+ * 
+ * @param mmc56x3_handle MMC56X3 device handle.
+ * @param ready Magnetic data is ready when true.
+ * @return esp_err_t ESP_OK on success.
+ */
 esp_err_t i2c_mmc56x3_get_magnetic_data_status(i2c_mmc56x3_handle_t mmc56x3_handle, bool *const ready);
 
+/**
+ * @brief Reads magnetic and temperature data status from MMC56X3.
+ * 
+ * @param mmc56x3_handle MMC56X3 device handle.
+ * @param magnetic_ready Magnetic data is ready when true.
+ * @param temperature_ready Temperature data is ready when true.
+ * @return esp_err_t ESP_OK on success.
+ */
 esp_err_t i2c_mmc56x3_get_data_status(i2c_mmc56x3_handle_t mmc56x3_handle, bool *const magnetic_ready, bool *const temperature_ready);
 
 /**
- * @brief Writes measurement mode to MMC56X3.
+ * @brief Writes measurement mode to MMC56X3.  The data rate must be configured to a non-zero value before enabling continuous measurements.
  * 
  * @param mmc56x3_handle MMC56X3 device handle.
- * @param continuous Continuous measurement mode when true.
+ * @param continuous Measurement mode is continuous when true.
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_mmc56x3_set_measure_mode(i2c_mmc56x3_handle_t mmc56x3_handle, const bool continuous);
@@ -286,6 +337,32 @@ esp_err_t i2c_mmc56x3_set_measure_mode(i2c_mmc56x3_handle_t mmc56x3_handle, cons
 esp_err_t i2c_mmc56x3_set_data_rate(i2c_mmc56x3_handle_t mmc56x3_handle, const uint16_t rate);
 
 /**
+ * @brief Writes measurement bandwidth to MMC56X3.
+ * 
+ * @param mmc56x3_handle MMC56X3 device handle.
+ * @param bandwith MMC56X3 measurement bandwidth setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_mmc56x3_set_measure_bandwidth(i2c_mmc56x3_handle_t mmc56x3_handle, const i2c_mmc56x3_measurement_times_t bandwidth);
+
+/**
+ * @brief Enables MMC56X3 periodical set when the number of samples threshold is met.
+ * 
+ * @param mmc56x3_handle MMC56X3 device handle.
+ * @param samples MMC56X3 measurement samples setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_mmc56x3_enable_periodical_set(i2c_mmc56x3_handle_t mmc56x3_handle, const i2c_mmc56x3_measurement_samples_t samples);
+
+/**
+ * @brief Disables MMC56X3 periodical set.
+ * 
+ * @param mmc56x3_handle MMC56X3 device handle.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_mmc56x3_disable_periodical_set(i2c_mmc56x3_handle_t mmc56x3_handle);
+
+/**
  * @brief Writes axes configuration to MMC56X3 to enable or disable axes (x, y, z), axes are enabled by default.
  * 
  * @param mmc56x3_handle MMC56X3 device handle.
@@ -296,11 +373,32 @@ esp_err_t i2c_mmc56x3_set_data_rate(i2c_mmc56x3_handle_t mmc56x3_handle, const u
  */
 esp_err_t i2c_mmc56x3_set_magnetic_axes(i2c_mmc56x3_handle_t mmc56x3_handle, const bool x_axis_disabled, const bool y_axis_disabled, const bool z_axis_disabled);
 
-esp_err_t i2c_mmc56x3_set_selftest_thresholds(i2c_mmc56x3_handle_t mmc56x3_handle, const i2c_mmc56x3_selftest_axes_data_t threshold_axes_data);
+/**
+ * @brief Writes self-test axes data thresholds to MMC56X3.
+ * 
+ * @param mmc56x3_handle MMC56X3 device handle.
+ * @param axes_data MMC56X3 axes data thresholds setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_mmc56x3_set_selftest_thresholds(i2c_mmc56x3_handle_t mmc56x3_handle, const i2c_mmc56x3_selftest_axes_data_t axes_data);
 
-esp_err_t i2c_mmc56x3_get_selftest_set_values(i2c_mmc56x3_handle_t mmc56x3_handle, i2c_mmc56x3_selftest_axes_data_t *const set_value_axes_data);
+/**
+ * @brief Reads self-test axes data set-values from MMC56X3.
+ * 
+ * @param mmc56x3_handle MMC56X3 device handle.
+ * @param axes_data MMC56X3 axes data set-values setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_mmc56x3_get_selftest_set_values(i2c_mmc56x3_handle_t mmc56x3_handle, i2c_mmc56x3_selftest_axes_data_t *const axes_data);
 
-esp_err_t i2c_mmc56x3_set_selftest_set_values(i2c_mmc56x3_handle_t mmc56x3_handle, const i2c_mmc56x3_selftest_axes_data_t set_value_axes_data);
+/**
+ * @brief Writes self-test axes data set-values to MMC56X3.
+ * 
+ * @param mmc56x3_handle MMC56X3 device handle.
+ * @param axes_data MMC56X3 axes data set-values setting.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_mmc56x3_set_selftest_set_values(i2c_mmc56x3_handle_t mmc56x3_handle, const i2c_mmc56x3_selftest_axes_data_t axes_data);
 
 /**
  * @brief Pulses large currents through the sense coils to clear any offset.
@@ -334,9 +432,22 @@ esp_err_t i2c_mmc56x3_remove(i2c_mmc56x3_handle_t mmc56x3_handle);
  */
 esp_err_t i2c_mmc56x3_delete(i2c_mmc56x3_handle_t mmc56x3_handle);
 
-
+/**
+ * @brief Converts magnetic axes data to a heading.  See Honeywell application note AN-203 for details.
+ * 
+ * @param magnetic_axes_data MMC56X3 magnetic axes data.
+ * @return float Heading in degrees.
+ */
 float i2c_mmc56x3_convert_to_heading(const i2c_mmc56x3_magnetic_axes_data_t magnetic_axes_data);
 
+/**
+ * @brief Converts magnetic axes data with magnetic declination to a true heading.  See Honeywell application note AN-203 for details.
+ * 
+ * @param declination MMC56X3 magnetic declination angle in degrees (http://www.magnetic-declination.com/) setting.
+ * @param magnetic_axes_data MMC56X3 magnetic axes data.
+ * @return float True heading in degrees.
+ */
+float i2c_mmc56x3_convert_to_true_heading(const float declination, const i2c_mmc56x3_magnetic_axes_data_t magnetic_axes_data);
 
 #ifdef __cplusplus
 }

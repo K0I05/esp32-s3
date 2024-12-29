@@ -137,8 +137,8 @@ typedef struct {
     bool                                    v_bias_enabled;
     spi_max31865_filters_t                  filter;
     spi_host_device_t                       host;           /*!< The SPI host used, set before calling `spi_eeprom_init()` */
-    gpio_num_t                              cs_io;          /*!< CS gpio number, set before calling `spi_eeprom_init()` */
-    gpio_num_t                              miso_io;        /*!< MISO gpio number, set before calling `spi_eeprom_init()` */
+    gpio_num_t                              cs_io_num;      /*!< CS gpio number, set before calling `spi_eeprom_init()` */
+    gpio_num_t                              miso_io_num;    /*!< MISO gpio number, set before calling `spi_eeprom_init()` */
     bool                                    irq_enabled;    /*!< Whether to use polling or interrupt when waiting for write to be done. Set before calling `spi_eeprom_init()`. */
 } spi_max31865_config_t;
 

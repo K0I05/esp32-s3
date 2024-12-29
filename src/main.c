@@ -67,6 +67,7 @@
 #include <hdc1080_task.h>
 #include <hmc5883l_task.h>
 #include <mlx90614_task.h>
+#include <mmc56x3_task.h>
 #include <mpu6050_task.h>
 #include <sgp4x_task.h>
 #include <sht4x_task.h>
@@ -76,6 +77,16 @@
 
 /* owb component tasks */
 #include <ds18b20_task.h>
+
+/* spi component tasks */
+
+
+/**
+ * @brief SPI component examples enumerator.
+ */
+typedef enum spi_components_tag {
+    SPI_COMPONENT_MAX31865,
+} spi_components_t;
 
 /**
  * @brief OWB component examples enumerator.
@@ -98,6 +109,7 @@ typedef enum i2c_components_tag {
     I2C_COMPONENT_HDC1080,
     I2C_COMPONENT_HMC5883L,
     I2C_COMPONENT_MLX90614,
+    I2C_COMPONENT_MMC56X3,
     I2C_COMPONENT_MPU6050,
     I2C_COMPONENT_SGP4X,
     I2C_COMPONENT_SHT4X,
@@ -247,6 +259,9 @@ static inline void i2c0_component_example_start(const i2c_components_t component
         case I2C_COMPONENT_MLX90614:
             i2c0_task_create(i2c0_mlx90614_task, I2C0_MLX90614_TASK_NAME);
             break;
+        case I2C_COMPONENT_MMC56X3:
+            i2c0_task_create(i2c0_mmc56x3_task, I2C0_MMC56X3_TASK_NAME);
+            break;
         case I2C_COMPONENT_MPU6050:
             i2c0_task_create(i2c0_mpu6050_task, I2C0_MPU6050_TASK_NAME);
             break;
@@ -316,10 +331,11 @@ void app_main( void ) {
     //i2c0_component_example_start(I2C_COMPONENT_HDC1080);
     //i2c0_component_example_start(I2C_COMPONENT_HMC5883L);
     //i2c0_component_example_start(I2C_COMPONENT_MLX90614);
+    i2c0_component_example_start(I2C_COMPONENT_MMC56X3);
     //i2c0_component_example_start(I2C_COMPONENT_MPU6050);
     //i2c0_component_example_start(I2C_COMPONENT_SGP4X);
     //i2c0_component_example_start(I2C_COMPONENT_SHT4X);
     //i2c0_component_example_start(I2C_COMPONENT_SSD1306);
     //i2c0_component_example_start(I2C_COMPONENT_TLV493D);
-    i2c0_component_example_start(I2C_COMPONENT_VEML7700);
+    //i2c0_component_example_start(I2C_COMPONENT_VEML7700);
 }

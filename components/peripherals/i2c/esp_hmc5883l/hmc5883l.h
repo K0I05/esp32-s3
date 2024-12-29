@@ -200,7 +200,7 @@ typedef struct {
     float y_axis;   /*!< y axis mG */
     float z_axis;   /*!< z axis mG */
     float heading;  /*!< heading in degrees */
-} i2c_hmc5883l_compass_axes_data_t;
+} i2c_hmc5883l_magnetic_axes_data_t;
 
 typedef struct {
     float x_axis;   /*!< x axis */
@@ -331,16 +331,16 @@ esp_err_t i2c_hmc5883l_init(i2c_master_bus_handle_t bus_handle, const i2c_hmc588
  * @param axes_data Uncompensated axes measurements (x, y, and z axes).
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_hmc5883l_get_fixed_compass_axes(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_axes_data_t *const axes_data);
+esp_err_t i2c_hmc5883l_get_fixed_magnetic_axes(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_axes_data_t *const axes_data);
 
 /**
- * @brief Reads compensated compass axes measurements from HMC5883L.
+ * @brief Reads compensated magnetic axes measurements from HMC5883L.
  * 
  * @param hmc5883l_handle HMC5883L device handle.
- * @param compass_axes_data Compensated compass axes measurements (x, y, and z axes).
+ * @param magnetic_axes_data Compensated magnetic axes measurements (x, y, and z axes).
  * @return esp_err_t ESP_OK on success.
  */
-esp_err_t i2c_hmc5883l_get_compass_axes(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_compass_axes_data_t *const compass_axes_data);
+esp_err_t i2c_hmc5883l_get_magnetic_axes(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_magnetic_axes_data_t *const magnetic_axes_data);
 
 
 /* under test */

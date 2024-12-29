@@ -324,7 +324,7 @@ esp_err_t i2c_hmc5883l_init(i2c_master_bus_handle_t bus_handle, const i2c_hmc588
         return ret;
 }
 
-esp_err_t i2c_hmc5883l_get_fixed_compass_axes(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_axes_data_t *const axes_data) {
+esp_err_t i2c_hmc5883l_get_fixed_magnetic_axes(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_axes_data_t *const axes_data) {
     /* validate arguments */
     ESP_ARG_CHECK( hmc5883l_handle && axes_data );
 
@@ -365,37 +365,37 @@ esp_err_t i2c_hmc5883l_get_fixed_compass_axes(i2c_hmc5883l_handle_t hmc5883l_han
         return ret;
 }
 
-esp_err_t i2c_hmc5883l_get_compass_axes(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_compass_axes_data_t *const compass_axes_data) {
+esp_err_t i2c_hmc5883l_get_magnetic_axes(i2c_hmc5883l_handle_t hmc5883l_handle, i2c_hmc5883l_magnetic_axes_data_t *const magnetic_axes_data) {
     /* validate arguments */
-    ESP_ARG_CHECK( hmc5883l_handle && compass_axes_data );
+    ESP_ARG_CHECK( hmc5883l_handle && magnetic_axes_data );
 
     /* set gain sensitivity */
     const float gain_sensitivity = i2c_hmc5883l_gain_values[hmc5883l_handle->config2_reg.bits.gain];
 
     /* attempt to read uncompensated magnetic measurements */
     i2c_hmc5883l_axes_data_t raw;
-    ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_compass_axes(hmc5883l_handle, &raw) );
+    ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_magnetic_axes(hmc5883l_handle, &raw) );
 
     /* handle calibration corrections and compensation factors */
     if(hmc5883l_handle->gain_calibrated == true && hmc5883l_handle->offset_calibrated == true) {
-        compass_axes_data->x_axis  = (float)raw.x_axis * gain_sensitivity * hmc5883l_handle->gain_error_axes.x_axis + hmc5883l_handle->offset_axes.x_axis;
-        compass_axes_data->y_axis  = (float)raw.y_axis * gain_sensitivity * hmc5883l_handle->gain_error_axes.y_axis + hmc5883l_handle->offset_axes.y_axis;
-        compass_axes_data->z_axis  = (float)raw.z_axis * gain_sensitivity * hmc5883l_handle->gain_error_axes.z_axis + hmc5883l_handle->offset_axes.z_axis;
+        magnetic_axes_data->x_axis  = (float)raw.x_axis * gain_sensitivity * hmc5883l_handle->gain_error_axes.x_axis + hmc5883l_handle->offset_axes.x_axis;
+        magnetic_axes_data->y_axis  = (float)raw.y_axis * gain_sensitivity * hmc5883l_handle->gain_error_axes.y_axis + hmc5883l_handle->offset_axes.y_axis;
+        magnetic_axes_data->z_axis  = (float)raw.z_axis * gain_sensitivity * hmc5883l_handle->gain_error_axes.z_axis + hmc5883l_handle->offset_axes.z_axis;
     } else if(hmc5883l_handle->gain_calibrated == true && hmc5883l_handle->offset_calibrated == false) {
-        compass_axes_data->x_axis  = (float)raw.x_axis * gain_sensitivity * hmc5883l_handle->gain_error_axes.x_axis;
-        compass_axes_data->y_axis  = (float)raw.y_axis * gain_sensitivity * hmc5883l_handle->gain_error_axes.y_axis;
-        compass_axes_data->z_axis  = (float)raw.z_axis * gain_sensitivity * hmc5883l_handle->gain_error_axes.z_axis;
+        magnetic_axes_data->x_axis  = (float)raw.x_axis * gain_sensitivity * hmc5883l_handle->gain_error_axes.x_axis;
+        magnetic_axes_data->y_axis  = (float)raw.y_axis * gain_sensitivity * hmc5883l_handle->gain_error_axes.y_axis;
+        magnetic_axes_data->z_axis  = (float)raw.z_axis * gain_sensitivity * hmc5883l_handle->gain_error_axes.z_axis;
     } else if(hmc5883l_handle->gain_calibrated == false && hmc5883l_handle->offset_calibrated == true) {
-        compass_axes_data->x_axis  = (float)raw.x_axis * gain_sensitivity + hmc5883l_handle->offset_axes.x_axis;
-        compass_axes_data->y_axis  = (float)raw.y_axis * gain_sensitivity + hmc5883l_handle->offset_axes.y_axis;
-        compass_axes_data->z_axis  = (float)raw.z_axis * gain_sensitivity + hmc5883l_handle->offset_axes.z_axis;
+        magnetic_axes_data->x_axis  = (float)raw.x_axis * gain_sensitivity + hmc5883l_handle->offset_axes.x_axis;
+        magnetic_axes_data->y_axis  = (float)raw.y_axis * gain_sensitivity + hmc5883l_handle->offset_axes.y_axis;
+        magnetic_axes_data->z_axis  = (float)raw.z_axis * gain_sensitivity + hmc5883l_handle->offset_axes.z_axis;
     } else {
-        compass_axes_data->x_axis  = (float)raw.x_axis * gain_sensitivity;
-        compass_axes_data->y_axis  = (float)raw.y_axis * gain_sensitivity;
-        compass_axes_data->z_axis  = (float)raw.z_axis * gain_sensitivity;
+        magnetic_axes_data->x_axis  = (float)raw.x_axis * gain_sensitivity;
+        magnetic_axes_data->y_axis  = (float)raw.y_axis * gain_sensitivity;
+        magnetic_axes_data->z_axis  = (float)raw.z_axis * gain_sensitivity;
     }
 
-    compass_axes_data->heading = atan2f(0.0f - compass_axes_data->x_axis, compass_axes_data->y_axis) * 180.0f / M_PI;
+    magnetic_axes_data->heading = atan2f(0.0f - magnetic_axes_data->y_axis, magnetic_axes_data->x_axis) * 180.0f / M_PI;
     //compass_axes_data->heading = atan2(compass_axes_data->y_axis, compass_axes_data->x_axis);
     //compass_axes_data->heading += (hmc5883l_handle->declination * 180/M_PI);
      // Correct for when signs are reversed.
@@ -411,7 +411,7 @@ esp_err_t i2c_hmc5883l_get_compass_axes(i2c_hmc5883l_handle_t hmc5883l_handle, i
 esp_err_t i2c_hmc5883l_get_calibrated_offsets(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_calibration_options_t option) {
     i2c_hmc5883l_configuration1_register_t config1_reg;
     i2c_hmc5883l_axes_data_t            raw_axes;
-    i2c_hmc5883l_compass_axes_data_t    scalled_axes;
+    i2c_hmc5883l_magnetic_axes_data_t   scalled_axes;
     i2c_hmc5883l_gain_error_axes_data_t gain_error_axes;
     i2c_hmc5883l_offset_axes_data_t     offset_axes;
     i2c_hmc5883l_offset_axes_data_t     max_offset_axes;
@@ -439,12 +439,12 @@ esp_err_t i2c_hmc5883l_get_calibrated_offsets(i2c_hmc5883l_handle_t hmc5883l_han
         ESP_RETURN_ON_ERROR(i2c_hmc5883l_set_configuration1_register(hmc5883l_handle, config1_reg), TAG, "write configuration 1 register failed");
 
         // disregarding the first data
-        ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_compass_axes(hmc5883l_handle, &raw_axes) );
+        ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_magnetic_axes(hmc5883l_handle, &raw_axes) );
 
         // reading the positive biased data
         //while(raw_axes.x_axis<200 || raw_axes.y_axis<200 || raw_axes.z_axis<200){   // making sure the data is with positive baised
         while(raw_axes.x_axis<50 || raw_axes.y_axis<50 || raw_axes.z_axis<50){
-            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_compass_axes(hmc5883l_handle, &raw_axes) );
+            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_magnetic_axes(hmc5883l_handle, &raw_axes) );
         }
 
         scalled_axes.x_axis  = (float)raw_axes.x_axis * gain_sensitivity;
@@ -463,12 +463,12 @@ esp_err_t i2c_hmc5883l_get_calibrated_offsets(i2c_hmc5883l_handle_t hmc5883l_han
         ESP_RETURN_ON_ERROR(i2c_hmc5883l_set_configuration1_register(hmc5883l_handle, config1_reg), TAG, "write configuration 1 register failed");
 
         // disregarding the first data
-        ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_compass_axes(hmc5883l_handle, &raw_axes) );
+        ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_magnetic_axes(hmc5883l_handle, &raw_axes) );
 
         // reading the negative biased data
         //while(raw_axes.x_axis>-200 || raw_axes.y_axis>-200 || raw_axes.z_axis>-200){   // making sure the data is with negative baised
         while(raw_axes.x_axis>-50 || raw_axes.y_axis>-50 || raw_axes.z_axis>-50){
-            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_compass_axes(hmc5883l_handle, &raw_axes) );
+            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_magnetic_axes(hmc5883l_handle, &raw_axes) );
         }
 
         scalled_axes.x_axis  = (float)raw_axes.x_axis * gain_sensitivity;
@@ -499,7 +499,7 @@ esp_err_t i2c_hmc5883l_get_calibrated_offsets(i2c_hmc5883l_handle_t hmc5883l_han
         ESP_LOGW(TAG, "Please rotate the magnetometer 2 or 3 times in complete circules with in one minute .............");
 
         while (x_count < 3 || y_count < 3 || z_count < 3) {
-            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_compass_axes(hmc5883l_handle, &raw_axes) );
+            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_magnetic_axes(hmc5883l_handle, &raw_axes) );
             scalled_axes.x_axis  = (float)raw_axes.x_axis * gain_sensitivity;
             scalled_axes.y_axis  = (float)raw_axes.y_axis * gain_sensitivity;
             scalled_axes.z_axis  = (float)raw_axes.z_axis * gain_sensitivity;
@@ -588,7 +588,7 @@ esp_err_t i2c_hmc5883l_get_calibrated_offsets(i2c_hmc5883l_handle_t hmc5883l_han
 esp_err_t i2c_hmc5883l_get_calibrated_offsets___(i2c_hmc5883l_handle_t hmc5883l_handle, const i2c_hmc5883l_calibration_options_t option) {
     i2c_hmc5883l_configuration1_register_t config1_reg;
     i2c_hmc5883l_axes_data_t raw_axes;
-    i2c_hmc5883l_compass_axes_data_t scalled_axes;
+    i2c_hmc5883l_magnetic_axes_data_t   scalled_axes;
     i2c_hmc5883l_gain_error_axes_data_t gain_error_axes;
     i2c_hmc5883l_offset_axes_data_t offset_axes;
 
@@ -612,12 +612,12 @@ esp_err_t i2c_hmc5883l_get_calibrated_offsets___(i2c_hmc5883l_handle_t hmc5883l_
         ESP_RETURN_ON_ERROR(i2c_hmc5883l_set_configuration1_register(hmc5883l_handle, config1_reg), TAG, "write configuration 1 register failed");
 
         // disregarding the first data
-        ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_compass_axes(hmc5883l_handle, &raw_axes) );
+        ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_magnetic_axes(hmc5883l_handle, &raw_axes) );
 
         // reading the positive biased data
         //while(raw_axes.x_axis<200 || raw_axes.y_axis<200 || raw_axes.z_axis<200){   // making sure the data is with positive baised
         while(raw_axes.x_axis<50 || raw_axes.y_axis<50 || raw_axes.z_axis<50){
-            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_compass_axes(hmc5883l_handle, &raw_axes) );
+            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_magnetic_axes(hmc5883l_handle, &raw_axes) );
         }
 
         scalled_axes.x_axis  = (float)raw_axes.x_axis * gain_sensitivity;
@@ -636,12 +636,12 @@ esp_err_t i2c_hmc5883l_get_calibrated_offsets___(i2c_hmc5883l_handle_t hmc5883l_
         ESP_RETURN_ON_ERROR(i2c_hmc5883l_set_configuration1_register(hmc5883l_handle, config1_reg), TAG, "write configuration 1 register failed");
 
         // disregarding the first data
-        ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_compass_axes(hmc5883l_handle, &raw_axes) );
+        ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_magnetic_axes(hmc5883l_handle, &raw_axes) );
 
         // reading the negative biased data
         //while(raw_axes.x_axis>-200 || raw_axes.y_axis>-200 || raw_axes.z_axis>-200){   // making sure the data is with negative baised
         while(raw_axes.x_axis>-50 || raw_axes.y_axis>-50 || raw_axes.z_axis>-50){
-            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_compass_axes(hmc5883l_handle, &raw_axes) );
+            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_magnetic_axes(hmc5883l_handle, &raw_axes) );
         }
 
         scalled_axes.x_axis  = (float)raw_axes.x_axis * gain_sensitivity;
@@ -672,7 +672,7 @@ esp_err_t i2c_hmc5883l_get_calibrated_offsets___(i2c_hmc5883l_handle_t hmc5883l_
         ESP_LOGW(TAG, "Please rotate the magnetometer 2 or 3 times in complete circules with in one minute .............");
 
         for(uint8_t i = 0; i < 10; i++){   // disregarding first few data
-            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_compass_axes(hmc5883l_handle, &raw_axes) );
+            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_magnetic_axes(hmc5883l_handle, &raw_axes) );
         }
     
         float x_max=-4000, y_max=-4000, z_max=-4000; 
@@ -682,7 +682,7 @@ esp_err_t i2c_hmc5883l_get_calibrated_offsets___(i2c_hmc5883l_handle_t hmc5883l_
         uint64_t t = esp_timer_get_time();
         //while(millis()-t <= 30000){
         while(esp_timer_get_time()-t <= 30000){
-            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_compass_axes(hmc5883l_handle, &raw_axes) );
+            ESP_ERROR_CHECK( i2c_hmc5883l_get_fixed_magnetic_axes(hmc5883l_handle, &raw_axes) );
 
             scalled_axes.x_axis  = (float)raw_axes.x_axis * gain_sensitivity * gain_error_axes.x_axis;
             scalled_axes.y_axis  = (float)raw_axes.y_axis * gain_sensitivity * gain_error_axes.y_axis;

@@ -37,8 +37,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <esp_event.h>
 #include <esp_err.h>
+#include <driver/gpio.h>
 #include <i2c_master_ext.h>
 
 #ifdef __cplusplus
@@ -53,19 +53,9 @@ extern "C" {
 #define I2C_CCS811_DEV_ADDR_LO                  UINT8_C(0x5a)   //!< ccs811 I2C address when ADDR pin floating/low
 #define I2C_CCS811_DEV_ADDR_HI                  UINT8_C(0x5b)   //!< ccs811 I2C address when ADDR pin high
 
-
-#define I2C_CCS811_ERROR_MSG_SIZE               (150)           //!< ccs811 I2C error message size
-#define I2C_CCS811_ERROR_CODE_SIZE              (20)            //!< ccs811 I2C error code size
 #define I2C_CCS811_ERROR_TABLE_SIZE             (6)             //!< ccs811 I2C error table size
-
-#define I2C_CCS811_MEASURE_MODE_DESC_SIZE       (100)           //!< ccs811 I2C measure mode description size
 #define I2C_CCS811_MEASURE_MODE_TABLE_SIZE      (5)             //!< ccs811 I2C measure mode table size
 
-
-/**
- * @brief declare of CCS811 monitor event base.
- */
-ESP_EVENT_DECLARE_BASE(ESP_CCS811_EVENT);
 
 /*
  * CCS811 macro definitions
@@ -74,8 +64,8 @@ ESP_EVENT_DECLARE_BASE(ESP_CCS811_EVENT);
 #define I2C_CCS811_CONFIG_DEFAULT   {                                           \
         .dev_config.device_address  = I2C_CCS811_DEV_ADDR_LO,                   \
         .dev_config.scl_speed_hz    = I2C_CCS811_SCL_SPEED_HZ,                  \
-        .wake_pin_enabled           = false,                                    \
-        .reset_pin_enabled          = false,                                    \
+        .wake_io_enabled            = false,                                    \
+        .reset_io_enabled           = false,                                    \
         .irq_threshold_enabled      = false,                                    \
         .irq_data_ready_enabled     = false,                                    \
         .drive_mode                 = I2C_CCS811_DRIVE_MODE_CONSTANT_POWER_IAQ, \
@@ -225,12 +215,12 @@ typedef struct I2C_CCS811_MEASURE_MODE_ROW_TAG {
  */
 typedef struct {
     i2c_device_config_t      dev_config;                 /*!< configuration for ccs811 device */
-    bool                     irq_data_ready_pin_enabled; /*!< ccs811 flag to enable hardware interrupt */
-    uint32_t                 irq_data_ready_pin_num;     /*!< mcu interrupt pin number for ccs811 device */
-    bool                     wake_pin_enabled;           /*!< ccs811 flag to enable hardware wake */
-    uint32_t                 wake_pin_num;               /*!< mcu wake pin number for ccs811 device */
-    bool                     reset_pin_enabled;          /*!< ccs811 flag to enable hardware reset */
-    uint32_t                 reset_pin_num;              /*!< mcu reset pin number for ccs811 device */
+    bool                     irq_data_ready_io_enabled; /*!< ccs811 flag to enable hardware interrupt */
+    gpio_num_t               irq_data_ready_io_num;     /*!< mcu interrupt gpio number for ccs811 device */
+    bool                     wake_io_enabled;           /*!< ccs811 flag to enable hardware wake */
+    gpio_num_t               wake_io_num;               /*!< mcu wake gpio number for ccs811 device */
+    bool                     reset_io_enabled;          /*!< ccs811 flag to enable hardware reset */
+    gpio_num_t               reset_io_num;              /*!< mcu reset gpio number for ccs811 device */
     bool                     irq_threshold_enabled;      /*!< interrupt threshold asserted when enabled */
     bool                     irq_data_ready_enabled;     /*!< interrupt data ready asserted when enabled  */
     i2c_ccs811_drive_modes_t drive_mode;                 /*!< drive mode */
@@ -254,10 +244,12 @@ struct i2c_ccs811_t {
     i2c_ccs811_environmental_data_register_t enviromental_data_reg; /*!< ccs811 environmental data register */
     i2c_ccs811_thresholds_register_t        thresholds_reg;         /*!< ccs811 thresholds register */
     uint16_t                                baseline_reg;           /*!< ccs811 baseline register */
-    bool                                    wake_pin_enabled;        /*!< ccs811 flag to enable hardware wake */
-    uint32_t                                wake_pin_num;            /*!< mcu wake pin number for ccs811 device */
-    bool                                    reset_pin_enabled;       /*!< ccs811 flag to enable hardware reset */
-    uint32_t                                reset_pin_num;           /*!< mcu reset pin number for ccs811 device */
+    bool                                    irq_data_ready_io_enabled; /*!< ccs811 flag to enable hardware interrupt */
+    gpio_num_t                              irq_data_ready_io_num;     /*!< mcu interrupt gpio number for ccs811 device */
+    bool                                    wake_io_enabled;        /*!< ccs811 flag to enable hardware wake */
+    gpio_num_t                              wake_io_num;            /*!< mcu wake gpio number for ccs811 device */
+    bool                                    reset_io_enabled;       /*!< ccs811 flag to enable hardware reset */
+    gpio_num_t                              reset_io_num;           /*!< mcu reset gpio number for ccs811 device */
 };
 
 /**
@@ -265,6 +257,9 @@ struct i2c_ccs811_t {
 */
 typedef struct i2c_ccs811_t i2c_ccs811_t;
 
+/**
+ * @brief CCS811 I2C device handle definition.
+ */
 typedef struct i2c_ccs811_t *i2c_ccs811_handle_t;
 
 
@@ -430,6 +425,16 @@ esp_err_t i2c_ccs811_set_drive_mode(i2c_ccs811_handle_t ccs811_handle, const i2c
  * @return esp_err_t ESP_OK on success.
  */
 esp_err_t i2c_ccs811_get_firmware_mode(i2c_ccs811_handle_t ccs811_handle, i2c_ccs811_firmware_modes_t *const mode);
+
+/**
+ * @brief Reads NTC resistance connected to CCS811 per AMS application note AN000372.
+ * 
+ * @param ccs811_handle CCS811 device handle.
+ * @param r_ref CCS811 resistance reference value. 
+ * @param resistance CCS811 NTC resistance value.
+ * @return esp_err_t ESP_OK on success.
+ */
+esp_err_t i2c_ccs811_get_ntc_resistance(i2c_ccs811_handle_t ccs811_handle, const uint32_t r_ref, uint32_t *const resistance);
 
 /**
  * @brief Reads data ready status from CCS811.

@@ -39,8 +39,8 @@
 #include <esp_log.h>
 #include <esp_check.h>
 #include <esp_timer.h>
-#include <driver/gpio.h>
-#include <i2c_master_ext.h>
+//#include <driver/gpio.h>
+//#include <i2c_master_ext.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -55,6 +55,7 @@
 #define I2C_CCS811_REG_ALG_RESULT_DATA_R    UINT8_C(0x02)   //!< ccs811 I2C algorithm results (up to 8-bytes)
 #define I2C_CCS811_REG_RAW_DATA_R           UINT8_C(0x03)   //!< ccs811 I2C raw ADC data values (2-bytes)
 #define I2C_CCS811_REG_ENV_DATA_W           UINT8_C(0x05)   //!< ccs811 I2C temperature and humidity compensation (4-bytes)
+#define I2C_CCS811_REG_NTC_R                UINT8_C(0x06)   //!< ccs811 I2C temperature and humidity compensation (4-bytes)
 #define I2C_CCS811_REG_THRESHOLDS_W         UINT8_C(0x10)   //!< ccs811 I2C interrupt threshold when in operation (4-bytes)
 #define I2C_CCS811_REG_BASELINE_RW          UINT8_C(0x11)   //!< ccs811 I2C encoded current baseline (2-bytes)
 #define I2C_CCS811_REG_HW_ID_R              UINT8_C(0x20)   //!< ccs811 I2C hardware identification register (1-byte), value is 0x81
@@ -374,15 +375,19 @@ esp_err_t i2c_ccs811_init(i2c_master_bus_handle_t bus_handle, const i2c_ccs811_c
     }
 
     /* copy device configuration to handle parameters */
-    out_handle->reset_pin_enabled    = ccs811_config->reset_pin_enabled;
-    out_handle->reset_pin_num        = ccs811_config->reset_pin_num;
-    out_handle->wake_pin_enabled     = ccs811_config->wake_pin_enabled;
-    out_handle->wake_pin_num         = ccs811_config->wake_pin_num;
+    out_handle->reset_io_enabled    = ccs811_config->reset_io_enabled;
+    out_handle->reset_io_num        = ccs811_config->reset_io_num;
+    out_handle->wake_io_enabled     = ccs811_config->wake_io_enabled;
+    out_handle->wake_io_num         = ccs811_config->wake_io_num;
 
     /* validate and init gpio for reset and/or wake pins */
-    if(ccs811_config->reset_pin_enabled == true && ccs811_config->wake_pin_enabled == true) {
+    if(ccs811_config->reset_io_enabled == true && ccs811_config->wake_io_enabled == true) {
+        // validate reset io num
+        ESP_GOTO_ON_FALSE(GPIO_IS_VALID_GPIO(ccs811_config->reset_io_num), ESP_ERR_INVALID_ARG, err_handle, TAG, "reset gpio number is invalid, ccs811 device handle initialization failed");
+        // validate wake io num
+        ESP_GOTO_ON_FALSE(GPIO_IS_VALID_GPIO(ccs811_config->wake_io_num), ESP_ERR_INVALID_ARG, err_handle, TAG, "wake gpio number is invalid, ccs811 device handle initialization failed");
         // set gpio pin bit mask
-        gpio_pin_sel = ((1ULL<<ccs811_config->reset_pin_num) | (1ULL<<ccs811_config->wake_pin_num));
+        gpio_pin_sel = ((1ULL<<ccs811_config->reset_io_num) | (1ULL<<ccs811_config->wake_io_num));
         // interrupt disabled
         io_conf.intr_type = GPIO_INTR_DISABLE; 
         // bit mask of the pins
@@ -395,9 +400,11 @@ esp_err_t i2c_ccs811_init(i2c_master_bus_handle_t bus_handle, const i2c_ccs811_c
         io_conf.pull_up_en = 1; 
         // configure gpio with the given settings
         ESP_GOTO_ON_ERROR( gpio_config(&io_conf), err_handle, TAG, "set gpio configuration for reset and wake failed" );
-    } else if(ccs811_config->reset_pin_enabled == true && ccs811_config->wake_pin_enabled == false) {
+    } else if(ccs811_config->reset_io_enabled == true && ccs811_config->wake_io_enabled == false) {
+        // validate reset io num
+        ESP_GOTO_ON_FALSE(GPIO_IS_VALID_GPIO(ccs811_config->reset_io_num), ESP_ERR_INVALID_ARG, err_handle, TAG, "reset gpio number is invalid, ccs811 device handle initialization failed");
         // set gpio pin bit mask
-        gpio_pin_sel = (1ULL<<ccs811_config->reset_pin_num);
+        gpio_pin_sel = (1ULL<<ccs811_config->reset_io_num);
         // interrupt disabled
         io_conf.intr_type = GPIO_INTR_DISABLE; 
         // bit mask of the pins
@@ -410,9 +417,11 @@ esp_err_t i2c_ccs811_init(i2c_master_bus_handle_t bus_handle, const i2c_ccs811_c
         io_conf.pull_up_en = 1; 
         // configure gpio with the given settings
         ESP_GOTO_ON_ERROR( gpio_config(&io_conf), err_handle, TAG, "set gpio configuration for reset failed" );
-    } else if(ccs811_config->reset_pin_enabled == false && ccs811_config->wake_pin_enabled == true) {
+    } else if(ccs811_config->reset_io_enabled == false && ccs811_config->wake_io_enabled == true) {
+        // validate wake io num
+        ESP_GOTO_ON_FALSE(GPIO_IS_VALID_GPIO(ccs811_config->wake_io_num), ESP_ERR_INVALID_ARG, err_handle, TAG, "wake gpio number is invalid, ccs811 device handle initialization failed");
         // set gpio pin bit mask
-        gpio_pin_sel = (1ULL<<ccs811_config->wake_pin_num);
+        gpio_pin_sel = (1ULL<<ccs811_config->wake_io_num);
         // interrupt disabled
         io_conf.intr_type = GPIO_INTR_DISABLE;
         // bit mask of the pins
@@ -428,15 +437,15 @@ esp_err_t i2c_ccs811_init(i2c_master_bus_handle_t bus_handle, const i2c_ccs811_c
     }
 
     /* validate reset gpio to set io state */
-    if(ccs811_config->reset_pin_enabled == true) {
+    if(ccs811_config->reset_io_enabled == true) {
         /* active low for reset gpio */
-        ESP_GOTO_ON_ERROR( gpio_set_level(ccs811_config->reset_pin_num, 1), err_handle, TAG, "set reset gpio level high failed (gpio: %lu)", ccs811_config->reset_pin_num );
+        ESP_GOTO_ON_ERROR( gpio_set_level(ccs811_config->reset_io_num, 1), err_handle, TAG, "set reset gpio level high failed (gpio: %i)", ccs811_config->reset_io_num );
     }
 
     /* validate wake gpio to wake the device for i2c transactions */
-    if(ccs811_config->wake_pin_enabled == true) {
+    if(ccs811_config->wake_io_enabled == true) {
         /* active low for wake gpio */
-        ESP_GOTO_ON_ERROR( gpio_set_level(ccs811_config->wake_pin_num, 0), err_handle, TAG, "set wake gpio level low failed (gpio: %lu)", ccs811_config->wake_pin_num );
+        ESP_GOTO_ON_ERROR( gpio_set_level(ccs811_config->wake_io_num, 0), err_handle, TAG, "set wake gpio level low failed (gpio: %i)", ccs811_config->wake_io_num );
     }
 
     /* delay task before next i2c transaction */
@@ -627,6 +636,23 @@ esp_err_t i2c_ccs811_get_firmware_mode(i2c_ccs811_handle_t ccs811_handle, i2c_cc
     return ESP_OK;
 }
 
+esp_err_t i2c_ccs811_get_ntc_resistance(i2c_ccs811_handle_t ccs811_handle, const uint32_t r_ref, uint32_t *const resistance) {
+    i2c_uint32_t rx = { 0, 0, 0, 0 };
+
+    /* validate arguments */
+    ESP_ARG_CHECK( ccs811_handle );
+
+    /* attempt i2c read transaction */
+    ESP_RETURN_ON_ERROR( i2c_master_bus_read_byte32(ccs811_handle->i2c_dev_handle, I2C_CCS811_REG_NTC_R, &rx), TAG, "read ntc register failed" );
+
+    uint16_t v_ref = (uint16_t)(rx[0] << 8) | rx[1];
+    uint16_t v_ntc = (uint16_t)(rx[2] << 8) | rx[3];
+
+    *resistance = v_ntc * r_ref / v_ref;
+
+    return ESP_OK;
+}
+
 esp_err_t i2c_ccs811_get_data_status(i2c_ccs811_handle_t ccs811_handle, bool *const ready) {
     /* validate arguments */
     ESP_ARG_CHECK( ccs811_handle );
@@ -682,10 +708,10 @@ esp_err_t i2c_ccs811_io_wake(i2c_ccs811_handle_t ccs811_handle) {
     ESP_ARG_CHECK( ccs811_handle );
 
     /* validate wake io state */
-    ESP_RETURN_ON_FALSE(ccs811_handle->wake_pin_enabled, ESP_ERR_INVALID_ARG, TAG, "wake gpio must be enabled");
+    ESP_RETURN_ON_FALSE(ccs811_handle->wake_io_enabled, ESP_ERR_INVALID_ARG, TAG, "wake gpio must be enabled");
 
     /* active low for wake - set wake gpio low */
-    ESP_RETURN_ON_ERROR( gpio_set_level(ccs811_handle->wake_pin_num, 0), TAG, "set wake gpio level low failed (gpio: %lu)", ccs811_handle->wake_pin_num );
+    ESP_RETURN_ON_ERROR( gpio_set_level(ccs811_handle->wake_io_num, 0), TAG, "set wake gpio level low failed (gpio: %i)", ccs811_handle->wake_io_num );
 
     /* delay task before next i2c transaction */
     vTaskDelay(pdMS_TO_TICKS(I2C_CCS811_WAKE_DELAY_MS));
@@ -698,10 +724,10 @@ esp_err_t i2c_ccs811_io_sleep(i2c_ccs811_handle_t ccs811_handle) {
     ESP_ARG_CHECK( ccs811_handle );
 
     /* validate wake io state */
-    ESP_RETURN_ON_FALSE(ccs811_handle->wake_pin_enabled, ESP_ERR_INVALID_ARG, TAG, "wake gpio must be enabled");
+    ESP_RETURN_ON_FALSE(ccs811_handle->wake_io_enabled, ESP_ERR_INVALID_ARG, TAG, "wake gpio must be enabled");
 
     /* active high for sleep - set wake gpio high */
-    ESP_RETURN_ON_ERROR( gpio_set_level(ccs811_handle->wake_pin_num, 1), TAG, "set wake gpio level high failed (gpio: %lu)", ccs811_handle->wake_pin_num );
+    ESP_RETURN_ON_ERROR( gpio_set_level(ccs811_handle->wake_io_num, 1), TAG, "set wake gpio level high failed (gpio: %i)", ccs811_handle->wake_io_num );
 
     return ESP_OK;
 }
@@ -711,16 +737,16 @@ esp_err_t i2c_ccs811_io_reset(i2c_ccs811_handle_t ccs811_handle) {
     ESP_ARG_CHECK( ccs811_handle );
 
     /* validate reset io state */
-    ESP_RETURN_ON_FALSE(ccs811_handle->reset_pin_enabled, ESP_ERR_INVALID_ARG, TAG, "reset gpio must be enabled");
+    ESP_RETURN_ON_FALSE(ccs811_handle->reset_io_enabled, ESP_ERR_INVALID_ARG, TAG, "reset gpio must be enabled");
 
     /* active low for reset - set reset gpio low */
-    ESP_RETURN_ON_ERROR( gpio_set_level(ccs811_handle->reset_pin_num, 0), TAG, "set reset gpio level low failed (gpio: %lu)", ccs811_handle->reset_pin_num );
+    ESP_RETURN_ON_ERROR( gpio_set_level(ccs811_handle->reset_io_num, 0), TAG, "set reset gpio level low failed (gpio: %i)", ccs811_handle->reset_io_num );
 
     /* delay reset pgio in low state - for reset to take effect */
     vTaskDelay(pdMS_TO_TICKS(I2C_CCS811_RESET_DELAY_MS));
 
     /* set reset gpio high - normal state */
-    ESP_RETURN_ON_ERROR( gpio_set_level(ccs811_handle->reset_pin_num, 1), TAG, "set reset gpio level high failed (gpio: %lu)", ccs811_handle->reset_pin_num );
+    ESP_RETURN_ON_ERROR( gpio_set_level(ccs811_handle->reset_io_num, 1), TAG, "set reset gpio level high failed (gpio: %i)", ccs811_handle->reset_io_num );
 
     return ESP_OK;
 }

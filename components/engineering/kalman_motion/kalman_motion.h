@@ -31,6 +31,7 @@
  * Ported from esp-open-rtos
  * 
  * http://blog.tkjelectronics.dk/2012/09/a-practical-approach-to-kalman-filter-and-how-to-implement-it/
+ * https://github.com/TKJElectronics/KalmanFilter/blob/master/Kalman.cpp
  *
  * Copyright (c) 2024 Eric Gionet (gionet.c.eric@gmail.com)
  *
